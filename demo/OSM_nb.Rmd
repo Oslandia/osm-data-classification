@@ -1,0 +1,333 @@
+---
+title: "OSM history data : first analysis with R"
+output: html_notebook
+---
+___
+
+# Introduction: data loading and preparation
+This R notebook is dedicated to the presentation of a small OSM data extraction, considering the French city of Bordeaux. To have a little bit more information about R markdown notebooks, do not hesitate to follow [this link](http://rmarkdown.rstudio.com).
+
+Here we start from the OSM data history, and more precisely with 3 .csv files extracted from a .pbf file, with the help of the [osmium Python library](https://github.com/osmcode/pyosmium). These 3 files contain histories respectively dedicated to nodes, ways and relations.
+
+First we load them into the workspace:
+```{R}
+print(getwd()) # print the working directory path
+tlnodes = read.csv("../data/latest-bordeaux-metropole-node-timeline.csv",stringsAsFactors = F)
+tlways = read.csv("../data/latest-bordeaux-metropole-way-timeline.csv",stringsAsFactors = F)
+tlrelations = read.csv("../data/latest-bordeaux-metropole-relation-timeline.csv",stringsAsFactors = F)
+```
+
+For a sake of convenience, we transform the timestamp information into a dedicated R format for dates:
+```{R}
+tlnodes$ts = as.POSIXct(tlnodes$ts)
+tlways$ts = as.POSIXct(tlways$ts)
+tlrelations$ts = as.POSIXct(tlrelations$ts)
+```
+
+By the way we are able to recover the updated information on nodes, ways and relations starting from these history files with the following function:
+```{R}
+updatedelem = function(data){
+  # Recover last version of elements (nodes, ways or relations)
+  upddata = aggregate(version~id , data=data , FUN=max)
+  upddata = merge(data,upddata)
+  upddata = upddata[order(upddata$id),]
+}
+nodes = updatedelem(tlnodes)
+ways = updatedelem(tlways)
+relations = updatedelem(tlrelations)
+```
+
+# Main treatments
+## First: build a generic data.frame containing every modifications on elements
+Noting that each OSM element has a set of common parameter *(id, version, contributor, change set, timestamp, tags)*, we can group all these records, before further data processing.
+```{R}
+useractivity = cbind(elem=rep("n",nrow(tlnodes)),tlnodes[,c("id","version","uid","chgset","ts","ntags")])
+useractivity = rbind( useractivity , cbind(elem=rep("w",nrow(tlways)),tlways[,c("id","version","uid","chgset","ts","ntags")]) )
+useractivity = rbind( useractivity , cbind(elem=rep("r",nrow(tlrelations)),tlrelations[,c("id","version","uid","chgset","ts","ntags")]) )
+useractivity = useractivity[order(useractivity$ts),]
+```
+
+The *useractivity* structure gather the good part of OSM metadata.
+
+## Element description
+The first crucial structure that we can build is dedicated to the OSM elements. Here we will mix nodes, ways and relations, to investigate on their associated metadata. Let's consider the number of unique contributors per element, the number of versions (how many time is an element updated?) and some information regarding the *life cycle* of elements.
+
+### Analyse 1: how many unique user per elements
+By aggregating the user IDs for each element (a type -node, way or relation- and an ID), we can compute the number of unique contributors.
+```{R}
+userbyelem = aggregate(uid~elem+id,data=useractivity,FUN=function(x){length(unique(x))})
+```
+
+```{R echo=F}
+plot(quantile(userbyelem[userbyelem$elem=="n","uid"],probs=seq(0,1,0.001)),seq(0,1,0.001),type="l",col="red",lwd=2,xlim=c(0,20),xlab="Unique contributor quantity per element",ylab="Empirical CDF")
+lines(quantile(userbyelem[userbyelem$elem=="w","uid"],probs=seq(0,1,0.001)),seq(0,1,0.001),col="blue",lwd=2)
+lines(quantile(userbyelem[userbyelem$elem=="r","uid"],probs=seq(0,1,0.001)),seq(0,1,0.001),col="green",lwd=2)
+abline(h=c(0,1),v=0)
+legend("bottomright",legend=c("nodes","ways","relations"),col=c("red","blue","green"),lwd=2)
+```
+It is easy to see that a great majority of elements are built by one or two persons only (respectively around 98, 92 and 85% for nodes, ways and relations). We can also see that every elements have needed the contributions of less than 15 persons.
+
+### Analyse 2: how many version per elements
+The elements are also characterized by a version number, that represents the number of updates. With a similar aggregation procedure, we can easily extract this feature. We choose the function *length* in the following code, however *max* would have been equivalent, as the version is trivially incremented at each update.
+```{R}
+versionbyelem = aggregate(version~elem+id,data=useractivity,length)
+```
+
+```{R echo=F}
+plot(quantile(versionbyelem[versionbyelem$elem=="n","version"],probs=seq(0,1,0.001)),seq(0,1,0.001),type="l",col="red",lwd=2,xlim=c(0,80),xlab="Versions per element",ylab="Empirical CDF")
+lines(quantile(versionbyelem[versionbyelem$elem=="w","version"],probs=seq(0,1,0.001)),seq(0,1,0.001),col="blue",lwd=2)
+lines(quantile(versionbyelem[versionbyelem$elem=="r","version"],probs=seq(0,1,0.001)),seq(0,1,0.001),col="green",lwd=2)
+abline(h=c(0,1),v=0)
+legend("bottomright",legend=c("nodes","ways","relations"),col=c("red","blue","green"),lwd=2)
+```
+Here we can see that the proportion of elements with 2 versions are quite similar to the corresponding percentage for unique contributors, even if the values are smaller. However the shift between each type of element seems more important, and the quantity of version that covers 100% of element is greater (around 60) : relations, that are much more complex structures, are longer to design.
+
+By merging the results of both analysis, we have a base for our element dataset. We can remove the intermediary variable to keep the workspace as clean as possible.
+```{R}
+elemsynthesis = merge(userbyelem,versionbyelem)
+remove(userbyelem,versionbyelem)
+```
+
+We can plot these information together to try to understand if there is any evident pattern in element building.
+```{R echo=F}
+plot(elemsynthesis$uid,elemsynthesis$version,col=elemsynthesis$elem,pch=3,cex=0.5,xlab="Number of unique contributors",ylab="Number of versions",main="Element building",ylim=c(0,600))
+lines(1:2000,1:2000,lty="dotted",col="grey")
+abline(v=0,h=0)
+legend("topleft",legend=c("nodes","ways","relations"),col=1:3,pch=3)
+```
+According to this plot, most elements are characterized with less than 15 unique contributors and less than 60 versions. That confirm the previous information. There is no real difference between each type of element, however we can notice that there are some outliers amongst relations: some of them have needed tens of contributors and have been updated hundreds of time.
+
+### Analyse 3 : temporal description of element life cycle
+After user and version analysis, we can spend a little bit time on element temporal evolution. With the same aggregation process, we can easily find the first and the last updates, by using *min* and *max* functions on modification timestamps. We merge these information to *elemsynthesis* dataframe to complete it.
+```{R}
+elembegin = setNames(aggregate(ts~elem+id , useractivity , min),c("elem","id","creation"))
+elemend = setNames(aggregate(ts~elem+id , useractivity , max),c("elem","id","lastmodif"))
+elemsynthesis = merge( elemsynthesis , elembegin )
+elemsynthesis = merge( elemsynthesis , elemend )
+remove(elembegin,elemend)
+```
+
+We can evaluate the difference between both dates by creating a new feature *lifecycle*, which gives, in days, the period during which the element updates have been done.
+```{R}
+elemsynthesis$lifecycle = apply(elemsynthesis , 1 , function(x){round(difftime(x[["lastmodif"]] , x[["creation"]] , units="days")[[1]],2)})
+```
+
+To focus more on this life cycle concept, we can distinguish between deleted elements (nodes with unknown coordinates, ways without any nodes, relations with any members) and elements that are still available.
+```{R}
+elemsynthesis$available = rep(T,nrow(elemsynthesis))
+delnodes = nodes[nodes$lon==Inf,"id"]
+delways = ways[ways$nnodes==0,"id"]
+delrelations = relations[relations$nmembers==0,"id"]
+elemsynthesis[elemsynthesis$elem=="n"&elemsynthesis$id%in%delnodes,"available"] = F
+elemsynthesis[elemsynthesis$elem=="w"&elemsynthesis$id%in%delways,"available"] = F
+elemsynthesis[elemsynthesis$elem=="r"&elemsynthesis$id%in%delrelations,"available"] = F
+remove(delnodes,delways,delrelations)
+```
+
+This availability feature helps us to change the definition of *lifecycle* variable: by definition, an available element do not have ended its life cycle, we have to update it consequently. We use the date of extraction in this purpose.
+```{R}
+timehorizon = as.POSIXct("2017-02-13 0:00:00") # date of OSM data extraction
+elemsynthesis[elemsynthesis$available,"lifecycle"] = apply(elemsynthesis[elemsynthesis$available,] , 1 , function(x){round(difftime(timehorizon , x[["creation"]] , units="days")[[1]],2)})
+```
+
+### conclusion: description of OSM elements
+After these operations, we get the final element structure, with 8 features, and more than 2.8 billion individuals.
+```{R echo=F}
+library("knitr")
+```
+
+```{R result="asis"}
+names(elemsynthesis) = c("type","id","nuniqcontrib","nversion","creation","lastmodif","lifecycle.days","available")
+summary(elemsynthesis)
+kable(head(elemsynthesis))
+```
+
+## Change set metadata
+On the model of element-oriented treatments, we want to continue the metadata study by focusing on OSM change sets. This structure gathers a bunch of modifications realized by a contributor in a limited time. We may investigate on the number of changes in each change set, as well as on their duration.
+
+#### Analyse 4: how many modifications per change set
+By definition, the [OSM change sets]{https://wiki.openstreetmap.org/wiki/Changeset} can include until 10000 modifications. However in standard OSM contributions, this limit is rarely reached.
+
+To compute the number of modifications done in each change sets, we reuse the *aggregate* procedure with the *length* function.
+```{R}
+modifbychgset = aggregate(cbind(elem,id)~chgset , data=useractivity, FUN=length)
+modifbychgset = merge(modifbychgset[,-3] , unique(useractivity[,c("chgset","uid")]))[,c(1,3,2)]
+```
+
+We can consequently plot the empirical cumulative distribution function describing how many modifications may be expected in a typical change set:
+```{R}
+plot(quantile(modifbychgset$elem,probs=seq(0,1,0.001)),seq(0,1,0.001),type="l",col="red",lwd=2,xlim=c(0,200),xlab="Modification quantity per change set",ylab="Empirical CDF")
+abline(h=c(0,1),v=0)
+abline(h=0.9,lty="dotted",col="grey")
+abline(v=quantile(modifbychgset$elem,probs=0.9),lty="dotted",col="grey")
+```
+With this plot we can see that almost every change sets contain less than 200 modifications, and that only 60 modifications (maximum) are done in 90% of change sets.
+
+We can go deeper into this analysis by differentiating element types.
+```{R}
+nodemodifbychgset = setNames(aggregate(id~chgset , data=useractivity[useractivity$elem=="n",], FUN=length),c("chgset","nnodemodif"))
+waymodifbychgset = setNames(aggregate(id~chgset , data=useractivity[useractivity$elem=="w",], FUN=length),c("chgset","nwaymodif"))
+relationmodifbychgset = setNames(aggregate(id~chgset , data=useractivity[useractivity$elem=="r",], FUN=length),c("chgset","nrelationmodif"))
+```
+
+The difference between elements can be showed graphically, still with a CDF-focused analysis.
+```{R}
+plot(quantile(nodemodifbychgset$nnodemodif,probs=seq(0,1,0.001)),seq(0,1,0.001),type="l",col="red",lwd=2,xlim=c(0,100),xlab="Modification per change set",ylab="Empirical CDF")
+lines(quantile(waymodifbychgset$nwaymodif,probs=seq(0,1,0.001)),seq(0,1,0.001),col="blue",lwd=2)
+lines(quantile(relationmodifbychgset$nrelationmodif,probs=seq(0,1,0.001)),seq(0,1,0.001),col="green",lwd=2)
+abline(h=c(0,1),v=0)
+abline(h=0.9,lty="dotted",col="grey")
+abline(v=quantile(nodemodifbychgset$nnodemodif,probs=0.9),lty="dotted",col="grey")
+abline(v=quantile(waymodifbychgset$nwaymodif,probs=0.9),lty="dotted",col="grey")
+abline(v=quantile(relationmodifbychgset$nrelationmodif,probs=0.9),lty="dotted",col="grey")
+legend("bottomright",legend=c("nodes","ways","relations"),col=c("red","blue","green"),lwd=2)
+```
+As previously, we can consider the limit of 90% of change sets. In this population, until 75 nodes, 21 ways and 5 relations are modified.
+
+With this first analysis, we can build the change set dataframe, and remove the useless structures.
+```{R}
+chgsetsynthesis = merge(modifbychgset,nodemodifbychgset,all=T)
+chgsetsynthesis = merge(chgsetsynthesis,waymodifbychgset,all=T)
+chgsetsynthesis = merge(chgsetsynthesis,relationmodifbychgset,all=T)
+remove(nodemodifbychgset,waymodifbychgset,relationmodifbychgset)
+```
+
+### Analyse 5: temporal description of change sets
+By addition with the last study, a focus has to be done on the change set temporal characterization. Like elements, we have two seminal features to extract: the change set beginning and its end. For the moment we do not have the real information, so we consider the first modification (respectively the last) as the change set beginning (respectively the end). Consequently the change set duration is computed as the difference (in minutes) between these two milestones. The maximal duration is 24 hours, by definition (see [wiki]{https://wiki.openstreetmap.org/wiki/Changeset}).
+```{R}
+chgsetbegin = setNames(aggregate(ts~chgset , useractivity , min),c("chgset","begin"))
+chgsetend = setNames(aggregate(ts~chgset , useractivity , max),c("chgset","end"))
+chgsetsynthesis = merge( chgsetsynthesis , chgsetbegin , all=T )
+chgsetsynthesis = merge( chgsetsynthesis , chgsetend , all=T )
+chgsetsynthesis$duration = apply(chgsetsynthesis , 1 , function(x){round(difftime(x[["end"]] , x[["begin"]] , units="min")[[1]],2)})
+```
+
+We can plot this last information, for example by crossing it with respect to the number of node modification.
+```{R echo=F}
+plot(chgsetsynthesis$nnodemodif , chgsetsynthesis$duration , col="red",pch=3,cex=0.5,log="x",xlab="Modif per change set (log scale)",ylab="Change set duration (min)")
+points(chgsetsynthesis$nwaymodif , chgsetsynthesis$duration , col="blue",pch=3,cex=0.5)
+points(chgsetsynthesis$nrelationmodif , chgsetsynthesis$duration , col="green",pch=3,cex=0.5)
+abline(v=0,h=0)
+legend("topleft",legend=c("nodes","ways","relations"),col=c("red","blue","green"),pch=3)
+```
+The duration of a change set does not seem to be related with the number of modifications. **[Problem: less than 10000 modifications by definition, but node and way modification quantities are higher...]**
+
+### conclusion: description of OSM change sets
+After these operations, we get the final change set structure, with 9 features,. We can notice that there are 31280 individuals in this dataframe.
+```{R result="asis"}
+names(chgsetsynthesis) = c("chgset","uid","nmodif","nnodemodif","nwaymodif","nrelationmodif","begin","end","duration.min")
+summary(chgsetsynthesis)
+kable(head(chgsetsynthesis))
+```
+
+## User metadata
+After elements and change sets, we can check the user metadata. Several questions arise if we want to produce a first insight of this dimension. How many contributions do the users produce ? How many change sets do they open ? How many modifications do they make on unique elements ? And like previously, have we got experienced users with contributions during several years, or are there more one-shot users ?
+
+### Analyse 6: number of contributions
+First we can investigate on the number of contributions that each user has produced. These contributions are simply the number of modifications done on elements. All modifications are grouped by change sets.
+
+Consequently we apply the aggregation function just as previously to gather the number of change sets opened by each users.
+```{R}
+chgsetbyuser = aggregate(chgset~uid,data=modifbychgset,FUN=length)
+```
+
+```{R echo=F}
+plot(quantile(chgsetbyuser$chgset,probs=seq(0,1,0.001)),seq(0,1,0.001),type="l",col="red",xlim=c(0,100),xlab="Change set quantity per user",ylab="Empirical CDF")
+abline(h=c(0,1),v=0)
+```
+It seems that around 40% are one-shot users (only one change set), however there are very experienced users too: we have to reached 100 change sets to capture almost all individuals. 90% of users open less than 20 change sets.
+
+A more precise point can be supplied by the modification level. If we aggregate the number of modifications done by each users, we have the following figure:
+```{R}
+modifbyuser = aggregate(cbind(elem,id)~uid , data=useractivity, FUN=length)[,-3]
+```
+
+```{R}
+plot(quantile(modifbychgset$elem,probs=seq(0,1,0.001)),seq(0,1,0.001),type="l",col="red",lwd=2,xlim=c(0,100),xlab="Total modification per user",ylab="Empirical CDF")
+abline(h=c(0,1),v=0)
+abline(h=0.9,lty="dotted",col="grey")
+abline(v=quantile(modifbychgset$elem,probs=0.9),lty="dotted",col="grey")
+```
+We can identify our one-shot users, even if that seems that some of them produce more than a single modification (30% of users do only one modifications, less than 45% produce less than 2 modifications). By focusing on experienced users, we can add that 90% of users do less than 60 modifications...and 10% do more!
+
+We can build the future user dataframe by gathering both features.
+```{R}
+usersynthesis = merge(chgsetbyuser,modifbyuser)
+remove(chgsetbyuser,modifbyuser)
+```
+
+
+```{R echo=F}
+plot(usersynthesis$chgset,usersynthesis$elem,col="blue",pch=15,cex=0.5,xlab="Number of change set",ylab="Number of modified elements",main="User mapping",xlim=c(0,1000),ylim=c(0,10000))
+abline(v=0,h=0)
+```
+By plotting both information (number of change sets on the first hand and number of modifications on the second hand), we can see that there is no particular pattern. Of course, some productive users exist (high numbers of change sets and modifications), however they are kind of outliers in our database...
+
+How many modification have the users produce on each element type? The answer to this question could bring more precision of the previous analysis. Consequently we re-aggregate modifications for each users, by discriminating each element type.
+```{R}
+nodemodifperuser = setNames(aggregate(id~uid , data=useractivity[useractivity$elem=="n",], FUN=length),c("uid","nnodemodif"))
+waymodifperuser = setNames(aggregate(id~uid , data=useractivity[useractivity$elem=="w",], FUN=length),c("uid","nwaymodif"))
+relationmodifperuser = setNames(aggregate(id~uid , data=useractivity[useractivity$elem=="r",], FUN=length),c("uid","nrelationmodif"))
+```
+
+```{R echo=F}
+plot(quantile(nodemodifperuser$nnodemodif,probs=seq(0,1,0.001)),seq(0,1,0.001),xaxp=c(0,200,20),type="l",col="red",lwd=2,xlim=c(0,200),xlab="Modification per user",ylab="Empirical CDF")
+lines(quantile(waymodifperuser$nwaymodif,probs=seq(0,1,0.001)),seq(0,1,0.001),col="blue",lwd=2)
+lines(quantile(relationmodifperuser$nrelationmodif,probs=seq(0,1,0.001)),seq(0,1,0.001),col="green",lwd=2)
+abline(h=c(0,1),v=0)
+abline(h=0.8,lty="dotted",col="grey")
+abline(v=quantile(nodemodifperuser$nnodemodif,0.8),lty="dotted",col="grey")
+abline(v=quantile(waymodifperuser$nwaymodif,0.8),lty="dotted",col="grey")
+abline(v=quantile(relationmodifperuser$nrelationmodif,0.8),lty="dotted",col="grey")
+legend("bottomright",legend=c("nodes","ways","relations"),col=c("red","blue","green"),lwd=2)
+```
+By discriminating each type of elements, we can characterize the user experience: concerning the one-shot users, they seem to modify a node or a way, however the modification on relations are more uncommon. This trend is confirmed for experienced users: 80% of users modify less than 75 nodes, 32 ways and 12 relations, approximatively. The nodes are the basic element, and that's quite normal to observe they are the first element in terms of modifications.
+
+Like for previous structures, we can end the user dataframe by merging all these features.
+```{R}
+usersynthesis = merge(usersynthesis,nodemodifperuser,all=T)
+usersynthesis = merge(usersynthesis,waymodifperuser,all=T)
+usersynthesis = merge(usersynthesis,relationmodifperuser,all=T)
+remove(nodemodifperuser,waymodifperuser,relationmodifperuser)
+```
+
+# Analyse 7 : temporal description of user contributions
+If we analyse the user activity in a chronological point of view, we can recover the first and last contributions, and consequently the user longevity as OSM contributors (in days).
+```{R}
+userfirst = setNames(aggregate(ts~uid , useractivity , min),c("uid","first"))
+userlast = setNames(aggregate(ts~uid , useractivity , max),c("uid","last"))
+usersynthesis = merge( usersynthesis , userfirst , all=T )
+usersynthesis = merge( usersynthesis , userlast , all=T )
+usersynthesis$activity.days = apply(usersynthesis , 1 , function(x){round(difftime(x[["last"]] , x[["first"]] , units="days")[[1]],2)})
+```
+
+```{R echo=F}
+plot(usersynthesis$chgset , usersynthesis$activity.days , col="red",pch=3,cex=0.5,xlim=c(0,100),xlab="Change set per user",ylab="User activity (days)")
+abline(v=0,h=0)
+```
+An exemple of graphical analysis in this direction is the comparison between user longevity and the number of change sets that the users open. One-shot users represent in the bottom-left of the figure, with one single change and a longevity of 0 days (first and last timestamp are equal). Like previously, no clear pattern exist between both features in terms of linear relationship. We have a confirmation about the relative low number of change set open by users. Additionnally, we can see that there are not so many users that are active years after years (this point has to be shaded by the fact that we are focused on a small geographical area here).
+
+### conclusion: description of OSM contributors
+After these operations, we get the final user structure, with 9 features, and 1944 inventoried users.
+```{R result="asis"}
+names(usersynthesis) = c("uid","nchgset","nmodif","nnodemodif","nwaymodif","nrelationmodif","first","last","activity.days")
+summary(usersynthesis)
+kable(head(usersynthesis))
+```
+
+# Last but not least: let's conclude !
+## Saving built structures
+Each important data structure evoked in this notebook has to be saved, to allow an eventual reuse later...
+```{R}
+# The image of the R session in a .RData file...
+save.image("../data/bordeaux-metropole.RData")
+# ... and the metadata (about users, change sets and elements)
+write.csv(usersynthesis,"../data/bordeaux-metropole-users.csv")
+write.csv(chgsetsynthesis,"../data/bordeaux-metropole-changesets.csv")
+write.csv(elemsynthesis,"../data/bordeaux-metropole-elements.csv")
+write.csv(useractivity,"../data/bordeaux-metropole-fullactivity.csv")
+```
+
+## To go further
+- analyse of tags (types of ways, nodes, relations)
+- reproduction on a larger scale (a French area, like Rhône-Alpes or Aquitaine for example)
