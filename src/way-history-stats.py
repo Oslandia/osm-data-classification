@@ -7,6 +7,7 @@ import sys
 import os.path as osp
 from collections import defaultdict
 from datetime import datetime, timezone
+
 import pandas as pd
 import osmium as osm
 

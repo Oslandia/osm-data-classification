@@ -13,6 +13,16 @@
   Timestamp                = {2017.03.14}
 }
 
+@Article{Costea2016,
+  Title                    = {Aerial image geolocalization from recognition and matching of roads and intersections},
+  Author                   = {Costea, Dragos and Leordeanu, Marius},
+  Journal                  = {arXiv preprint arXiv:1605.08323},
+  Year                     = {2016},
+
+  Owner                    = {rde},
+  Timestamp                = {2017.03.16}
+}
+
 @Article{Helbich2012,
   Title                    = {Comparative spatial analysis of positional accuracy of OpenStreetMap and proprietary geodata},
   Author                   = {Helbich, Marco and Amelunxen, Chritoph and Neis, Pascal and Zipf, Alexander},
@@ -43,6 +53,20 @@
   Year                     = {2013},
 
   Owner                    = {rde},
+  Timestamp                = {2017.03.14}
+}
+
+@Article{Neis2012,
+  Title                    = {Analyzing the contributor activity of a volunteered geographic information project—The case of OpenStreetMap},
+  Author                   = {Neis, Pascal and Zipf, Alexander},
+  Journal                  = {ISPRS International Journal of Geo-Information},
+  Year                     = {2012},
+  Number                   = {2},
+  Pages                    = {146--165},
+  Volume                   = {1},
+
+  Owner                    = {rde},
+  Publisher                = {Molecular Diversity Preservation International},
   Timestamp                = {2017.03.14}
 }
 

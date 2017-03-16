@@ -13,6 +13,16 @@
   Timestamp                = {2017.03.14}
 }
 
+@Article{Costea2016,
+  Title                    = {Aerial image geolocalization from recognition and matching of roads and intersections},
+  Author                   = {Costea, Dragos and Leordeanu, Marius},
+  Journal                  = {arXiv preprint arXiv:1605.08323},
+  Year                     = {2016},
+
+  Owner                    = {rde},
+  Timestamp                = {2017.03.16}
+}
+
 @Article{Helbich2012,
   Title                    = {Comparative spatial analysis of positional accuracy of OpenStreetMap and proprietary geodata},
   Author                   = {Helbich, Marco and Amelunxen, Chritoph and Neis, Pascal and Zipf, Alexander},
@@ -68,5 +78,19 @@
   Owner                    = {rde},
   Publisher                = {Wageningen Universiteit},
   Timestamp                = {2017.03.14}
+}
+
+@Article{Saito2016,
+  Title                    = {Multiple object extraction from aerial imagery with convolutional neural networks},
+  Author                   = {Saito, Shunta and Yamashita, Takayoshi and Aoki, Yoshimitsu},
+  Journal                  = {Electronic Imaging},
+  Year                     = {2016},
+  Number                   = {10},
+  Pages                    = {1--9},
+  Volume                   = {2016},
+
+  Owner                    = {rde},
+  Publisher                = {Society for Imaging Science and Technology},
+  Timestamp                = {2017.03.16}
 }
 

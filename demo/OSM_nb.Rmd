@@ -12,9 +12,9 @@ Here we start from the OSM data history, and more precisely with 3 .csv files ex
 First we load them into the workspace:
 ```{R}
 print(getwd()) # print the working directory path
-tlnodes = read.csv("../data/latest-bordeaux-metropole-node-timeline.csv",stringsAsFactors = F)
-tlways = read.csv("../data/latest-bordeaux-metropole-way-timeline.csv",stringsAsFactors = F)
-tlrelations = read.csv("../data/latest-bordeaux-metropole-relation-timeline.csv",stringsAsFactors = F)
+tlnodes = read.csv("~/data/bordeaux-metropole/latest-bordeaux-metropole-node-timeline.csv",stringsAsFactors = F)
+tlways = read.csv("~/data/bordeaux-metropole/latest-bordeaux-metropole-way-timeline.csv",stringsAsFactors = F)
+tlrelations = read.csv("~/data/bordeaux-metropole/latest-bordeaux-metropole-relation-timeline.csv",stringsAsFactors = F)
 ```
 
 For a sake of convenience, we transform the timestamp information into a dedicated R format for dates:

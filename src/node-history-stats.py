@@ -18,7 +18,7 @@ class NodeTimelineHandler(osm.SimpleHandler):
     def __init__(self):
         osm.SimpleHandler.__init__(self)
         self.ids = set()
-        # list of lists (node_id, lon, lat, version, visible, ts, uid, changesetid, tagkeys)
+        # list of lists (node_id, lon, lat, version, visible, ts, uid, changesetid, ntags, tagkeys)
         self.nodetimeline = []
         
     def node(self,n):
@@ -33,6 +33,7 @@ class NodeTimelineHandler(osm.SimpleHandler):
                                       pd.Timestamp(n.timestamp),
                                       n.uid,
                                       n.changeset,
+                                      len(n.tags),
                                       [x.k for x in n.tags] ] )
         else:
             self.nodetimeline.append([n.id,
@@ -43,6 +44,7 @@ class NodeTimelineHandler(osm.SimpleHandler):
                                       pd.Timestamp(n.timestamp),
                                       n.uid,
                                       n.changeset,
+                                      len(n.tags),
                                       [x.k for x in n.tags] ] )
 
 
@@ -60,7 +62,7 @@ if __name__ == '__main__':
     print("Node number = {0}".format(len(nodehandler.nodetimeline)))
 
     # Convert handled nodes into a classic dataframe
-    colnames = ['id', 'lon', 'lat', 'version', 'visible', 'ts', 'uid', 'chgset', 'tagkeys']
+    colnames = ['id', 'lon', 'lat', 'version', 'visible', 'ts', 'uid', 'chgset', 'ntags', 'tagkeys']
     nodes = pd.DataFrame(nodehandler.nodetimeline, columns=colnames)
    # nodes['ts'] = nodes['ts'].apply(lambda x: x.tz_convert(None))
 
