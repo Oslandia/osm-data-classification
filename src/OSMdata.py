@@ -194,7 +194,6 @@ if __name__ == '__main__':
 
     ###############################################
     # Plot metadata: number of unique contributors per element
-    %pylab
     print("Plot 1: number of contributors per element...")
     y = np.linspace(0,1,1001)
     utils.single_empCDF(elemsynthesis.uid.quantile(y), y, lims=[0,20,0,1],
@@ -246,7 +245,6 @@ if __name__ == '__main__':
     # Plot metadata: change set global description
     print("Plot 8: change set global description...")
     x = chgsetsynthesis.loc[:,['nnode','nway','nrelation']]
-    utils.multisctrplot(x, chgsetsynthesis.duration.astype('timedelta64[m]'),figpath="figs/test.png")
     utils.multisctrplot(x, chgsetsynthesis.duration.astype('timedelta64[m]'),
                         lims=[0,np.log(max(x.apply(max))),0,700],
                         mkr="+", legend=True,
