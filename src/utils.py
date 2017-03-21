@@ -45,6 +45,17 @@ def readOSMdata(ds_name):
         tlrelations.loc[tlrelations.nmembers==0,'visible'] = False
     return tlnodes, tlways, tlrelations
 
+def readOSMmd(ds_name):
+    """readOSMmd function: recover OSM metadata from three .csv files (on the disk after OSM-metadata-extract.py module running)
+    INPUT: ds_name = name of the data set (ex: bordeaux-metropole)
+    OUTPUT: elemsynthesis,chgsetsynthesis,usersynthesis = OSM elements, change sets and users
+    """
+    datapath = "~/data/" + ds_name + "/" + ds_name
+    elems = pd.read_csv(datapath+"-md-elems.csv", index_col=0, parse_dates=['ts'])
+    chgsets = pd.read_csv(datapath+"-md-chgsets.csv", index_col=0, parse_dates=['ts'])
+    users = pd.read_csv(datapath+"-md-users.csv", index_col=0, parse_dates=['ts'])
+    return elems, chgsets, users
+
 def updatedelem(data):
     """updatedelem function: return an updated version of OSM elements
     INPUT: data = OSM element timeline

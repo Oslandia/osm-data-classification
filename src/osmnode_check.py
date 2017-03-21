@@ -16,7 +16,7 @@ def elemvisibility(data, elemtype, samplesize=1000):
     elemsamp['hurl'] = ["%s/history" %elemurl for elemurl in elemsamp.url]
     elemsamp['status'] = elemsamp['url'].apply(lambda x: statusrequest(x))
     elemsamp['vsbltcheck'] = elemsamp['hurl'].apply(lambda x: vsbltrequest(x))
-    return elemsamp
+    return elemsamp[['id','visible','status','vsbltcheck','url']]
 
 def statusrequest(address):
     return requests.get(address).status_code
@@ -25,17 +25,16 @@ def vsbltrequest(address):
     vsblt = re.findall('(visible="true"|visible="false")',
                        requests.get(address).text)[-1]
     return re.search('true', vsblt) is not None
-    
 
 ########################################
 if __name__ == '__main__':
 
-    if len(sys.argv) != 3:
-        print("Usage: python osmnode_check.py <data set name> <nbrequest>")
+    if len(sys.argv) != 4:
+        print("Usage: python osmnode_check.py <data set name> <nbrequest> <save_output y/n>")
         sys.exit(-1)
     dataset_name = sys.argv[1]
     nbrequest = int(sys.argv[2])
-    #save_output = True if sys.argv[2]=="y" or sys.argv[2]=="Y" else False
+    save_output = True if sys.argv[2]=="y" or sys.argv[2]=="Y" else False
     datapath = "~/data/" + dataset_name + "/"
 
     ########################################
@@ -71,3 +70,9 @@ if __name__ == '__main__':
     print("Visibility checking frequency table for relations:\n {0}"
           .format(pd.crosstab(index=relvsblt["visible"],
                               columns=relvsblt["vsbltcheck"])))
+
+    ########################################
+    if(save_output):
+        nodevsblt.to_csv(datapath + dataset_name + "-nodevsbltcheck.csv")
+        wayvsblt.to_csv(datapath + dataset_name + "-wayvsbltcheck.csv")
+        relvsblt.to_csv(datapath + dataset_name + "-relvsbltcheck.csv")

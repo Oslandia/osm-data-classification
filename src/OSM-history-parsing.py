@@ -12,6 +12,7 @@ if sys.version_info[0] == 3:
 import pandas as pd
 import osmium as osm
 
+########################################
 DEFAULT_START = pd.Timestamp("2000-01-01T00:00:00Z")
 
 class TimelineHandler(osm.SimpleHandler):
@@ -80,7 +81,7 @@ class TimelineHandler(osm.SimpleHandler):
     def relation(self,r):
         """ Relation recovery: each record in the history is saved as a row in the element dataframe. The features are the following: id, version, visible?, timestamp, userid, chgsetid, nbtags, tagkeys, elem type ("relation") and a tuple (member quantity, list of members under format (id, role, type))"""
         # If the relation does not include any member, it is no longer available
-        if len(r.members) > 0 :
+        if len(r.members) > 0 or len(r.tags) > 0 :
             self.elemtimeline.append([r.id,
                                       r.version,
                                       True, # 'visible' flag not OK
@@ -105,7 +106,7 @@ class TimelineHandler(osm.SimpleHandler):
                                       (len(r.members), [(m.ref,m.role,m.type)
                                                         for m in r.members])])
 
-            
+########################################
 # Main method        
 if __name__ == '__main__':
     # call the script following format 'python3 node-stats.py <osmfile.pbf>' (2 args)
