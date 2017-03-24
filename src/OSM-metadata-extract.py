@@ -1,6 +1,9 @@
 # coding: utf-8
 
-"""Extract change set and user metadata, from a history OSM data file
+"""
+Extract change set and user metadata, from a history OSM data file
+The file has to be runned through the following format:
+python <pathto_OSM-metadata-extract.py> <pathto_csvfiles> <dataset_name>
 """
 
 ###############################################
@@ -22,144 +25,132 @@ import utils
 # Main method #################################
 ###############################################
 if __name__ == '__main__':
-    # call the script following
-    # format 'python3 <data set name> <save_output?>' (2 args)
     if len(sys.argv) != 3:
-        print("Usage: python3 <dataset_name> <save_output: y/n>")
+        print("Usage: python <pathto_OSM-metadata-extract.py> <pathto_csvfiles> <dataset_name>")
         sys.exit(-1)
-    dataset_name = sys.argv[1]
-    save_output = True if sys.argv[2]=="y" or sys.argv[2]=="Y" else False
-    datapath = "~/data/" + dataset_name + "/"
-    osm_elements = pd.read_csv(datapath + "latest-" +
-                               dataset_name + "-elements.csv",
+    datapath = sys.argv[1]
+    dataset_name = sys.argv[2]
+    osm_elements = pd.read_csv(datapath + "/" + dataset_name + "-elements.csv",
                                index_col=0, parse_dates=['ts'])
+    nodes = pd.read_csv(datapath + "/" + dataset_name + "-nodes.csv",
+                        index_col=0, parse_dates=['ts'])
+    ways = pd.read_csv(datapath + "/" + dataset_name + "-ways.csv",
+                        index_col=0, parse_dates=['ts'])
+    relations = pd.read_csv(datapath + "/" + dataset_name + "-relations.csv",
+                        index_col=0, parse_dates=['ts'])
 
         ###############################################
     # Analyse of elements
-    userbyelem = osm_elements.groupby(
-        ['elem','id'])['uid'].nunique().reset_index()
-    versionbyelem = osm_elements.groupby(
-        ['elem','id'])['version'].count().reset_index()
-    elembegin = osm_elements.groupby(['elem','id'])['ts'].min().reset_index()
-    elembegin.columns = ['elem','id','created_at']
-    elemend = osm_elements.groupby(['elem','id'])['ts'].max().reset_index()
-    elemend.columns = ['elem','id','lastmodif_at']
-    elemsynthesis = pd.merge(userbyelem, versionbyelem, on=['elem','id'])
-    elemsynthesis = pd.merge(elemsynthesis, elembegin, on=['elem','id'])
-    elemsynthesis = pd.merge(elemsynthesis, elemend, on=['elem','id'])
-    elemsynthesis['available'] = np.repeat([True], len(elemsynthesis))
-    mask = np.logical_and(elemsynthesis.elem=="n",
-                          elemsynthesis.id.isin(nodes.loc[nodes.visible==False
-                                                          ,"id"]))
-    elemsynthesis.loc[mask,"available"] = False
-    mask = np.logical_and(elemsynthesis.elem=="w",
-                          elemsynthesis.id.isin(ways.loc[ways.visible==False
-                                                         ,"id"]))
-    elemsynthesis.loc[mask,"available"] = False
-    mask = np.logical_and(elemsynthesis.elem=="r",
-                          elemsynthesis.id.isin(relations.loc[
-                              relations.visible==False,"id"]))
-    elemsynthesis.loc[mask,"available"] = False
-    elemsynthesis['lifecycle'] = (elemsynthesis.lastmodif_at
-                                  - elemsynthesis.created_at)
+    elem_md = (osm_elements.groupby(['elem', 'id'])['version']
+               .max()
+               .reset_index())
+    elem_md = pd.merge(elem_md, osm_elements[['elem','id','version','visible']],
+                       on=['elem','id','version'])
+    elem_md['n_user'] = (osm_elements.groupby(['elem', 'id'])['uid']
+                         .nunique()
+                         .reset_index())['uid']
+    elem_md['n_chgset'] = (osm_elements.groupby(['elem', 'id'])['chgset']
+                         .nunique()
+                         .reset_index())['chgset']
+    elem_md['created_at'] = (osm_elements.groupby(['elem', 'id'])['ts']
+                             .min()
+                             .reset_index()['ts'])
+    elem_md['lastmodif_at'] = (osm_elements.groupby(['elem', 'id'])['ts']
+                               .max()
+                               .reset_index()['ts'])
+    elem_md['lifecycle'] = elem_md.lastmodif_at - elem_md.created_at
     timehorizon = pd.to_datetime("2017-02-13 00:00:00")
-    elemsynthesis.loc[elemsynthesis.available==True,"lifecycle"] = timehorizon - elemsynthesis.loc[elemsynthesis.available==True,"created_at"]
-    elemsynthesis.loc[elemsynthesis.available.values,"lifecycle"] = timehorizon - elemsynthesis.loc[elemsynthesis.available.values,"created_at"]
+    elem_md.loc[elem_md.visible.values, "lifecycle"] = timehorizon - elem_md.loc[elem_md.visible.values, "created_at"]
+    elem_md['mntime_between_modif'] = (elem_md.lifecycle / elem_md.version).astype('timedelta64[m]')
 
     ###############################################
     # Analyse of change sets
-    chgsetsynthesis = (osm_elements.groupby(['chgset'])['elem']
-                       .count().reset_index())
-    chgsetsynthesis = pd.merge(chgsetsynthesis,
-                               osm_elements.loc[:,['chgset','uid']]
-                               .drop_duplicates(), on=['chgset'])
-    nodemodifbychgset = (osm_elements.loc[osm_elements.elem=="n"]
-                         .groupby(['chgset'])['elem'].count().reset_index())
-    nodemodifbychgset.columns = ['chgset','nnode']
-    chgsetsynthesis = pd.merge(chgsetsynthesis, nodemodifbychgset,
-                               how="left", on=['chgset'])
-    chgsetsynthesis.nnode[np.isnan(chgsetsynthesis.nnode)] = 0
-    waymodifbychgset = (osm_elements.loc[osm_elements.elem=="w"]
-                        .groupby(['chgset'])['elem'].count().reset_index())
-    waymodifbychgset.columns = ['chgset','nway']
-    chgsetsynthesis = pd.merge(chgsetsynthesis, waymodifbychgset,
-                               how="left", on=['chgset'])
-    chgsetsynthesis.nway[np.isnan(chgsetsynthesis.nway)] = 0
-    relationmodifbychgset = (osm_elements.loc[osm_elements.elem=="r"]
-                             .groupby(['chgset'])['elem'].count().reset_index())
-    relationmodifbychgset.columns = ['chgset','nrelation']
-    chgsetsynthesis = pd.merge(chgsetsynthesis, relationmodifbychgset,
-                               how="left", on=['chgset'])
-    chgsetsynthesis.nrelation[np.isnan(chgsetsynthesis.nrelation)] = 0
-    chgsetbegin = osm_elements.groupby(['chgset'])['ts'].min().reset_index()
-    chgsetbegin.columns = ['chgset','opened_at']
-    chgsetend = osm_elements.groupby(['chgset'])['ts'].max().reset_index()
-    chgsetend.columns = ['chgset','lastmodif_at']
-    chgsetsynthesis = pd.merge(chgsetsynthesis, chgsetbegin, on=['chgset'])
-    chgsetsynthesis = pd.merge(chgsetsynthesis, chgsetend, on=['chgset'])
-    chgsetsynthesis['duration'] = (chgsetsynthesis.lastmodif_at
-                                   - chgsetsynthesis.opened_at)
+    chgset_md = (osm_elements.groupby(['chgset', 'uid'])['elem']
+                 .count().reset_index())
+    chgset_md = chgset_md.join(osm_elements.loc[osm_elements.elem=="node"]
+                               .groupby('chgset')['elem']
+                               .count(), on='chgset', rsuffix='_node').fillna(0)
+    chgset_md = chgset_md.join(osm_elements.loc[osm_elements.elem=="way"]
+                               .groupby('chgset')['elem']
+                               .count(), on='chgset', rsuffix='_way').fillna(0)
+    chgset_md = chgset_md.join(osm_elements.loc[osm_elements.elem=="relation"]
+                               .groupby('chgset')['elem']
+                               .count(), on='chgset', rsuffix='_relation').fillna(0)
+    modif_bychgset = (osm_elements.groupby(['elem', 'id', 'chgset'])['version']
+                      .count()
+                      .reset_index())
+    chgset_md['version'] = (modif_bychgset.groupby(['chgset'])['id']
+                            .nunique()
+                            .reset_index())['id']
+    chgset_md = chgset_md.join(modif_bychgset.loc[modif_bychgset.elem=="node"]
+                               .groupby('chgset')['id']
+                               .nunique(), on='chgset', rsuffix='_byn').fillna(0)
+    chgset_md = chgset_md.join(modif_bychgset.loc[modif_bychgset.elem=="way"]
+                           .groupby('chgset')['id']
+                           .nunique(), on='chgset', rsuffix='_byw').fillna(0)
+    chgset_md = chgset_md.join(modif_bychgset.loc[modif_bychgset.elem=="relation"]
+                           .groupby('chgset')['id']
+                           .nunique(), on='chgset', rsuffix='_byr').fillna(0)
+    chgset_md.columns = ['chgset', 'uid', 'n_modif', 'n_nodemodif',
+                         'n_waymodif', 'n_relationmodif', 'n_uniqelem',
+                         'n_uniqnode', 'n_uniqway', 'n_uniqrelation']
+    
+    chgset_md['opened_at'] = (osm_elements.groupby('chgset')['ts']
+                              .min()
+                              .reset_index()['ts'])
+    chgset_md['lastmodif_at'] = (osm_elements.groupby('chgset')['ts']
+                                 .max()
+                                 .reset_index()['ts'])
+    chgset_md['duration'] = chgset_md.lastmodif_at - chgset_md.opened_at
     
     ###############################################
     # Analyse of users
-    usersynthesis = (osm_elements.groupby(['uid'])['chgset']
-                     .nunique().reset_index())
-    elembyuser = osm_elements.groupby(['uid'])['elem'].count().reset_index()
-    usersynthesis = pd.merge(usersynthesis, elembyuser, on=['uid'])
-    nodemodifbyuser = (osm_elements.loc[osm_elements.elem=="n"]
-                       .groupby(['uid'])['elem'].count().reset_index())
-    nodemodifbyuser.columns = ['uid','nnode']
-    usersynthesis = pd.merge(usersynthesis, nodemodifbyuser,
-                             how="left", on=['uid'])
-    usersynthesis.nnode[np.isnan(usersynthesis.nnode)] = 0
-    waymodifbyuser = (osm_elements.loc[osm_elements.elem=="w"]
-                      .groupby(['uid'])['elem'].count().reset_index())
-    waymodifbyuser.columns = ['uid','nway']
-    usersynthesis = pd.merge(usersynthesis, waymodifbyuser,
-                             how="left", on=['uid'])
-    usersynthesis.nway[np.isnan(usersynthesis.nway)] = 0
-    relationmodifbyuser = (osm_elements.loc[osm_elements.elem=="r"]
-                           .groupby(['uid'])['elem'].count().reset_index())
-    relationmodifbyuser.columns = ['uid','nrelation']
-    usersynthesis = pd.merge(usersynthesis, relationmodifbyuser,
-                             how="left", on=['uid'])
-    usersynthesis.nrelation[np.isnan(usersynthesis.nrelation)] = 0
-    contribbyuserelem = (osm_elements.groupby(['elem','id','uid'])
-                         .size().reset_index())
-    nmodifperuserperelem = (contribbyuserelem.groupby(['uid'])[0]
-                            .median().reset_index())
-    nmodifperuserperelem.columns = ['uid','nmodifperelem']
-    usersynthesis = pd.merge(usersynthesis, nmodifperuserperelem,
-                             how="left", on=['uid'])
-    nnodemodifperuserperelem = contribbyuserelem.loc[contribbyuserelem.elem=="n"].groupby(['uid'])[0].median().reset_index()
-    nnodemodifperuserperelem.columns = ['uid','nnodemodifperelem']
-    usersynthesis = pd.merge(usersynthesis, nnodemodifperuserperelem,
-                             how="left", on=['uid'])
-    usersynthesis.nnodemodifperelem[np.isnan(usersynthesis.nnodemodifperelem)] = 0
-    nwaymodifperuserperelem = contribbyuserelem.loc[contribbyuserelem.elem=="w"].groupby(['uid'])[0].median().reset_index()
-    nwaymodifperuserperelem.columns = ['uid','nwaymodifperelem']
-    usersynthesis = pd.merge(usersynthesis, nwaymodifperuserperelem,
-                             how="left", on=['uid'])
-    usersynthesis.nwaymodifperelem[np.isnan(usersynthesis.nwaymodifperelem)] = 0
-    nrelationmodifperuserperelem = contribbyuserelem.loc[contribbyuserelem.elem=="r"].groupby(['uid'])[0].median().reset_index()
-    nrelationmodifperuserperelem.columns = ['uid','nrelationmodifperelem']
-    usersynthesis = pd.merge(usersynthesis, nrelationmodifperuserperelem,
-                             how="left", on=['uid'])
-    usersynthesis.nrelationmodifperelem[np.isnan(usersynthesis.nrelationmodifperelem)] = 0
-    userbegin = osm_elements.groupby(['uid'])['ts'].min().reset_index()
-    userbegin.columns = ['uid','first_at']
-    userend = osm_elements.groupby(['uid'])['ts'].max().reset_index()
-    userend.columns = ['uid','last_at']
-    usersynthesis = pd.merge(usersynthesis, userbegin, on=['uid'])
-    usersynthesis = pd.merge(usersynthesis, userend, on=['uid'])
-    usersynthesis['activity'] = usersynthesis.last_at - usersynthesis.first_at
+    user_md = (osm_elements.groupby('uid')['chgset']
+                     .nunique()
+                     .reset_index())
+    user_md['elem'] = (osm_elements.groupby('uid')['elem']
+                       .count()
+                       .reset_index()['elem'])
+    user_md = user_md.join(osm_elements.loc[osm_elements.elem=="node"]
+                               .groupby('uid')['elem']
+                               .count(), on='uid', rsuffix='_node').fillna(0)
+    user_md = user_md.join(osm_elements.loc[osm_elements.elem=="way"]
+                               .groupby('uid')['elem']
+                               .count(), on='uid', rsuffix='_way').fillna(0)
+    user_md = user_md.join(osm_elements.loc[osm_elements.elem=="relation"]
+                               .groupby('uid')['elem']
+                               .count(), on='uid', rsuffix='_relation').fillna(0)
 
-    print(elemsynthesis.info())
-    print(chgsetsynthesis.info())
-    print(usersynthesis.info())
-    
+    contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
+                      .count()
+                      .reset_index())
+    user_md['version'] = (contrib_byelem.groupby('uid')['version']
+                               .median()
+                               .reset_index()['version'])
+    user_md = user_md.join(contrib_byelem.loc[contrib_byelem.elem=="node"]
+                           .groupby('uid')['version']
+                           .median(), on='uid', rsuffix='_bynode').fillna(0)
+    user_md = user_md.join(contrib_byelem.loc[contrib_byelem.elem=="way"]
+                           .groupby('uid')['version']
+                           .median(), on='uid', rsuffix='_byway').fillna(0)
+    user_md = user_md.join(contrib_byelem.loc[contrib_byelem.elem=="relation"]
+                           .groupby('uid')['version']
+                           .median(), on='uid', rsuffix='_byrelation').fillna(0)
+    user_md.columns = ['uid', 'n_chgset', 'n_modif', 'n_nodemodif',
+                       'n_waymodif', 'n_relationmodif', 'n_modif_byelem',
+                       'n_modif_bynode', 'n_modif_byway', 'n_modif_byrelation']
+
+    user_md['first_at'] = (osm_elements.groupby('uid')['ts']
+                           .min()
+                           .reset_index()['ts'])
+    user_md['last_at'] = (osm_elements.groupby('uid')['ts']
+                          .max()
+                          .reset_index()['ts'])
+    user_md['activity'] = user_md.last_at - user_md.first_at
+
     ###############################################
     # Metadata saving
-    if(save_output):
-        utils.writeOSMmetadata(elemsynthesis, chgsetsynthesis,
-                               usersynthesis, dataset_name)
+    print(elem_md.info())
+    print(chgset_md.info())
+    print(user_md.info())
+    utils.writeOSMmetadata(elem_md, chgset_md, user_md, datapath, dataset_name)

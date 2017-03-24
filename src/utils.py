@@ -1,6 +1,7 @@
 # coding: utf-8
 
-"""Some utility functions aiming to analyse OSM data
+"""
+Some utility functions aiming to analyse OSM data
 """
 
 ###############################################
@@ -8,9 +9,7 @@
 ###############################################
 import sys
 import os.path as osp
-from datetime import datetime
-if sys.version_info[0] == 3:
-    from datetime import timezone
+from datetime import datetime, timedelta
     
 import pandas as pd
 import numpy as np
@@ -19,41 +18,50 @@ import matplotlib.pyplot as plt
 ###############################################
 # Utilities ###################################
 ###############################################
-def readOSMdata(ds_name):
-    """readOSMdata function: recover OSM elements from .csv files
-    INPUT: ds_name = name of the data set (ex: bordeaux-metropole)
+def readOSMdata(datapath, ds_name):
+    """
+    readOSMdata function: recover OSM elements from .csv files
+    INPUT: datapath = relative path to directory that contains OSM data .csv files; ds_name: name of the data set (ex: bordeaux-metropole)
     OUTPUT: tlnodes, tlways, tlrelations = OSM element timelines, as dataframes
     """
-    datapath = "~/data/" + ds_name + "/"
-    tlnodes = pd.read_csv(datapath + "latest-" + ds_name + "-node-timeline.csv", index_col=0, parse_dates=['ts'])
+    tlnodes = pd.read_csv(datapath+"/"+ds_name+"-tlnodes.csv",
+                          index_col=0, parse_dates=['ts'])
     if(len(tlnodes.loc[tlnodes.visible==False]) == 0):
         # If 'visible' feature has not been recovered accurately
         # (each node is considered as visible...),
         # then recode the variable with coordinates
         tlnodes.loc[tlnodes.lon==float('inf'),'visible'] = False
-    tlways = pd.read_csv(datapath + "latest-" + ds_name + "-way-timeline.csv", index_col=0, parse_dates=['ts'])
+    tlways = pd.read_csv(datapath + "/" + ds_name + "-tlways.csv",
+                         index_col=0, parse_dates=['ts'])
     if(len(tlways.loc[tlways.visible==False]) == 0):
         # If 'visible' feature has not been recovered accurately
         # (each node is considered as visible...),
         # then recode the variable with coordinates
-        tlways.loc[tlways.nnodes==0,'visible'] = False
-    tlrelations = pd.read_csv(datapath + "latest-" + ds_name + "-relation-timeline.csv", index_col=0, parse_dates=['ts'])
+        tlways.loc[tlways.nnodes==0, 'visible'] = False
+    tlrelations = pd.read_csv(datapath + "/" + ds_name + "-tlrelations.csv",
+                              index_col=0, parse_dates=['ts'])
     if(len(tlrelations.loc[tlrelations.visible==False]) == 0):
         # If 'visible' feature has not been recovered accurately
         # (each node is considered as visible...),
         # then recode the variable with coordinates
-        tlrelations.loc[tlrelations.nmembers==0,'visible'] = False
+        tlrelations.loc[np.logical_or(tlrelations.nmembers==0,tlrelations.ntags==0)
+                        , 'visible'] = False
     return tlnodes, tlways, tlrelations
 
-def readOSMmd(ds_name):
+def readOSMmd(datapath, ds_name):
     """readOSMmd function: recover OSM metadata from three .csv files (on the disk after OSM-metadata-extract.py module running)
-    INPUT: ds_name = name of the data set (ex: bordeaux-metropole)
+    INPUT: datapath: relative path to data files; ds_name: name of the data set (ex: bordeaux-metropole)
     OUTPUT: elemsynthesis,chgsetsynthesis,usersynthesis = OSM elements, change sets and users
     """
-    datapath = "~/data/" + ds_name + "/" + ds_name
-    elems = pd.read_csv(datapath+"-md-elems.csv", index_col=0, parse_dates=['ts'])
-    chgsets = pd.read_csv(datapath+"-md-chgsets.csv", index_col=0, parse_dates=['ts'])
-    users = pd.read_csv(datapath+"-md-users.csv", index_col=0, parse_dates=['ts'])
+    elems = pd.read_csv(datapath+"/"+ds_name+"-md-elems.csv",
+                          index_col=0, parse_dates=['created_at','lastmodif_at'])
+    elems.lifecycle = pd.to_timedelta(elems.lifecycle)
+    chgsets = pd.read_csv(datapath+"/"+ds_name+"-md-chgsets.csv",
+                          index_col=0, parse_dates=['opened_at','lastmodif_at'])
+    chgsets.duration = pd.to_timedelta(chgsets.duration)
+    users = pd.read_csv(datapath+"/"+ds_name+"-md-users.csv",
+                        index_col=0, parse_dates=['first_at','last_at'])
+    users.activity = pd.to_timedelta(users.activity)
     return elems, chgsets, users
 
 def updatedelem(data):
@@ -64,36 +72,34 @@ def updatedelem(data):
     updata = data.groupby('id')['version'].max().reset_index()
     return pd.merge(updata,data,on=['id','version'])
 
-def writeOSMdata(n, w, r, ds_name):
+def writeOSMdata(n, w, r, datapath, ds_name):
     """writeOSMdata function: write OSM elements into .csv files
-    INPUT: n,w,r = OSM elements to write (resp. nodes, ways and relations); ds_name: name of the data set (ex: bordeaux-metropole)
+    INPUT: n,w,r = OSM elements to write (resp. nodes, ways and relations); datapath: relative path to the data files (repository in which data will be saved); ds_name: name of the data set (ex: bordeaux-metropole)
     OUTPUT: 
     """
-    datapath = "~/data/" + ds_name + "/"
-    print("Writing OSM nodes into " + ds_name + "-nodes.csv file", end="...")
-    n.to_csv(datapath + ds_name + "-nodes.csv")
+    print("Writing OSM nodes into " + datapath + "/" + ds_name + "-nodes.csv file", end="...")
+    n.to_csv(datapath + "/" + ds_name + "-nodes.csv")
     print("OK")
-    print("Writing OSM ways into " + ds_name + "-ways.csv file", end="...")
-    w.to_csv(datapath + ds_name + "-ways.csv")
+    print("Writing OSM ways into " + datapath + "/" + ds_name + "-ways.csv file", end="...")
+    w.to_csv(datapath + "/" + ds_name + "-ways.csv")
     print("OK")
-    print("Writing OSM relations into " + ds_name + "-relations.csv file", end="...")
-    r.to_csv(datapath + ds_name + "-relations.csv")
+    print("Writing OSM relations into " + datapath + "/" + ds_name + "-relations.csv file", end="...")
+    r.to_csv(datapath + "/" + ds_name + "-relations.csv")
     print("OK")
 
-def writeOSMmetadata(e, cgs, u, ds_name):
+def writeOSMmetadata(e, cgs, u, datapath, ds_name):
     """writeOSMmetadata function: write OSM metadata into .csv files
-    INPUT: e,cgs,u = OSM metadata to write (resp. elements, change sets and users); ds_name: name of the data set (ex: bordeaux-metropole)
+    INPUT: e,cgs,u = OSM metadata to write (resp. elements, change sets and users); datapath: relative path to the data files (repository in which data will be saved); ds_name: name of the data set (ex: bordeaux-metropole)
     OUTPUT: 
     """
-    datapath = "~/data/" + ds_name + "/"
-    print("Writing element metadata into " + ds_name + "-md-elems.csv file", end="...")
-    e.to_csv(datapath + ds_name + "-md-elems.csv")
+    print("Writing element metadata into " + datapath + "/" + ds_name + "-md-elems.csv file", end="...")
+    e.to_csv(datapath + "/" + ds_name + "-md-elems.csv")
     print("OK")
-    print("Writing change set metadata into " + ds_name + "-md-chgsets.csv file", end="...")
-    cgs.to_csv(datapath + ds_name + "-md-chgsets.csv")
+    print("Writing change set metadata into " + datapath + "/" + ds_name + "-md-chgsets.csv file", end="...")
+    cgs.to_csv(datapath + "/" + ds_name + "-md-chgsets.csv")
     print("OK")
-    print("Writing user metadata into " + ds_name + "-md-users.csv file", end="...")
-    u.to_csv(datapath + ds_name + "-md-users.csv")
+    print("Writing user metadata into " + datapath + "/" + ds_name + "-md-users.csv file", end="...")
+    u.to_csv(datapath + "/" + ds_name + "-md-users.csv")
     print("OK")
 
 def single_empCDF(x, y, lims=False, xlab=False, ylab=False, title=False, legend=False, figpath=False, hltqt=False):
@@ -172,7 +178,7 @@ def condsctrplot(xname, yname, factor, lims=False, xlab=False, ylab=False, title
     for key, group in factor:
         plt.plot(group[xname], group[yname], linestyle='',
                  marker=mkr, label=key,
-                 color={'n':"blue",'w':"green",'r':"red"}[key])
+                 color={'node':"blue",'way':"green",'relation':"red"}[key])
     if xlab != False:
         plt.xlabel(xlab)
     if ylab != False:
@@ -195,9 +201,9 @@ def multisctrplot(x, y, lims=False, xlab=False, ylab=False, title=False, legend=
     """multisctrplot function: scatter plot of several series (x being a dataframe)
     INPUT: x: pandas DataFrame with nnode, nway and nrelation features; y: empirical CDF; xlab, ylab: axis labels; lims: axis limits with format[xmin, xmax, ymin, ymax]; title: graph title; legend: legend of the plot, mkr: point marker
     """
-    nsctr = plt.scatter(np.log(x['nnode']), y, color='b', marker=mkr)
-    wsctr = plt.scatter(np.log(x['nway']), y, color='g', marker=mkr)
-    rsctr = plt.scatter(np.log(x['nrelation']), y, color='r', marker=mkr)
+    nsctr = plt.scatter(np.log(x['elem_node']), y, color='b', marker=mkr)
+    wsctr = plt.scatter(np.log(x['elem_way']), y, color='g', marker=mkr)
+    rsctr = plt.scatter(np.log(x['elem_relation']), y, color='r', marker=mkr)
     if xlab != False:
         plt.xlabel(xlab)
     if ylab != False:

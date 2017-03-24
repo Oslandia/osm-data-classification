@@ -1,6 +1,8 @@
 # coding: utf-8
 
 """Extract some stats for OSM nodes, from a history OSM data file
+The file has to be runned through the following format:
+python <relativepathto_OSM-latest-data.py> <relativepathto_csvfiles> <dataset_name>
 """
 
 ###############################################
@@ -23,23 +25,21 @@ import utils
 ###############################################
 if __name__ == '__main__':
     # call the script following
-    # format 'python3 <data set name> <save_output?>' (2 args)
+    # format 'python <pathto_OSM-latest-data.py> <pathto_csvfiles> <dataset_name>' (3 args)
     if len(sys.argv) != 3:
-        print("Usage: python3 <dataset_name> <save_output: y/n>")
+        print("Usage: python3 <pathto_csvfiles> <dataset_name>")
         sys.exit(-1)
-    dataset_name = sys.argv[1]
-    save_output = True if sys.argv[2]=="y" or sys.argv[2]=="Y" else False
-    print("Analyse of the OSM data gathered for {0}".format(dataset_name))
-    if(save_output):
-        print("Outputs will be saved into .csv files during process!")
+    datapath = sys.argv[1]
+    dataset_name = sys.argv[2]
+
     # Data reading
-    tlnodes, tlways, tlrelations = utils.readOSMdata(dataset_name)
+    tlnodes, tlways, tlrelations = utils.readOSMdata(datapath, dataset_name)
     print("There are {0} feature(s) and {1} individual(s) in node dataframe"
-          .format(len(tlnodes.columns),len(tlnodes)))
+          .format(len(tlnodes.columns), len(tlnodes)))
     print("There are {0} feature(s) and {1} individual(s) in way dataframe"
-          .format(len(tlways.columns),len(tlways)))
+          .format(len(tlways.columns), len(tlways)))
     print("There are {0} feature(s) and {1} individual(s) in relation dataframe"
-          .format(len(tlrelations.columns),len(tlrelations)))
+          .format(len(tlrelations.columns), len(tlrelations)))
 
     ###############################################
     # Build last OSM elements starting from history data
@@ -47,7 +47,6 @@ if __name__ == '__main__':
     nodes = utils.updatedelem(tlnodes)
     ways = utils.updatedelem(tlways)
     relations = utils.updatedelem(tlrelations)
-    if(save_output):
-        utils.writeOSMdata(nodes,ways,relations,dataset_name)
+    utils.writeOSMdata(nodes, ways, relations, datapath, dataset_name)
     
     
