@@ -108,6 +108,18 @@ if __name__ == '__main__':
     user_md = (osm_elements.groupby('uid')['chgset']
                      .nunique()
                      .reset_index())
+    user_md['n_modif_bychgset'] = (chgset_md.groupby('uid')['n_modif']
+                                   .median()
+                                   .reset_index()['n_modif'])
+    user_md['nmax_modif_bychgset'] = (chgset_md.groupby('uid')['n_modif']
+                                   .max()
+                                   .reset_index()['n_modif'])
+    user_md['n_elem_bychgset'] = (chgset_md.groupby('uid')['n_uniqelem']
+                                   .median()
+                                   .reset_index()['n_uniqelem'])
+    user_md['nmax_elem_bychgset'] = (chgset_md.groupby('uid')['n_uniqelem']
+                                     .max()
+                                     .reset_index()['n_uniqelem'])
     user_md['elem'] = (osm_elements.groupby('uid')['elem']
                        .count()
                        .reset_index()['elem'])
@@ -136,9 +148,30 @@ if __name__ == '__main__':
     user_md = user_md.join(contrib_byelem.loc[contrib_byelem.elem=="relation"]
                            .groupby('uid')['version']
                            .median(), on='uid', rsuffix='_byrelation').fillna(0)
-    user_md.columns = ['uid', 'n_chgset', 'n_modif', 'n_nodemodif',
+    user_md.columns = ['uid', 'n_chgset', 'n_modif_bychgset',
+                       'nmax_modif_bychgset', 'n_elem_bychgset',
+                       'nmax_elem_bychgset', 'n_modif', 'n_nodemodif',
                        'n_waymodif', 'n_relationmodif', 'n_modif_byelem',
                        'n_modif_bynode', 'n_modif_byway', 'n_modif_byrelation']
+    user_md['version'] = (contrib_byelem.groupby('uid')['version']
+                               .max()
+                               .reset_index()['version'])
+    user_md = user_md.join(contrib_byelem.loc[contrib_byelem.elem=="node"]
+                           .groupby('uid')['version']
+                           .max(), on='uid', rsuffix='_bynode').fillna(0)
+    user_md = user_md.join(contrib_byelem.loc[contrib_byelem.elem=="way"]
+                           .groupby('uid')['version']
+                           .max(), on='uid', rsuffix='_byway').fillna(0)
+    user_md = user_md.join(contrib_byelem.loc[contrib_byelem.elem=="relation"]
+                           .groupby('uid')['version']
+                           .max(), on='uid', rsuffix='_byrelation').fillna(0)
+    user_md.columns = ['uid', 'n_chgset', 'n_modif_bychgset',
+                       'nmax_modif_bychgset', 'n_elem_bychgset',
+                       'nmax_elem_bychgset', 'n_modif', 'n_nodemodif',
+                       'n_waymodif', 'n_relationmodif', 'n_modif_byelem',
+                       'n_modif_bynode', 'n_modif_byway', 'n_modif_byrelation',
+                       'nmax_modif_byelem', 'nmax_modif_bynode',
+                       'nmax_modif_byway', 'nmax_modif_byrelation']
 
     user_md['first_at'] = (osm_elements.groupby('uid')['ts']
                            .min()
