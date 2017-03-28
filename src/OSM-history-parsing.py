@@ -166,7 +166,7 @@ if __name__ == '__main__':
     colnames = ['id', 'version', 'visible', 'ts', 'uid',
                 'chgset', 'ntags', 'tagkeys', 'elem', 'descr']
     elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
-    elements = elements.sort_values(by=['elem', 'id'])
+    elements = elements.sort_values(by=['elem', 'id', 'version'])
     
     # Write node data into a CSV file for further treatments
     output_filename_prefix = osp.splitext(outputpath)[0]
