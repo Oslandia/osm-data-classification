@@ -69,8 +69,20 @@ def updatedelem(data):
     INPUT: data = OSM element timeline
     OUTPUT: updata = updated OSM elements
     """
-    updata = data.groupby('id')['version'].max().reset_index()
-    return pd.merge(updata,data,on=['id','version'])
+    updata = data.groupby(['elem','id'])['version'].max().reset_index()
+    return pd.merge(updata, data, on=['id','version'])
+
+def datedelems(history, date):
+    """
+    datedelems: return an updated version of history data at date
+    INPUT: history = OSM history dataframe, date = date in datetime format
+    OUTPUT: datedelems = dataframe with up-to-date elements (at date 'date')
+    """
+    datedelems = (history.query("ts <= @date")
+                  .groupby(['elem','id'])['version']
+                  .max()
+                  .reset_index())
+    return pd.merge(datedelems, history, on=['elem','id','version'])
 
 def writeOSMdata(n, w, r, datapath, ds_name):
     """writeOSMdata function: write OSM elements into .csv files
