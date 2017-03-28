@@ -79,11 +79,11 @@ class TimelineHandler(osm.SimpleHandler):
         """
         Way recovery: each record in the history is saved as a row in the
         element dataframe.
+
         The features are the following: id,
         version, visible?, timestamp, userid, chgsetid, nbtags,
         tagkeys, elem type ("way") and a tuple (node quantity, list of
         nodes)
-
         """
         # If there is no nodes in the way, then the way is no longer available
         if len(w.nodes) > 0 :
@@ -114,6 +114,7 @@ class TimelineHandler(osm.SimpleHandler):
         """
         Relation recovery: each record in the history is saved as a row in
         the element dataframe.
+
         The features are the following: id,
         version, visible?, timestamp, userid, chgsetid, nbtags,
         tagkeys, elem type ("relation") and a tuple (member quantity,
