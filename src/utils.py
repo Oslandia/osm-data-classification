@@ -18,6 +18,8 @@ import matplotlib.pyplot as plt
 ###############################################
 # Utilities ###################################
 ###############################################
+
+### I/O utilities #############################
 def readOSMdata(datapath, ds_name):
     """
     readOSMdata function: recover OSM elements from .csv files
@@ -64,26 +66,6 @@ def readOSMmd(datapath, ds_name):
     users.activity = pd.to_timedelta(users.activity)
     return elems, chgsets, users
 
-def updatedelem(data):
-    """updatedelem function: return an updated version of OSM elements
-    INPUT: data = OSM element timeline
-    OUTPUT: updata = updated OSM elements
-    """
-    updata = data.groupby(['elem','id'])['version'].max().reset_index()
-    return pd.merge(updata, data, on=['id','version'])
-
-def datedelems(history, date):
-    """
-    datedelems: return an updated version of history data at date
-    INPUT: history = OSM history dataframe, date = date in datetime format
-    OUTPUT: datedelems = dataframe with up-to-date elements (at date 'date')
-    """
-    datedelems = (history.query("ts <= @date")
-                  .groupby(['elem','id'])['version']
-                  .max()
-                  .reset_index())
-    return pd.merge(datedelems, history, on=['elem','id','version'])
-
 def writeOSMdata(n, w, r, datapath, ds_name):
     """writeOSMdata function: write OSM elements into .csv files
     INPUT: n,w,r = OSM elements to write (resp. nodes, ways and relations); datapath: relative path to the data files (repository in which data will be saved); ds_name: name of the data set (ex: bordeaux-metropole)
@@ -114,6 +96,7 @@ def writeOSMmetadata(e, cgs, u, datapath, ds_name):
     u.to_csv(datapath + "/" + ds_name + "-md-users.csv")
     print("OK")
 
+### Plotting utilities ########################
 def single_empCDF(x, y, lims=False, xlab=False, ylab=False, title=False, legend=False, figpath=False, hltqt=False):
     """single_empCDF function: plot empirical cumulative distribution function of variable Y through quantile function (one single curve)
     INPUT: x: numpy array x-axis (cf linspace); y: empirical CDF; xlab, ylab: axis labels; xlim, ylim: axis limits; title: graph title; legend: legend of the plot
@@ -231,3 +214,24 @@ def multisctrplot(x, y, lims=False, xlab=False, ylab=False, title=False, legend=
     if figpath != False:
         plt.savefig(figpath)
     plt.close("all")
+
+### OSM data exploration ######################
+def updatedelem(data):
+    """updatedelem function: return an updated version of OSM elements
+    INPUT: data = OSM element timeline
+    OUTPUT: updata = updated OSM elements
+    """
+    updata = data.groupby(['elem','id'])['version'].max().reset_index()
+    return pd.merge(updata, data, on=['id','version'])
+
+def datedelems(history, date):
+    """
+    datedelems: return an updated version of history data at date
+    INPUT: history = OSM history dataframe, date = date in datetime format
+    OUTPUT: datedelems = dataframe with up-to-date elements (at date 'date')
+    """
+    datedelems = (history.query("ts <= @date")
+                  .groupby(['elem','id'])['version']
+                  .max()
+                  .reset_index())
+    return pd.merge(datedelems, history, on=['elem','id','version'])

@@ -95,10 +95,10 @@ In this repository, we gather all source files used in the R&D effort, by the wa
     - n_nodemodif : nombre de modifications sur les nodes réalisées par l'utilisateur
     - n_waymodif : nombre de modifications sur les ways réalisées par l'utilisateur
     - n_relationmodif : nombre de modifications sur les relations réalisées par l'utilisateur
-    - n_modif_byelem : nombre médian de modifications réalisées sur un seul élément
-    - n_modif_bynode : nombre médian de modifications réalisées sur un seul node
-    - n_modif_byway : nombre médian de modifications réalisées sur un seul way
-    - n_modif_byrelation : nombre médian de modifications réalisées sur une seule relation
+    - nmed_modif_byelem : nombre médian de modifications réalisées sur un seul élément
+    - nmed_modif_bynode : nombre médian de modifications réalisées sur un seul node
+    - nmed_modif_byway : nombre médian de modifications réalisées sur un seul way
+    - nmed_modif_byrelation : nombre médian de modifications réalisées sur une seule relation
     - nmax_modif_byelem : nombre maximum de modifications réalisées sur un seul élément
     - nmax_modif_bynode : nombre maximum de modifications réalisées sur un seul node
     - nmax_modif_byway : nombre maximum de modifications réalisées sur un seul way

@@ -13,6 +13,17 @@
   Timestamp                = {2017.03.14}
 }
 
+@MastersThesis{Ather2009,
+  Title                    = {A quality analysis of openstreetmap data},
+  Author                   = {Ather, Aamer},
+  Year                     = {2009},
+
+  Journal                  = {ME Thesis, University College London, London, UK},
+  Owner                    = {rde},
+  Timestamp                = {2017.03.31},
+  Volume                   = {22}
+}
+
 @Article{Costea2016,
   Title                    = {Aerial image geolocalization from recognition and matching of roads and intersections},
   Author                   = {Costea, Dragos and Leordeanu, Marius},
@@ -21,6 +32,20 @@
 
   Owner                    = {rde},
   Timestamp                = {2017.03.16}
+}
+
+@Article{Haklay2010,
+  Title                    = {How good is volunteered geographical information? A comparative study of OpenStreetMap and Ordnance Survey datasets},
+  Author                   = {Haklay, Mordechai},
+  Journal                  = {Environment and planning B: Planning and design},
+  Year                     = {2010},
+  Number                   = {4},
+  Pages                    = {682--703},
+  Volume                   = {37},
+
+  Owner                    = {rde},
+  Publisher                = {SAGE Publications Sage UK: London, England},
+  Timestamp                = {2017.03.31}
 }
 
 @Article{Helbich2012,
