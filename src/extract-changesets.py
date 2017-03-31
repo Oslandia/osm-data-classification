@@ -52,7 +52,7 @@ def main(fname, output_fname):
                 # one line by tag. repeat the first line for each
                 if '</changeset>' in xmlline:
                     for key, value in tags:
-                        multiple_lines.append(line + key + ',"' + value + '"')
+                        multiple_lines.append(line + '"' + key + '","' + value + '"')
                     out.write("\n".join(multiple_lines))
                     out.write("\n")
 
