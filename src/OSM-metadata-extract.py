@@ -98,6 +98,7 @@ if __name__ == '__main__':
 
     ########################################
     # Add some features to OSM elements (needed for user metadata)
+    print("Extension of OSM element data...")
     osm_elements.sort_values(by=['elem','id','version'], inplace=True)
     # Maximal version of each elements
     osmelem_vmax = (osm_elements.groupby(['elem','id'])['version']
@@ -160,11 +161,11 @@ if __name__ == '__main__':
                           .count()
                           .reset_index()['elem'])
     user_md_byelem = (osm_elements.groupby(['uid','elem'])['id']
-                      .nunique()
+                      .count()
                       .unstack()
                       .reset_index()
                       .fillna(0))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid').fillna(0)
     user_md.columns.values[-4:] = ['n_modif', 'n_nodemodif',
                                      'n_relationmodif', 'n_waymodif']
     #
@@ -179,7 +180,7 @@ if __name__ == '__main__':
                       .unstack()
                       .reset_index()
                       .fillna(0))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid').fillna(0)
     user_md.columns.values[-3:] = ['nmed_modif_bynode',
                                    'nmed_modif_byrelation',
                                    'nmed_modif_byway']
@@ -188,7 +189,7 @@ if __name__ == '__main__':
                       .unstack()
                       .reset_index()
                       .fillna(0))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid').fillna(0)
     user_md.columns.values[-3:] = ['nmax_modif_bynode',
                                    'nmax_modif_byrelation',
                                    'nmax_modif_byway']
@@ -221,7 +222,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['n_elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node', 'n_relation', 'n_way', 'n_elem']
     #    
     osmelem_last_byuser = (osm_elements.groupby(['elem','id','uid'])['version']
@@ -246,7 +247,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer")
     user_md.columns.values[-4:] = ['n_node_lastdel', 'n_relation_lastdel',
                                    'n_way_lastdel', 'n_elem_lastdel']
     #    
@@ -258,11 +259,11 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node_lastupd', 'n_relation_lastupd',
                                    'n_way_lastupd', 'n_elem_lastupd']
     #
-    osmelem_last_byuser['oldcontrib'] = np.logical_and(
+    osmelem_last_byuser['old_contrib'] = np.logical_and(
         ~(osmelem_last_byuser.up_to_date),
         osmelem_last_byuser.uid != osmelem_last_byuser.lastuid)
     osmelem_oldcontrib = osmelem_last_byuser.query("old_contrib")
@@ -274,7 +275,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node_olddel', 'n_relation_olddel',
                                    'n_way_olddel', 'n_elem_olddel']
     #
@@ -286,7 +287,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node_oldupd', 'n_relation_oldupd',
                                    'n_way_oldupd', 'n_elem_oldupd']
     #
@@ -308,7 +309,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node_cr', 'n_relation_cr',
                                    'n_way_cr', 'n_elem_cr']
     #
@@ -320,7 +321,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node_crupd', 'n_relation_crupd',
                                    'n_way_crupd', 'n_elem_crupd']
     #
@@ -337,7 +338,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node_crmod', 'n_relation_crmod',
                                    'n_way_crmod', 'n_elem_crmod']
     #
@@ -349,7 +350,7 @@ if __name__ == '__main__':
                       .fillna(0))
     user_md_byelem['elem'] = (user_md_byelem[['node','relation','way']]
                                 .apply(sum, axis=1))
-    user_md = pd.merge(user_md, user_md_byelem, on='uid')
+    user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
     user_md.columns.values[-4:] = ['n_node_crdel', 'n_relation_crdel',
                                    'n_way_crdel', 'n_elem_crdel']
 
