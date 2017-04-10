@@ -6,11 +6,10 @@ file has to be runned through the following format:
 python <pathto_OSM-history-parsing.py> <pathto_osmfile.pbf> <pathto_outputdir (optional)>
 """
 
-import sys
-import os.path as osp
-from datetime import datetime
 # if sys.version_info[0] == 3:
 #     from datetime import timezone
+from datetime import datetime
+
 import pandas as pd
 import osmium as osm
 
@@ -37,6 +36,7 @@ class TimelineHandler(osm.SimpleHandler):
         """ Class default constructor"""
         osm.SimpleHandler.__init__(self)
         self.elemtimeline = [] # Dictionnary of OSM elements
+        print("Initialization of a TimelineHandler instance !")
         
     def node(self,n):
         """
@@ -48,6 +48,7 @@ class TimelineHandler(osm.SimpleHandler):
         ("node") and geographical coordinates (lat, lon)
 
         """
+#        print("n")
         nodeloc = n.location
         # If the location is not valid, then the node is no longer available
         if nodeloc.valid():
@@ -84,6 +85,7 @@ class TimelineHandler(osm.SimpleHandler):
         tagkeys, elem type ("way") and a tuple (node quantity, list of
         nodes)
         """
+#        print("w")
         # If there is no nodes in the way, then the way is no longer available
         if len(w.nodes) > 0 :
             self.elemtimeline.append([w.id,
@@ -119,6 +121,7 @@ class TimelineHandler(osm.SimpleHandler):
         tagkeys, elem type ("relation") and a tuple (member quantity,
         list of members under format (id, role, type))
         """
+        # print("r")
         # If the relation does not include any member, it is no longer available
         if len(r.members) > 0 or len(r.tags) > 0 :
             self.elemtimeline.append([r.id,
@@ -145,33 +148,3 @@ class TimelineHandler(osm.SimpleHandler):
                                       (len(r.members), [(m.ref,m.role,m.type)
                                                         for m in r.members])])
 
-########################################
-# Main method        
-if __name__ == '__main__':
-    if len(sys.argv) < 2 or len(sys.argv) > 3:
-        print("Usage: python <pathto_OSM-history-parsing.py> <pathto_osmfile.pbf> (<pathto_outputdir.csv>)")
-        sys.exit(-1)
-    filepath = sys.argv[1]
-    if len(sys.argv) == 3:
-        outputpath = sys.argv[2]
-    else:
-        outputpath = filepath
-
-    # Recover the data through an instance of an osm handler
-    tlhandler = TimelineHandler()
-    tlhandler.apply_file(filepath)
-    print("Element number = {0}".format(len(tlhandler.elemtimeline)))
-
-    # Convert handled nodes into a classic dataframe
-    colnames = ['id', 'version', 'visible', 'ts', 'uid',
-                'chgset', 'ntags', 'tagkeys', 'elem', 'descr']
-    elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
-    elements = elements.sort_values(by=['elem', 'id', 'version'], inplace=True)
-    
-    # Write node data into a CSV file for further treatments
-    output_filename_prefix = osp.splitext(outputpath)[0]
-    if "." in osp.split(output_filename_prefix)[1] :
-        output_filename_prefix = osp.splitext(osp.splitext(outputpath)[0])[0]
-    output_filename = output_filename_prefix + "-elements.csv"
-    print("Write OSM history data into {0}".format(output_filename))
-    elements.to_csv(output_filename, date_format='%Y-%m-%d %H:%M:%S')
