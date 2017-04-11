@@ -16,7 +16,7 @@ class OSMHistoryParsing(luigi.Task):
 
     """ Luigi task : parse OSM data history from a .pbf file
     """
-    datarep = luigi.Parameter("../data/datapath")
+    datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
@@ -44,7 +44,7 @@ class OSMTagParsing(luigi.Task):
 
     """ Luigi task : parse OSM tag genome from a .pbf file
     """
-    datarep = luigi.Parameter("../data/datapath")
+    datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
@@ -69,7 +69,7 @@ class OSMTagParsing(luigi.Task):
 class OSMTagMetaAnalysis(luigi.Task):
     """ Luigi task: OSM tag genome meta analysis
     """
-    datarep = luigi.Parameter("../data/datapath")
+    datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
@@ -140,7 +140,7 @@ class OSMTagMetaAnalysis(luigi.Task):
 class ElementMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM element
     """
-    datarep = luigi.Parameter("../data/datapath")
+    datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
@@ -187,7 +187,7 @@ class ElementMetadataExtract(luigi.Task):
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
-    datarep = luigi.Parameter("../data/datapath")
+    datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
@@ -246,7 +246,7 @@ class ChangeSetMetadataExtract(luigi.Task):
 class OSMElementEnrichment(luigi.Task):
     """ Luigi task: building of new features for OSM element history
     """
-    datarep = luigi.Parameter("../data/datapath")
+    datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
@@ -318,7 +318,7 @@ class OSMElementEnrichment(luigi.Task):
 class UserMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM user
     """
-    datarep = luigi.Parameter("../data/datapath")
+    datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
