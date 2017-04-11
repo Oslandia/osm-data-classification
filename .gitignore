@@ -1,5 +1,5 @@
 *.pyc
 *~
 *.bak
-data/datapath
+data/*
 
