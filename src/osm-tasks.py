@@ -21,11 +21,11 @@ class OSMHistoryParsing(luigi.Task):
 
     def outputpath(self):
         return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-elements.csv")        
-    
+                self.dsname + "-elements.csv")
+
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-    
+
     def run(self):
         tlhandler = osmparsing.TimelineHandler()
         datapath = self.datarep + "/raw/" + self.dsname + ".osh.pbf"
@@ -39,7 +39,7 @@ class OSMHistoryParsing(luigi.Task):
         with self.output().open('w') as outputflow:
             elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-        
+
 class OSMTagParsing(luigi.Task):
 
     """ Luigi task : parse OSM tag genome from a .pbf file
@@ -49,11 +49,11 @@ class OSMTagParsing(luigi.Task):
 
     def outputpath(self):
         return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-tag-genome.csv")        
-    
+                self.dsname + "-tag-genome.csv")
+
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-    
+
     def run(self):
         taghandler = osmparsing.TagGenomeHandler()
         datapath = self.datarep + "/raw/" + self.dsname + ".osh.pbf"
@@ -65,7 +65,7 @@ class OSMTagParsing(luigi.Task):
         with self.output().open('w') as outputflow:
             tag_genome.to_csv(outputflow)
 
-            
+
 class OSMTagMetaAnalysis(luigi.Task):
     """ Luigi task: OSM tag genome meta analysis
     """
@@ -74,11 +74,11 @@ class OSMTagMetaAnalysis(luigi.Task):
 
     def outputpath(self):
         return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-fulltag-analysis.csv")        
+                self.dsname + "-fulltag-analysis.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-              
+
     def requires(self):
         datapath = self.datarep + "/raw/" + self.dsname + ".osh.pbf"
         elempath = (self.datarep + "/output-extracts/" + self.dsname + "/" +
@@ -128,7 +128,7 @@ class OSMTagMetaAnalysis(luigi.Task):
         # For element with a specific tag key (e.g. 'highway')
         tagvalue_freq = tagmetanalyse.tagvalue_frequency(tag_genome, "highway",
                                                          ['elem','version'])
-        
+
         # How many elements are tagged with value 'residential', amongst
         # "highway" elements?
         print(tagvalue_freq.loc['residential',0:10])
@@ -136,7 +136,7 @@ class OSMTagMetaAnalysis(luigi.Task):
         with self.output().open('w') as outputflow:
             fulltaganalys.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-        
+
 class ElementMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM element
     """
@@ -145,11 +145,11 @@ class ElementMetadataExtract(luigi.Task):
 
     def outputpath(self):
         return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-elem-md.csv")        
+                self.dsname + "-elem-md.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-              
+
     def requires(self):
         return OSMHistoryParsing(self.datarep, self.dsname)
 
@@ -183,7 +183,7 @@ class ElementMetadataExtract(luigi.Task):
         with self.output().open('w') as outputflow:
             elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-    
+
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
@@ -192,11 +192,11 @@ class ChangeSetMetadataExtract(luigi.Task):
 
     def outputpath(self):
         return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-chgset-md.csv")        
+                self.dsname + "-chgset-md.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-              
+
     def requires(self):
         return OSMHistoryParsing(self.datarep, self.dsname)
 
@@ -251,11 +251,11 @@ class OSMElementEnrichment(luigi.Task):
 
     def outputpath(self):
         return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-enriched-elements.csv")        
+                self.dsname + "-enriched-elements.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-              
+
     def requires(self):
         return OSMHistoryParsing(self.datarep, self.dsname)
 
@@ -267,7 +267,7 @@ class OSMElementEnrichment(luigi.Task):
                                        parse_dates=['ts'])
 
         osm_elements.sort_values(by=['elem','id','version'])
-            
+
         # Maximal version of each elements
         osmelem_vmax = (osm_elements.groupby(['elem','id'])['version']
                         .max()
@@ -314,7 +314,7 @@ class OSMElementEnrichment(luigi.Task):
 
         with self.output().open('w') as outputflow:
             osm_elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
-               
+
 class UserMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM user
     """
@@ -323,11 +323,11 @@ class UserMetadataExtract(luigi.Task):
 
     def outputpath(self):
         return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-user-md.csv")        
+                self.dsname + "-user-md.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-              
+
     def requires(self):
         return OSMHistoryParsing(self.datarep, self.dsname)
 
@@ -442,7 +442,7 @@ class UserMetadataExtract(luigi.Task):
         user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
         user_md.columns.values[-4:] = ['n_node', 'n_relation', 'n_way', 'n_elem']
 
-        #    
+        #
         osmelem_last_byuser = (osm_elements.groupby(['elem','id','uid'])['version']
                                .last()
                                .reset_index())
@@ -470,7 +470,7 @@ class UserMetadataExtract(luigi.Task):
         user_md.columns.values[-4:] = ['n_node_lastdel', 'n_relation_lastdel',
                                        'n_way_lastdel', 'n_elem_lastdel']
 
-        #    
+        #
         osmelem_lastupd = osmelem_lastcontrib.query("visible")
         user_md_byelem = (osmelem_lastupd.groupby(['uid','elem'])['id']
                           .count()
@@ -548,7 +548,7 @@ class UserMetadataExtract(luigi.Task):
                                        'n_way_crupd', 'n_elem_crupd']
         #
         osmelem_cr_old = osmelem_cr.query("not up_to_date")
-        osmelem_last = osmelem_creation.query("step == 'last'") 
+        osmelem_last = osmelem_creation.query("step == 'last'")
         osmelem_cr_old = pd.merge(osmelem_cr_old,
                                   osmelem_last[['elem','id','visible']],
                                   on=['elem','id'])
@@ -575,7 +575,7 @@ class UserMetadataExtract(luigi.Task):
         user_md = pd.merge(user_md, user_md_byelem, on='uid', how="outer").fillna(0)
         user_md.columns.values[-4:] = ['n_node_crdel', 'n_relation_crdel',
                                        'n_way_crdel', 'n_elem_crdel']
-            
-        
+
+
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
