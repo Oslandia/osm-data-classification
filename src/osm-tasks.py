@@ -333,9 +333,6 @@ class UserMetadataExtract(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMHistoryParsing(self.datarep, self.dsname)
-
-    def requires(self):
         return {'chgsets': ChangeSetMetadataExtract(self.datarep,
                                                     self.dsname),
                 'enrichhist': OSMElementEnrichment(self.datarep,
@@ -471,3 +468,39 @@ class UserMetadataExtract(luigi.Task):
         # Metadata saving
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+class MasterTask(luigi.Task):
+    """ Luigi task: generic task that launches every final tasks
+    """
+    datarep = luigi.Parameter("../data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    # def outputpath(self):
+    #     return (self.datarep + "/output-extracts/" + self.dsname + "/" +
+    #             self.dsname + "-user-md.csv")
+
+    # def output(self):
+        # return luigi.LocalTarget(self.outputpath())
+    
+    def requires(self):
+        return {'user_md': UserMetadataExtract(self.datarep, self.dsname),
+                'elem_md': ElementMetadataExtract(self.datarep, self.dsname),
+                'tags': OSMElementEnrichment(self.datarep, self.dsname)}
+
+    # def run(self):
+        # with self.input()['user_md'].open('r') as inputflow:
+        #     chgset_md = pd.read_csv(inputflow,
+        #                             index_col=0)
+        #     chgset_md.user_lastchgset = pd.to_timedelta(chgset_md
+        #                                                 .user_lastchgset)
+        # with self.input()['enrichhist'].open('r') as inputflow:
+        #     osm_elements = pd.read_csv(inputflow,
+        #                                index_col=0,
+        #                                parse_dates=['ts'])
+        #     osm_elements.nextmodif_in = pd.to_timedelta(osm_elements
+        #                                                 .nextmodif_in)
+        #     osm_elements.nextcorr_in = pd.to_timedelta(osm_elements.nextcorr_in)
+        #     osm_elements.nextauto_in = pd.to_timedelta(osm_elements.nextauto_in)
+
+        # with self.output().open('w') as outputflow:
+        #     user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
