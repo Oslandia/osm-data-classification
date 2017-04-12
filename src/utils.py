@@ -4,20 +4,9 @@
 Some utility functions aiming to analyse OSM data
 """
 
-###############################################
-# Import packages #############################
-###############################################
-import sys
-import os.path as osp
-from datetime import datetime, timedelta
-    
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-
-###############################################
-# Utilities ###################################
-###############################################
 
 ### I/O utilities #############################
 def readOSMdata(datapath, ds_name):
@@ -235,3 +224,70 @@ def datedelems(history, date):
                   .max()
                   .reset_index())
     return pd.merge(datedelems, history, on=['elem','id','version'])
+
+### OSM metadata extraction ####################
+def groupuser_count(metadata, data, grpft, resft, namesuffix):
+    """Group-by 'data' by 'grpft' and element type features, count element
+    corresponding to each grpft-elemtype tuples and merge them into metadata
+    table
+
+    INPUT: metadata = df that is modified during processing, data = df from
+    where information is grouped, grpft = string that indicates which feature
+    from 'data' must be used to group items, resft = string that indicates the
+    measured feature (how many items correspond to the criterion), namesuffix =
+    end of strings that represents the corresponding features
+
+    """
+    md_ext = (data.groupby([grpft, 'elem'])['id']
+              .count()
+              .unstack()
+              .reset_index()
+              .fillna(0))
+    md_ext['elem'] = md_ext[['node','relation','way']].apply(sum, axis=1)
+    colnames = "n_" + md_ext.columns.values[-4:] + namesuffix
+    md_ext.columns = [grpft, *colnames]
+    return pd.merge(metadata, md_ext, on=grpft, how='outer').fillna(0)
+
+def groupuser_nunique(metadata, data, grpft, resft, namesuffix):
+    """Group-by 'data' by 'grpft' and element type features, count unique
+    element corresponding to each grpft-elemtype tuples and merge them into
+    metadata table
+
+    INPUT: metadata = df that is modified during processing, data = df from
+    where information is grouped, grpft = string that indicates which feature
+    from 'data' must be used to group items, resft = string that indicates the
+    measured feature (how many items correspond to the criterion), namesuffix =
+    end of strings that represents the corresponding features
+
+    """
+    md_ext = (data.groupby([grpft, 'elem'])['id']
+              .nunique()
+              .unstack()
+              .reset_index()
+              .fillna(0))
+    md_ext['elem'] = md_ext[['node','relation','way']].apply(sum, axis=1)
+    colnames = "n_" + md_ext.columns.values[-4:] + namesuffix
+    md_ext.columns = [grpft, *colnames]
+    return pd.merge(metadata, md_ext, on=grpft, how='outer').fillna(0)
+
+
+def groupuser_stats(metadata, data, grpft, resft, namesuffix):
+    """Group-by 'data' by 'grpft' and element type features, compute basic
+    statistic features (min, median, max) corresponding to each grpft-elemtype
+    tuples and merge them into metadata table
+
+    INPUT: metadata = df that is modified during processing, data = df from
+    where information is grouped, grpft = string that indicates which feature
+    from 'data' must be used to group items, resft = string that indicates the
+    measured feature (how many items correspond to the criterion), namesuffix =
+    end of strings that represents the corresponding features
+
+    """
+    md_ext = (data.groupby(grpft)[resft].agg({'min': "min",
+                                              'med': "median",
+                                              'max': "max"}).reset_index())
+    colnames = ["n" + op + "_" + namesuffix for op in md_ext.columns.values[1:]]
+    md_ext.columns = [grpft, *colnames]
+    metadata = pd.merge(metadata, md_ext, on=grpft, how='outer').fillna(0)
+    return metadata
+
