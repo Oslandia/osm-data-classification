@@ -295,24 +295,27 @@ class OSMElementEnrichment(luigi.Task):
                                                          osm_elements.uid[:-1])
         osm_elements['willbe_autocorr'] = osm_elements.willbe_autocorr.shift(-1)
         osm_elements.willbe_autocorr[-1:] = False
-        osm_elements.willbe_autocorr = osm_elements.willbe_autocorr.astype('bool')
+        osm_elements.willbe_autocorr = (osm_elements.willbe_autocorr
+                                        .astype('bool'))
 
         # Time before the next modification
-        osm_elements['time_before_nextmodif'] = osm_elements.ts.diff()
-        osm_elements['time_before_nextmodif'] = (osm_elements.time_before_nextmodif
-                                                 .shift(-1))
-        osm_elements.loc[osm_elements.up_to_date,['time_before_nextmodif']] = pd.NaT
+        osm_elements['nextmodif_in'] = osm_elements.ts.diff()
+        osm_elements['nextmodif_in'] = (osm_elements.nextmodif_in.shift(-1))
+        osm_elements.loc[osm_elements.up_to_date,['nextmodif_in']] = pd.NaT
 
         # Time before the next modification, if it is done by another user
-        osm_elements['time_before_nextcorr'] = osm_elements.time_before_nextmodif
-        osm_elements['time_before_nextcorr']=osm_elements.time_before_nextcorr.where(osm_elements.willbe_corr,other=pd.NaT)
+        osm_elements['nextcorr_in'] = osm_elements.nextmodif_in
+        osm_elements['nextcorr_in'] = (osm_elements.nextcorr_in
+                                       .where(osm_elements.willbe_corr,
+                                              other=pd.NaT))
 
         # Time before the next modification, if it is done by the same user
-        osm_elements['time_before_nextauto'] = osm_elements.time_before_nextmodif
-        osm_elements['time_before_nextauto'] = (osm_elements.time_before_nextauto
-                                                .where(osm_elements.willbe_autocorr,
+        osm_elements['nextauto_in'] = osm_elements.nextmodif_in
+        osm_elements['nextauto_in'] = (osm_elements.nextauto_in
+                                       .where(osm_elements.willbe_autocorr,
                                                        other=pd.NaT))
 
+        # Element saving
         with self.output().open('w') as outputflow:
             osm_elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
@@ -343,20 +346,22 @@ class UserMetadataExtract(luigi.Task):
         with self.input()['chgsets'].open('r') as inputflow:
             chgset_md = pd.read_csv(inputflow,
                                     index_col=0)
-            chgset_md.user_lastchgset = pd.to_timedelta(chgset_md.user_lastchgset)
+            chgset_md.user_lastchgset = pd.to_timedelta(chgset_md
+                                                        .user_lastchgset)
         with self.input()['enrichhist'].open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-            osm_elements.time_before_nextmodif = pd.to_timedelta(osm_elements.time_before_nextmodif)
-            osm_elements.time_before_nextcorr = pd.to_timedelta(osm_elements.time_before_nextcorr)
-            osm_elements.time_before_nextauto = pd.to_timedelta(osm_elements.time_before_nextauto)
+            osm_elements.nextmodif_in = pd.to_timedelta(osm_elements
+                                                        .nextmodif_in)
+            osm_elements.nextcorr_in = pd.to_timedelta(osm_elements.nextcorr_in)
+            osm_elements.nextauto_in = pd.to_timedelta(osm_elements.nextauto_in)
 
+        # Basic features: nb change sets, timestamps
         user_md = (osm_elements.groupby('uid')['chgset']
                    .nunique()
                    .reset_index())
         user_md.colnames = ['uid', 'n_chgset']
-
         user_md['first_at'] = (osm_elements.groupby('uid')['ts']
                                .min()
                                .reset_index()['ts'])
@@ -364,7 +369,7 @@ class UserMetadataExtract(luigi.Task):
                               .max()
                               .reset_index()['ts'])
         user_md['activity'] = user_md.last_at - user_md.first_at
-
+        # Change set-related features
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_modif',
                                   'modif_bychgset')
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_uniqelem',
@@ -374,61 +379,71 @@ class UserMetadataExtract(luigi.Task):
                                               .apply(lambda x: x.mean())
                                               .reset_index()['user_lastchgset'])
 
-        user_md = groupuser_count(user_md, osm_elements, 'uid', 'id',
-                                  '_modif')
+        # Total number of modifications
+        user_md = groupuser_count(user_md, osm_elements, 'uid', 'id', '_modif')
 
+        # Number of modifications per unique element
         contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                           .count()
                           .reset_index())
         user_md = groupuser_stats(user_md, contrib_byelem, 'uid', 'version',
                                   'modif_byelem')
 
+        # Update times
         user_md['update_medtime'] = (osm_elements
-                                     .groupby('uid')['time_before_nextmodif']
+                                     .groupby('uid')['nextmodif_in']
                                      .apply(lambda x: x.median())
-                                     .reset_index()['time_before_nextmodif'])
+                                     .reset_index()['nextmodif_in'])
         user_md['corr_medtime'] = (osm_elements
-                                   .groupby('uid')['time_before_nextcorr']
+                                   .groupby('uid')['nextcorr_in']
                                    .apply(lambda x: x.median())
-                                   .reset_index()['time_before_nextcorr'])
+                                   .reset_index()['nextcorr_in'])
         user_md['autocorr_medtime'] = (osm_elements
-                                       .groupby('uid')['time_before_nextauto']
+                                       .groupby('uid')['nextauto_in']
                                        .apply(lambda x: x.median())
-                                       .reset_index()['time_before_nextauto'])
+                                       .reset_index()['nextauto_in'])
 
+        # Number of unique elements that received a contribution
         user_md = groupuser_nunique(user_md, osm_elements, 'uid', 'id', '')
 
-        osmelem_last_byuser = (osm_elements.groupby(['elem','id','uid'])['version']
+        # Number of elements for which the user is the last contributor
+        osmelem_last_byuser = (osm_elements
+                               .groupby(['elem','id','uid'])['version']
                                .last()
                                .reset_index())
         osmelem_last_byuser = pd.merge(osmelem_last_byuser,
-                                       osm_elements[['elem','uid','id','version',
+                                       osm_elements[['elem','uid',
+                                                     'id','version',
                                                      'visible','up_to_date']],
                                        on=['elem','id','uid','version'])
-        lastcontrib_byuser = osm_elements.query("up_to_date")[['elem','id','uid']]
+        lastcontrib_byuser = osm_elements.query("up_to_date")[['elem',
+                                                               'id',
+                                                               'uid']]
         osmelem_last_byuser = pd.merge(osmelem_last_byuser, lastcontrib_byuser,
                                        on=['elem','id'])
         osmelem_last_byuser.columns = ['elem','id','uid','version','visible',
                                        'up_to_date','lastuid']
-
         osmelem_lastcontrib = osmelem_last_byuser.query("up_to_date")
         osmelem_lastdel = osmelem_lastcontrib.query("not visible")
-        user_md = groupuser_count(user_md, osmelem_lastdel, 'uid', 'id', '_lastdel')
-
+        user_md = groupuser_count(user_md, osmelem_lastdel, 'uid', 'id',
+                                  '_lastdel')
         osmelem_lastutd = osmelem_lastcontrib.query("visible")
-        user_md = groupuser_count(user_md, osmelem_lastutd, 'uid', 'id', '_lastavl')
+        user_md = groupuser_count(user_md, osmelem_lastutd, 'uid', 'id',
+                                  '_lastavl')
 
+        # Number of contribution done by the user and updated since
         osmelem_last_byuser['old_contrib'] = np.logical_and(
-            ~(osmelem_last_byuser.up_to_date),
-            osmelem_last_byuser.uid != osmelem_last_byuser.lastuid)
+            ~(osmelem_last_byuser.up_to_date), osmelem_last_byuser.uid !=
+            osmelem_last_byuser.lastuid)
         osmelem_oldcontrib = osmelem_last_byuser.query("old_contrib")
         osmelem_olddel = osmelem_oldcontrib.query("not visible")
-        user_md = groupuser_count(user_md, osmelem_olddel, 'uid', 'id', '_olddel')
-
+        user_md = groupuser_count(user_md, osmelem_olddel, 'uid', 'id',
+                                  '_olddel')
         osmelem_oldmod = osmelem_oldcontrib.query("visible")
         user_md = groupuser_count(user_md, osmelem_oldmod, 'uid', 'id',
         '_oldmod')
 
+        # Number of created elements
         osmelem_creation = (osm_elements.groupby(['elem','id'])['version']
                             .agg({'first':"first",'last':"last"})
                             .stack()
@@ -438,13 +453,11 @@ class UserMetadataExtract(luigi.Task):
                                     osm_elements[['elem','uid','id','version',
                                                   'visible','up_to_date']],
                                     on=['elem','id','version'])
-
         osmelem_cr = osmelem_creation.query("step == 'first'")
         user_md = groupuser_count(user_md, osmelem_cr, 'uid', 'id', '_cr')
-
         osmelem_cr_utd = osmelem_cr.loc[osmelem_cr.up_to_date]
-        user_md = groupuser_count(user_md, osmelem_cr_utd, 'uid', 'id', '_crutd')
-
+        user_md = groupuser_count(user_md, osmelem_cr_utd, 'uid', 'id',
+                                  '_crutd')
         osmelem_cr_old = osmelem_cr.query("not up_to_date")
         osmelem_last = osmelem_creation.query("step == 'last'")
         osmelem_cr_old = pd.merge(osmelem_cr_old,
@@ -452,9 +465,9 @@ class UserMetadataExtract(luigi.Task):
                                   on=['elem','id'])
         osmelem_cr_mod = osmelem_cr_old.query("visible_y")
         user_md = groupuser_count(user_md, osmelem_cr_mod, 'uid', 'id', '_crmod')
-
         osmelem_cr_del = osmelem_cr_old.query("not visible_y")
         user_md = groupuser_count(user_md, osmelem_cr_del, 'uid', 'id', '_crdel')
 
+        # Metadata saving
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
