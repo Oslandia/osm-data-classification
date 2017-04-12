@@ -1,3 +1,4 @@
+# !/usr/bin/env python
 # coding: utf-8
 
 """
@@ -206,18 +207,27 @@ def multisctrplot(x, y, lims=False, xlab=False, ylab=False, title=False, legend=
 
 ### OSM data exploration ######################
 def updatedelem(data):
-    """updatedelem function: return an updated version of OSM elements
-    INPUT: data = OSM element timeline
-    OUTPUT: updata = updated OSM elements
+    """Return an updated version of OSM elements
+
+    Parameters
+    ----------
+    data: df
+        OSM element timeline
+    
     """
     updata = data.groupby(['elem','id'])['version'].max().reset_index()
     return pd.merge(updata, data, on=['id','version'])
 
 def datedelems(history, date):
-    """
-    datedelems: return an updated version of history data at date
-    INPUT: history = OSM history dataframe, date = date in datetime format
-    OUTPUT: datedelems = dataframe with up-to-date elements (at date 'date')
+    """Return an updated version of history data at date
+
+    Parameters
+    ----------
+    history: df
+        OSM history dataframe
+    date: datetime
+        date in datetime format
+
     """
     datedelems = (history.query("ts <= @date")
                   .groupby(['elem','id'])['version']
@@ -231,12 +241,20 @@ def groupuser_count(metadata, data, grp_feat, res_feat, namesuffix):
     corresponding to each grp_feat-elemtype tuples and merge them into metadata
     table
 
-    INPUT: metadata = df that is modified during processing, data = df from
-    where information is grouped, grp_feat = string that indicates which feature
-    from 'data' must be used to group items, res_feat = string that indicates the
-    measured feature (how many items correspond to the criterion), namesuffix =
-    end of strings that represents the corresponding features
-
+    Parameters
+    ----------
+    metadata: df
+        Dataframe that will integrate the new features
+    data: df
+        Dataframe from where information is grouped
+    grp_feat: object
+        string that indicates which feature from 'data' must be used to group items
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    to the criterion)
+    namesuffix: object
+        string that ends the new feature name
+    
     """
     md_ext = (data.groupby([grp_feat, 'elem'])[res_feat]
               .count()
@@ -253,11 +271,19 @@ def groupuser_nunique(metadata, data, grp_feat, res_feat, namesuffix):
     element corresponding to each grp_feat-elemtype tuples and merge them into
     metadata table
 
-    INPUT: metadata = df that is modified during processing, data = df from
-    where information is grouped, grp_feat = string that indicates which feature
-    from 'data' must be used to group items, res_feat = string that indicates the
-    measured feature (how many items correspond to the criterion), namesuffix =
-    end of strings that represents the corresponding features
+    Parameters
+    ----------
+    metadata: df
+        Dataframe that will integrate the new features
+    data: df
+        Dataframe from where information is grouped
+    grp_feat: object
+        string that indicates which feature from 'data' must be used to group items
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    to the criterion)
+    namesuffix: object
+        string that ends the new feature name
 
     """
     md_ext = (data.groupby([grp_feat, 'elem'])[res_feat]
@@ -273,14 +299,22 @@ def groupuser_nunique(metadata, data, grp_feat, res_feat, namesuffix):
 
 def groupuser_stats(metadata, data, grp_feat, res_feat, namesuffix):
     """Group-by 'data' by 'grp_feat' and element type features, compute basic
-    statistic features (min, median, max) corresponding to each grp_feat-elemtype
-    tuples and merge them into metadata table
+    statistic features (min, median, max) corresponding to each
+    grp_feat-elemtype tuples and merge them into metadata table
 
-    INPUT: metadata = df that is modified during processing, data = df from
-    where information is grouped, grp_feat = string that indicates which feature
-    from 'data' must be used to group items, res_feat = string that indicates the
-    measured feature (how many items correspond to the criterion), namesuffix =
-    end of strings that represents the corresponding features
+    Parameters
+    ----------
+    metadata: df
+        Dataframe that will integrate the new features
+    data: df
+        Dataframe from where information is grouped
+    grp_feat: object
+        string that indicates which feature from 'data' must be used to group items
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    to the criterion)
+    namesuffix: object
+        string that ends the new feature name
 
     """
     md_ext = (data.groupby(grp_feat)[res_feat].agg({'min': "min",
@@ -288,5 +322,5 @@ def groupuser_stats(metadata, data, grp_feat, res_feat, namesuffix):
                                               'max': "max"}).reset_index())
     colnames = ["n" + op + "_" + namesuffix for op in md_ext.columns.values[1:]]
     md_ext.columns = [grp_feat, *colnames]
-    metadata = pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
-    return metadata
+    return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
+
