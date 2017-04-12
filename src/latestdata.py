@@ -1,9 +1,6 @@
 # coding: utf-8
 
-"""Extract some stats for OSM nodes, from a history OSM data file
-The file has to be runned through the following format:
-python <relativepathto_OSM-latest-data.py> <relativepathto_csvfiles> <dataset_name>
-"""
+""" Extract some stats for OSM nodes, from a history OSM data file """
 
 ###############################################
 # Import packages #############################
