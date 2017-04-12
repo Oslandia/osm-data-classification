@@ -285,7 +285,7 @@ class OSMElementEnrichment(luigi.Task):
                                                      osm_elements.uid[1:] !=
                                                      osm_elements.uid[:-1])
         osm_elements['willbe_corr'] = osm_elements.willbe_corr.shift(-1)
-        osm_elements.willbe_corr[-1:] = False
+        osm_elements.willbe_corr.values[-1:] = False
         osm_elements.willbe_corr = osm_elements.willbe_corr.astype('bool')
 
         # Whether or not an element will be corrected by the same user
@@ -294,7 +294,7 @@ class OSMElementEnrichment(luigi.Task):
                                                          osm_elements.uid[1:] ==
                                                          osm_elements.uid[:-1])
         osm_elements['willbe_autocorr'] = osm_elements.willbe_autocorr.shift(-1)
-        osm_elements.willbe_autocorr[-1:] = False
+        osm_elements.willbe_autocorr.values[-1:] = False
         osm_elements.willbe_autocorr = (osm_elements.willbe_autocorr
                                         .astype('bool'))
 
@@ -474,33 +474,8 @@ class MasterTask(luigi.Task):
     """
     datarep = luigi.Parameter("../data")
     dsname = luigi.Parameter("bordeaux-metropole")
-
-    # def outputpath(self):
-    #     return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-    #             self.dsname + "-user-md.csv")
-
-    # def output(self):
-        # return luigi.LocalTarget(self.outputpath())
     
     def requires(self):
-        return {'user_md': UserMetadataExtract(self.datarep, self.dsname),
-                'elem_md': ElementMetadataExtract(self.datarep, self.dsname),
-                'tags': OSMElementEnrichment(self.datarep, self.dsname)}
-
-    # def run(self):
-        # with self.input()['user_md'].open('r') as inputflow:
-        #     chgset_md = pd.read_csv(inputflow,
-        #                             index_col=0)
-        #     chgset_md.user_lastchgset = pd.to_timedelta(chgset_md
-        #                                                 .user_lastchgset)
-        # with self.input()['enrichhist'].open('r') as inputflow:
-        #     osm_elements = pd.read_csv(inputflow,
-        #                                index_col=0,
-        #                                parse_dates=['ts'])
-        #     osm_elements.nextmodif_in = pd.to_timedelta(osm_elements
-        #                                                 .nextmodif_in)
-        #     osm_elements.nextcorr_in = pd.to_timedelta(osm_elements.nextcorr_in)
-        #     osm_elements.nextauto_in = pd.to_timedelta(osm_elements.nextauto_in)
-
-        # with self.output().open('w') as outputflow:
-        #     user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+        yield UserMetadataExtract(self.datarep, self.dsname)
+        yield ElementMetadataExtract(self.datarep, self.dsname)
+        yield OSMTagMetaAnalysis(self.datarep, self.dsname)
