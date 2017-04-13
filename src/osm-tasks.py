@@ -262,25 +262,43 @@ class OSMElementEnrichment(luigi.Task):
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-
         osm_elements.sort_values(by=['elem','id','version'])
+        
+        # Extract information from first and last versions
+        osmelem_first_version = (osm_elements
+                                 .groupby(['elem','id'])['version', 'uid']
+                                 .first()
+                                 .reset_index())
+        osm_elements = pd.merge(osm_elements, osmelem_first_version,
+                                    on=['elem','id'])
+        osmelem_last_version = (osm_elements
+                                 .groupby(['elem','id'])['version', 'uid']
+                                 .last()
+                                 .reset_index())
+        osm_elements = pd.merge(osm_elements, osmelem_last_version,
+                                    on=['elem','id'])
+        osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
+                                    'uid', 'chgset', 'ntags', 'tagkeys',
+                                    'vmin', 'first_uid', 'vmax', 'last_uid']
 
-        # Maximal version of each elements
-        osmelem_vmax = (osm_elements.groupby(['elem','id'])['version']
-                        .max()
-                        .reset_index())
-        osmelem_vmax.columns = ['elem','id','vmax']
-        osm_elements = pd.merge(osm_elements, osmelem_vmax, on=['elem','id'])
-
-        # Whether or not an elements is up-to-date
+        # New version-related features
+        osm_elements['init'] = osm_elements.version == osm_elements.vmin
         osm_elements['up_to_date'] = osm_elements.version == osm_elements.vmax
+        osm_elements = osm_elements.drop(['vmin', 'vmax'], axis=1)
 
-        # Whether or not an element will be corrected by another user
+        # Whether or not an element is corrected in the current version
+        osm_elements['is_corr'] = np.logical_and(osm_elements.id.diff()==0,
+                                                 osm_elements.uid.diff()!=0)
+        osm_elements['is_autocorr'] = np.logical_and(osm_elements.id.diff()==0,
+                                                 osm_elements.uid.diff()==0)
+        
+        # Whether or not an element will be corrected in the last version
         osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
                                                   osm_elements.uid.diff(-1)!=0)        
-
-        # Whether or not an element will be corrected by the same user
-        osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id.diff(-1)==0, osm_elements.uid.diff(-1)==0)
+        osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id
+                                                         .diff(-1)==0,
+                                                         osm_elements.uid
+                                                         .diff(-1)==0)
         
         # Time before the next modification
         osm_elements['nextmodif_in'] = - osm_elements.ts.diff(-1)
@@ -297,6 +315,8 @@ class OSMElementEnrichment(luigi.Task):
         osm_elements['nextauto_in'] = (osm_elements.nextauto_in
                                        .where(osm_elements.willbe_autocorr,
                                                        other=pd.NaT))
+        osm_elements = osm_elements.drop(['willbe_corr', 'willbe_autocorr'],
+                                         axis=1)
 
         # Element saving
         with self.output().open('w') as outputflow:
