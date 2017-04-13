@@ -280,27 +280,14 @@ class OSMElementEnrichment(luigi.Task):
         osm_elements['up_to_date'] = osm_elements.version == osm_elements.vmax
 
         # Whether or not an element will be corrected by another user
-        osm_elements['willbe_corr'] = np.logical_and(osm_elements.id[1:] ==
-                                                     osm_elements.id[:-1],
-                                                     osm_elements.uid[1:] !=
-                                                     osm_elements.uid[:-1])
-        osm_elements['willbe_corr'] = osm_elements.willbe_corr.shift(-1)
-        osm_elements.willbe_corr.values[-1:] = False
-        osm_elements.willbe_corr = osm_elements.willbe_corr.astype('bool')
+        osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
+                                                  osm_elements.uid.diff(-1)!=0)        
 
         # Whether or not an element will be corrected by the same user
-        osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id[1:] ==
-                                                         osm_elements.id[:-1],
-                                                         osm_elements.uid[1:] ==
-                                                         osm_elements.uid[:-1])
-        osm_elements['willbe_autocorr'] = osm_elements.willbe_autocorr.shift(-1)
-        osm_elements.willbe_autocorr.values[-1:] = False
-        osm_elements.willbe_autocorr = (osm_elements.willbe_autocorr
-                                        .astype('bool'))
-
+        osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id.diff(-1)==0, osm_elements.uid.diff(-1)==0)
+        
         # Time before the next modification
-        osm_elements['nextmodif_in'] = osm_elements.ts.diff()
-        osm_elements['nextmodif_in'] = (osm_elements.nextmodif_in.shift(-1))
+        osm_elements['nextmodif_in'] = - osm_elements.ts.diff(-1)
         osm_elements.loc[osm_elements.up_to_date,['nextmodif_in']] = pd.NaT
 
         # Time before the next modification, if it is done by another user
