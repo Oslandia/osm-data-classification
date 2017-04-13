@@ -32,8 +32,8 @@ class OSMHistoryParsing(luigi.Task):
         tlhandler = osmparsing.TimelineHandler()
         datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
         tlhandler.apply_file(datapath)
-        colnames = ['id', 'version', 'visible', 'ts', 'uid',
-                'chgset', 'ntags', 'tagkeys', 'elem', 'descr']
+        colnames = ['elem', 'id', 'version', 'visible', 'ts',
+                    'uid', 'chgset', 'ntags', 'tagkeys']
         elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
         elements = elements.sort_values(by=['elem', 'id', 'version'])
         print("There are {0} items in the OSM history.".format(len(elements)))
@@ -271,6 +271,9 @@ class OSMElementEnrichment(luigi.Task):
                                  .reset_index())
         osm_elements = pd.merge(osm_elements, osmelem_first_version,
                                     on=['elem','id'])
+        osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
+                                    'uid', 'chgset', 'ntags', 'tagkeys',
+                                    'vmin', 'first_uid']
         osmelem_last_version = (osm_elements
                                  .groupby(['elem','id'])['version', 'uid']
                                  .last()
