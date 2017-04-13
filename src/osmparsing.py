@@ -7,8 +7,6 @@ further investigations.
 
 """
 
-from datetime import datetime
-
 import pandas as pd
 import osmium as osm
 
