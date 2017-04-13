@@ -74,77 +74,56 @@ class TimelineHandler(osm.SimpleHandler):
         """Node recovery: each record in the history is saved as a row in the
         element dataframe.
         
-        The features are the following: id, version, visible?, timestamp,
-        userid, chgsetid, nbtags, tagkeys, elem type ("node") and geographical
-        coordinates (lat, lon)
+        The features are the following: elem type ("node"), id, version,
+        visible?, timestamp, userid, chgsetid, nbtags, tagkeys
 
         """
-        nodeloc = n.location
-        # If the location is not valid, then the node is no longer available
-        if nodeloc.valid():
-            self.elemtimeline.append([n.id,
-                                      n.version,
-                                      n.visible,
-                                      pd.Timestamp(n.timestamp),
-                                      n.uid,
-                                      n.changeset,
-                                      len(n.tags),
-                                      [x.k for x in n.tags],
-                                      "node",
-                                      (nodeloc.lat, nodeloc.lon)])
-        else:
-            self.elemtimeline.append([n.id,
-                                      n.version,
-                                      n.visible,
-                                      pd.Timestamp(n.timestamp),
-                                      n.uid,
-                                      n.changeset,
-                                      len(n.tags),
-                                      [x.k for x in n.tags],
-                                      "node",
-                                      (float('nan'), float('nan'))])
+        self.elemtimeline.append(["node",
+                                  n.id,
+                                  n.version,
+                                  n.visible,
+                                  pd.Timestamp(n.timestamp),
+                                  n.uid,
+                                  n.changeset,
+                                  len(n.tags),
+                                  [x.k for x in n.tags]])
 
 
     def way(self,w):
         """Way recovery: each record in the history is saved as a row in the
         element dataframe.
 
-        The features are the following: id, version, visible?, timestamp,
-        userid, chgsetid, nbtags, tagkeys, elem type ("way") and a tuple (node
-        quantity, list of nodes) -- Note: a way that does not contain any node
-        is considered as unavailable
+        The features are the following: elem type ("way"), id, version,
+        visible?, timestamp, userid, chgsetid, nbtags, tagkeys -- Note: a way
+        that does not contain any node is considered as unavailable
 
         """
-        self.elemtimeline.append([w.id,
+        self.elemtimeline.append(["way",
+                                  w.id,
                                   w.version,
                                   w.visible,
                                   pd.Timestamp(w.timestamp),
                                   w.uid,
                                   w.changeset,
                                   len(w.tags),
-                                  [x.k for x in w.tags],
-                                  "way",
-                                  (len(w.nodes), [n.ref for n in w.nodes])])
+                                  [x.k for x in w.tags]])
 
                                      
     def relation(self,r):
         """Relation recovery: each record in the history is saved as a row in
         the element dataframe.
 
-        The features are the following: id, version, visible?, timestamp,
-        userid, chgsetid, nbtags, tagkeys, elem type ("relation") and a tuple
-        (member quantity, list of members under format (id, role, type)) --
-        Note: a relation withouth any member is considered as unavailable
+        The features are the following: elem type ("relation"), id, version,
+        visible?, timestamp, userid, chgsetid, nbtags, tagkeys -- Note: a
+        relation withouth any member is considered as unavailable
 
         """
-        self.elemtimeline.append([r.id,
+        self.elemtimeline.append(["relation",
+                                  r.id,
                                   r.version,
                                   r.visible,
                                   pd.Timestamp(r.timestamp),
                                   r.uid,
                                   r.changeset,
                                   len(r.tags),
-                                  [x.k for x in r.tags],
-                                  "relation",
-                                  (len(r.members), [(m.ref,m.role,m.type)
-                                                    for m in r.members])])
+                                  [x.k for x in r.tags]])
