@@ -3,9 +3,10 @@
 """ Luigi implementation for OSM data analysis
 """
 
+import os.path as osp
+
 import luigi
 from luigi.format import UTF8
-
 import pandas as pd
 import numpy as np
 
@@ -17,19 +18,19 @@ class OSMHistoryParsing(luigi.Task):
 
     """ Luigi task : parse OSM data history from a .pbf file
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-elements.csv")
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-elements.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def run(self):
         tlhandler = osmparsing.TimelineHandler()
-        datapath = self.datarep + "/raw/" + self.dsname + ".osh.pbf"
+        datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
         tlhandler.apply_file(datapath)
         colnames = ['id', 'version', 'visible', 'ts', 'uid',
                 'chgset', 'ntags', 'tagkeys', 'elem', 'descr']
@@ -45,19 +46,19 @@ class OSMTagParsing(luigi.Task):
 
     """ Luigi task : parse OSM tag genome from a .pbf file
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-tag-genome.csv")
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-tag-genome.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def run(self):
         taghandler = osmparsing.TagGenomeHandler()
-        datapath = self.datarep + "/raw/" + self.dsname + ".osh.pbf"
+        datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
         taghandler.apply_file(datapath)
         print("There are {0} tag records in this dataset".format(len(taghandler.taggenome)))
         tag_genome = pd.DataFrame(taghandler.taggenome)
@@ -70,22 +71,17 @@ class OSMTagParsing(luigi.Task):
 class OSMTagMetaAnalysis(luigi.Task):
     """ Luigi task: OSM tag genome meta analysis
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-fulltag-analysis.csv")
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-fulltag-analysis.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        datapath = self.datarep + "/raw/" + self.dsname + ".osh.pbf"
-        elempath = (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                      self.dsname + "-elements.csv")
-        taggenomepath = (self.datarep + "/output-extracts/" + self.dsname +
-                         "/" + self.dsname + "-tag-genome.csv")
         return {'history': OSMHistoryParsing(self.datarep, self.dsname),
                 'taggenome': OSMTagParsing(self.datarep, self.dsname)}
 
@@ -141,7 +137,7 @@ class OSMTagMetaAnalysis(luigi.Task):
 class ElementMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM element
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
@@ -188,12 +184,12 @@ class ElementMetadataExtract(luigi.Task):
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-chgset-md.csv")
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-chgset-md.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -247,12 +243,12 @@ class ChangeSetMetadataExtract(luigi.Task):
 class OSMElementEnrichment(luigi.Task):
     """ Luigi task: building of new features for OSM element history
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-enriched-elements.csv")
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-enriched-elements.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -322,12 +318,12 @@ class OSMElementEnrichment(luigi.Task):
 class UserMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM user
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-user-md.csv")
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-user-md.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -472,7 +468,7 @@ class UserMetadataExtract(luigi.Task):
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
     """
-    datarep = luigi.Parameter("../data")
+    datarep = luigi.Parameter(osp.join("..", "data"))
     dsname = luigi.Parameter("bordeaux-metropole")
     
     def requires(self):
