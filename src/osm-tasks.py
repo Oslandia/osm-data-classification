@@ -289,7 +289,7 @@ class OSMElementEnrichment(luigi.Task):
         # New version-related features
         osm_elements['init'] = osm_elements.version == osm_elements.vmin
         osm_elements['up_to_date'] = osm_elements.version == osm_elements.vmax
-        osm_elements = osm_elements.drop(['vmin', 'vmax'], axis=1)
+        osm_elements = osm_elements.drop(['vmin'], axis=1)
 
         # Whether or not an element is corrected in the current version
         osm_elements['is_corr'] = np.logical_and(osm_elements.id.diff()==0,
@@ -382,11 +382,11 @@ class UserMetadataExtract(luigi.Task):
                                               .apply(lambda x: x.mean())
                                               .reset_index()['user_lastchgset'])
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'duration',
-                                        'chgset_duration')
+                                        '', '_chgset_duration')
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_modif',
-                                  'modif_bychgset')
+                                  'n', '_modif_bychgset')
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_uniqelem',
-                                  'elem_bychgset')
+                                  'n', 'elem_bychgset')
 
         # Modification-related features
         user_md = groupuser_count(user_md, osm_elements, 'uid', 'id', '_modif')
@@ -413,6 +413,8 @@ class UserMetadataExtract(luigi.Task):
         osmmodif_del_rebirth = osmmodif_del.query("available")
         user_md = groupuser_count(user_md, osmmodif_del_rebirth, 'uid', 'id',
                                   '_modif_delrebirth')
+        user_md = groupuser_stats(user_md, osmmodif_del, 'uid', 'version',
+                                  'v', '_modif_del')
         #
         osmmodif_imp = osm_elements.query("not init and visible")
         user_md = groupuser_count(user_md, osmmodif_imp, 'uid', 'id',
@@ -426,24 +428,33 @@ class UserMetadataExtract(luigi.Task):
         osmmodif_imp_del = osmmodif_imp.query("not up_to_date and not available")
         user_md = groupuser_count(user_md, osmmodif_imp_del, 'uid', 'id',
                                   '_modif_impdel')
+        user_md = groupuser_stats(user_md, osmmodif_imp, 'uid', 'version',
+                                  'v', '_modif_imp')
         
         # Number of modifications per unique element
         contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                           .count()
                           .reset_index())
         user_md = groupuser_stats(user_md, contrib_byelem, 'uid', 'version',
-                                  'modif_byelem')
+                                  'n', 'modif_byelem')
         user_md = groupuser_count(user_md, contrib_byelem.query("version==1"),
                                   'uid', 'id', '_with_1_contrib')
 
-        # Number of unique elements that received a contribution
+        # User-related features
         user_md = groupuser_nunique(user_md, osm_elements, 'uid', 'id', '')
         osmelem_cr = osm_elements.query("init and available")
         user_md = groupuser_nunique(user_md, osmelem_cr, 'uid', 'id', '_cr')
+        user_md = groupuser_stats(user_md, osmelem_cr, 'uid', 'vmax',
+                                  'v', '_cr')
         osmelem_imp = osm_elements.query("not init and visible and available")
         user_md = groupuser_nunique(user_md, osmelem_imp, 'uid', 'id', '_imp')
+        user_md = groupuser_stats(user_md, osmelem_imp, 'uid', 'vmax',
+                                  'v', '_imp')
         osmelem_del = osm_elements.query("not init and not visible and not available")
-        user_md = groupuser_nunique(user_md, osmelem_del, 'uid', 'id', '_del')      
+        user_md = groupuser_nunique(user_md, osmelem_del, 'uid', 'id', '_del')
+        user_md = groupuser_stats(user_md, osmelem_del, 'uid', 'vmax',
+                                  'v', '_del')
+    
 
         # Update times
         user_md['update_medtime'] = (osm_elements
