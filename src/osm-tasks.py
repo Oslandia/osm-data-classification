@@ -237,6 +237,7 @@ class ChangeSetMetadataExtract(luigi.Task):
                                      .max()
                                      .reset_index()['ts'])
         chgset_md['duration'] = chgset_md.lastmodif_at - chgset_md.opened_at
+        chgset_md.duration = chgset_md.duration.astype('timedelta64[s]')
         with self.output().open('w') as outputflow:
             chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
@@ -275,14 +276,15 @@ class OSMElementEnrichment(luigi.Task):
                                     'uid', 'chgset', 'ntags', 'tagkeys',
                                     'vmin', 'first_uid']
         osmelem_last_version = (osm_elements
-                                 .groupby(['elem','id'])['version', 'uid']
+                                 .groupby(['elem','id'])['version', 'uid',
+                                                         'visible']
                                  .last()
                                  .reset_index())
         osm_elements = pd.merge(osm_elements, osmelem_last_version,
                                     on=['elem','id'])
         osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
-                                    'uid', 'chgset', 'ntags', 'tagkeys',
-                                    'vmin', 'first_uid', 'vmax', 'last_uid']
+                                'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
+                                'first_uid', 'vmax', 'last_uid', 'available']
 
         # New version-related features
         osm_elements['init'] = osm_elements.version == osm_elements.vmin
@@ -351,6 +353,7 @@ class UserMetadataExtract(luigi.Task):
                                     index_col=0)
             chgset_md.user_lastchgset = pd.to_timedelta(chgset_md
                                                         .user_lastchgset)
+            # chgset_md.duration = pd.to_timedelta(chgset_md.duration)
         with self.input()['enrichhist'].open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
@@ -372,19 +375,58 @@ class UserMetadataExtract(luigi.Task):
                               .max()
                               .reset_index()['ts'])
         user_md['activity'] = user_md.last_at - user_md.first_at
+
         # Change set-related features
-        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_modif',
-                                  'modif_bychgset')
-        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_uniqelem',
-                                  'elem_bychgset')
         user_md['meantime_between_chgset'] = (chgset_md
                                               .groupby('uid')['user_lastchgset']
                                               .apply(lambda x: x.mean())
                                               .reset_index()['user_lastchgset'])
+        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'duration',
+                                        'chgset_duration')
+        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_modif',
+                                  'modif_bychgset')
+        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_uniqelem',
+                                  'elem_bychgset')
 
-        # Total number of modifications
+        # Modification-related features
         user_md = groupuser_count(user_md, osm_elements, 'uid', 'id', '_modif')
-
+        #
+        osmelem_cr = osm_elements.query("init")        
+        user_md = groupuser_count(user_md, osmelem_cr, 'uid', 'id',
+                                  '_modif_cr')
+        osmelem_cr_utd = osmelem_cr.query("up_to_date")
+        user_md = groupuser_count(user_md, osmelem_cr_utd, 'uid', 'id',
+                                  '_modif_crutd')
+        osmelem_cr_mod = osmelem_cr.query("not up_to_date and available")
+        user_md = groupuser_count(user_md, osmelem_cr_mod, 'uid', 'id',
+                                  '_modif_crmod')
+        osmelem_cr_del = osmelem_cr.query("not up_to_date and not available")
+        user_md = groupuser_count(user_md, osmelem_cr_utd, 'uid', 'id',
+                                  '_modif_crdel')
+        #
+        osmelem_del = osm_elements.query("not init and not visible")
+        user_md = groupuser_count(user_md, osmelem_del, 'uid', 'id',
+                                  '_modif_del')
+        osmelem_del_utd = osmelem_del.query("not available")
+        user_md = groupuser_count(user_md, osmelem_del_utd, 'uid', 'id',
+                                  '_modif_delutd')
+        osmelem_del_rebirth = osmelem_del.query("available")
+        user_md = groupuser_count(user_md, osmelem_del_rebirth, 'uid', 'id',
+                                  '_modif_delrebirth')
+        #
+        osmelem_imp = osm_elements.query("not init and visible")
+        user_md = groupuser_count(user_md, osmelem_imp, 'uid', 'id',
+                                  '_modif_imp')
+        osmelem_imp_utd = osmelem_imp.query("up_to_date")
+        user_md = groupuser_count(user_md, osmelem_imp_utd, 'uid', 'id',
+                                  '_modif_imputd')
+        osmelem_imp_mod = osmelem_imp.query("not up_to_date and available")
+        user_md = groupuser_count(user_md, osmelem_imp_mod, 'uid', 'id',
+                                  '_modif_impmod')
+        osmelem_imp_del = osmelem_imp.query("not up_to_date and not available")
+        user_md = groupuser_count(user_md, osmelem_imp_utd, 'uid', 'id',
+                                  '_modif_impdel')
+        
         # Number of modifications per unique element
         contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                           .count()
@@ -408,68 +450,6 @@ class UserMetadataExtract(luigi.Task):
 
         # Number of unique elements that received a contribution
         user_md = groupuser_nunique(user_md, osm_elements, 'uid', 'id', '')
-
-        # Number of elements for which the user is the last contributor
-        osmelem_last_byuser = (osm_elements
-                               .groupby(['elem','id','uid'])['version']
-                               .last()
-                               .reset_index())
-        osmelem_last_byuser = pd.merge(osmelem_last_byuser,
-                                       osm_elements[['elem','uid',
-                                                     'id','version',
-                                                     'visible','up_to_date']],
-                                       on=['elem','id','uid','version'])
-        lastcontrib_byuser = osm_elements.query("up_to_date")[['elem',
-                                                               'id',
-                                                               'uid']]
-        osmelem_last_byuser = pd.merge(osmelem_last_byuser, lastcontrib_byuser,
-                                       on=['elem','id'])
-        osmelem_last_byuser.columns = ['elem','id','uid','version','visible',
-                                       'up_to_date','lastuid']
-        osmelem_lastcontrib = osmelem_last_byuser.query("up_to_date")
-        osmelem_lastdel = osmelem_lastcontrib.query("not visible")
-        user_md = groupuser_count(user_md, osmelem_lastdel, 'uid', 'id',
-                                  '_lastdel')
-        osmelem_lastutd = osmelem_lastcontrib.query("visible")
-        user_md = groupuser_count(user_md, osmelem_lastutd, 'uid', 'id',
-                                  '_lastavl')
-
-        # Number of contribution done by the user and updated since
-        osmelem_last_byuser['old_contrib'] = np.logical_and(
-            ~(osmelem_last_byuser.up_to_date), osmelem_last_byuser.uid !=
-            osmelem_last_byuser.lastuid)
-        osmelem_oldcontrib = osmelem_last_byuser.query("old_contrib")
-        osmelem_olddel = osmelem_oldcontrib.query("not visible")
-        user_md = groupuser_count(user_md, osmelem_olddel, 'uid', 'id',
-                                  '_olddel')
-        osmelem_oldmod = osmelem_oldcontrib.query("visible")
-        user_md = groupuser_count(user_md, osmelem_oldmod, 'uid', 'id',
-        '_oldmod')
-
-        # Number of created elements
-        osmelem_creation = (osm_elements.groupby(['elem','id'])['version']
-                            .agg({'first':"first",'last':"last"})
-                            .stack()
-                            .reset_index())
-        osmelem_creation.columns = ['elem','id','step','version']
-        osmelem_creation = pd.merge(osmelem_creation,
-                                    osm_elements[['elem','uid','id','version',
-                                                  'visible','up_to_date']],
-                                    on=['elem','id','version'])
-        osmelem_cr = osmelem_creation.query("step == 'first'")
-        user_md = groupuser_count(user_md, osmelem_cr, 'uid', 'id', '_cr')
-        osmelem_cr_utd = osmelem_cr.loc[osmelem_cr.up_to_date]
-        user_md = groupuser_count(user_md, osmelem_cr_utd, 'uid', 'id',
-                                  '_crutd')
-        osmelem_cr_old = osmelem_cr.query("not up_to_date")
-        osmelem_last = osmelem_creation.query("step == 'last'")
-        osmelem_cr_old = pd.merge(osmelem_cr_old,
-                                  osmelem_last[['elem','id','visible']],
-                                  on=['elem','id'])
-        osmelem_cr_mod = osmelem_cr_old.query("visible_y")
-        user_md = groupuser_count(user_md, osmelem_cr_mod, 'uid', 'id', '_crmod')
-        osmelem_cr_del = osmelem_cr_old.query("not visible_y")
-        user_md = groupuser_count(user_md, osmelem_cr_del, 'uid', 'id', '_crdel')
 
         # Metadata saving
         with self.output().open('w') as outputflow:
