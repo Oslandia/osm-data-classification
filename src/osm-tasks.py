@@ -391,40 +391,40 @@ class UserMetadataExtract(luigi.Task):
         # Modification-related features
         user_md = groupuser_count(user_md, osm_elements, 'uid', 'id', '_modif')
         #
-        osmelem_cr = osm_elements.query("init")        
-        user_md = groupuser_count(user_md, osmelem_cr, 'uid', 'id',
+        osmmodif_cr = osm_elements.query("init")        
+        user_md = groupuser_count(user_md, osmmodif_cr, 'uid', 'id',
                                   '_modif_cr')
-        osmelem_cr_utd = osmelem_cr.query("up_to_date")
-        user_md = groupuser_count(user_md, osmelem_cr_utd, 'uid', 'id',
+        osmmodif_cr_utd = osmmodif_cr.query("up_to_date")
+        user_md = groupuser_count(user_md, osmmodif_cr_utd, 'uid', 'id',
                                   '_modif_crutd')
-        osmelem_cr_mod = osmelem_cr.query("not up_to_date and available")
-        user_md = groupuser_count(user_md, osmelem_cr_mod, 'uid', 'id',
+        osmmodif_cr_mod = osmmodif_cr.query("not up_to_date and available")
+        user_md = groupuser_count(user_md, osmmodif_cr_mod, 'uid', 'id',
                                   '_modif_crmod')
-        osmelem_cr_del = osmelem_cr.query("not up_to_date and not available")
-        user_md = groupuser_count(user_md, osmelem_cr_utd, 'uid', 'id',
+        osmmodif_cr_del = osmmodif_cr.query("not up_to_date and not available")
+        user_md = groupuser_count(user_md, osmmodif_cr_del, 'uid', 'id',
                                   '_modif_crdel')
         #
-        osmelem_del = osm_elements.query("not init and not visible")
-        user_md = groupuser_count(user_md, osmelem_del, 'uid', 'id',
+        osmmodif_del = osm_elements.query("not init and not visible")
+        user_md = groupuser_count(user_md, osmmodif_del, 'uid', 'id',
                                   '_modif_del')
-        osmelem_del_utd = osmelem_del.query("not available")
-        user_md = groupuser_count(user_md, osmelem_del_utd, 'uid', 'id',
+        osmmodif_del_utd = osmmodif_del.query("not available")
+        user_md = groupuser_count(user_md, osmmodif_del_utd, 'uid', 'id',
                                   '_modif_delutd')
-        osmelem_del_rebirth = osmelem_del.query("available")
-        user_md = groupuser_count(user_md, osmelem_del_rebirth, 'uid', 'id',
+        osmmodif_del_rebirth = osmmodif_del.query("available")
+        user_md = groupuser_count(user_md, osmmodif_del_rebirth, 'uid', 'id',
                                   '_modif_delrebirth')
         #
-        osmelem_imp = osm_elements.query("not init and visible")
-        user_md = groupuser_count(user_md, osmelem_imp, 'uid', 'id',
+        osmmodif_imp = osm_elements.query("not init and visible")
+        user_md = groupuser_count(user_md, osmmodif_imp, 'uid', 'id',
                                   '_modif_imp')
-        osmelem_imp_utd = osmelem_imp.query("up_to_date")
-        user_md = groupuser_count(user_md, osmelem_imp_utd, 'uid', 'id',
+        osmmodif_imp_utd = osmmodif_imp.query("up_to_date")
+        user_md = groupuser_count(user_md, osmmodif_imp_utd, 'uid', 'id',
                                   '_modif_imputd')
-        osmelem_imp_mod = osmelem_imp.query("not up_to_date and available")
-        user_md = groupuser_count(user_md, osmelem_imp_mod, 'uid', 'id',
+        osmmodif_imp_mod = osmmodif_imp.query("not up_to_date and available")
+        user_md = groupuser_count(user_md, osmmodif_imp_mod, 'uid', 'id',
                                   '_modif_impmod')
-        osmelem_imp_del = osmelem_imp.query("not up_to_date and not available")
-        user_md = groupuser_count(user_md, osmelem_imp_utd, 'uid', 'id',
+        osmmodif_imp_del = osmmodif_imp.query("not up_to_date and not available")
+        user_md = groupuser_count(user_md, osmmodif_imp_del, 'uid', 'id',
                                   '_modif_impdel')
         
         # Number of modifications per unique element
@@ -433,6 +433,17 @@ class UserMetadataExtract(luigi.Task):
                           .reset_index())
         user_md = groupuser_stats(user_md, contrib_byelem, 'uid', 'version',
                                   'modif_byelem')
+        user_md = groupuser_count(user_md, contrib_byelem.query("version==1"),
+                                  'uid', 'id', '_with_1_contrib')
+
+        # Number of unique elements that received a contribution
+        user_md = groupuser_nunique(user_md, osm_elements, 'uid', 'id', '')
+        osmelem_cr = osm_elements.query("init and available")
+        user_md = groupuser_nunique(user_md, osmelem_cr, 'uid', 'id', '_cr')
+        osmelem_imp = osm_elements.query("not init and visible and available")
+        user_md = groupuser_nunique(user_md, osmelem_imp, 'uid', 'id', '_imp')
+        osmelem_del = osm_elements.query("not init and not visible and not available")
+        user_md = groupuser_nunique(user_md, osmelem_del, 'uid', 'id', '_del')      
 
         # Update times
         user_md['update_medtime'] = (osm_elements
@@ -447,9 +458,6 @@ class UserMetadataExtract(luigi.Task):
                                        .groupby('uid')['nextauto_in']
                                        .apply(lambda x: x.median())
                                        .reset_index()['nextauto_in'])
-
-        # Number of unique elements that received a contribution
-        user_md = groupuser_nunique(user_md, osm_elements, 'uid', 'id', '')
 
         # Metadata saving
         with self.output().open('w') as outputflow:
