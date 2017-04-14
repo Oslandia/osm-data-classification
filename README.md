@@ -1,3 +1,5 @@
+# Introduction
+
 Projet du groupe interne Data / IA / ML / Stats
 
 Starring with:
@@ -8,81 +10,136 @@ Starring with:
 
 ___
 
-# Content of the project
+# Project description
+
+## Content
 
 Three repositories composed this project, namely *demo*, *refs* and *src*.
 
-## *demo* repository
-In this repository a R notebook describes some basic elements about OSM history data, by using a sample related to the city of Bordeaux. This notebook is in a pre-compiled version in a .html format. The analysis has been reproduced in Python (see src repository).
+### *demo*
+In this repository, notebooks are designed to present some snippets of OSM data analysis, in internal and external communication purposes.
 
-## *figs* repository
+### *figs*
 Here are a set of .png files that graphically describes some basic OSM metadata features (number of version by elements, number of modifications by change sets, number of change sets by users and so on...).
 
-## *refs* repository
+### *refs*
 This repository contains some bibliographic references dedicated to OSM data quality. The files are named in the following format '<year>_<nameoffirstauthor>'. A mention is added at the end of the file if it is a Phd report.
 
 By the way a bibtex file summarizes the bibliography entry, if needed in a further pulication effort.
 
-## *src* repository
-In this repository, we gather all source files used in the R&D effort, by the way of a bunch of Python scripts. These source files are as follow:
-- *OSM-history-parsing.py*: it extracts OSM history data from a native OSM file (in .pbf format), by returning a .csv files that contains the history of every OSM elements (nodes, ways, relations).
-- *node-history-stats.py*: same process than the previous source file, dedicated to OSM node history extraction.
-- *way-history-stats.py*: same process than *OSM-history-parsing.py* dedicated to OSM way history extraction.
-- *relation-history-stats.py*: same process than *OSM-history-parsing.py* dedicated to OSM relation history extraction.
-- *OSM-metadata-extract.py*: from the OSM element history .csv files, it produces different .csv files aiming to describe OSM metadata (on element themselves, change sets and users).
-- *OSM-metadata-plotting.py*: From OSM metadata in .csv format, the purpose of this file is to plot some basic metadata features.
-- *OSM-validity-check.py*: considering that extractions with *pyosmium* do not set the 'visible' tag properly (whether or not an OSM element is visible on the web API), we have designed some hypothesis on the element visibility. This file provides a verification of the hypothesis validity, through http requesting on element samples (starting from <element>-history-stats.csv files).
-- *OSM-latest-data.py*: this file is dedicated to the extraction of up-to-date OSM elements in .csv format, starting from the .csv-formatted OSM history. After running this module, we get one file per type (node, way, relation), describing how the OSM map was at the data extraction date.
-- *utils.py*: This last file contains some meaningful functions, useful for other modules.
+### *src*
+In this repository, we gather all source files used in the R&D effort, by the way of a bunch of Python scripts. The project sources follow a [Luigi framework](https://luigi.readthedocs.io/en/stable/).
 
-# OSM data description
+The source files are organized as follow:
 
-## OSM history
+    - `osm-tasks.py`: main source files, containing every Luigi tasks;
+    - `utils.py`: some functions used all along the process by other modules;
+    - `osmparsing.py`: OSM data parser classes, built as pyosmium handlers, these classes allow to extract OSM history data from a native OSM file (in .pbf format) and return .csv files;
+    - `tagmetanalyse.py`: functions used in the context of tag genome analysis;
+    - `count-changeset-by-user.py`: ?
 
-    -elem : type de l'entité OSM ("node", "way", "relation")
-    - id: ID de l'entité OSM
-    - version : numéro de version de l'élément (1 si nouvel élément)
-    - visible : True ou False, True si l'élément <id> est visible sur l'API OSM dans sa version <version>
-    - ts : date de la mise à jour de l'élément dans sa version courante
-    - uid : ID de l'utilisateur ayant procédé à la modification
-    - chgset : ID du change set dans lequel a été réalisé la modification
-    - ntags : nombre de tags associés à l'élément dans sa version courante
-    - tagkeys : clés des tags associés à l'élément dans sa version courange
-    - descr : (lat, lon) pour les nodes, <liste des nodes> pour les ways, <liste des membres> pour les relations (ndla: un membre est caractérisé par la structure (id, type, role), où id est l'ID de l'élément OSM, type son type, ie "node", "way" ou "relation" et role le rôle de l'élément au sein de la structure, par exemple "inner", "outer", ...)
+## How to run this code?
 
-## OSM metadata
+### Understanding the current Luigi framework
 
-### elements
+The script `osm-tasks.py` is the conductor in this project. It is composed of a set of Luigi tasks, defined as classes :
 
-    - elem : type ("node", "way", "relation")
-    - id : ID de l'élément
-    - version : numéro de version de l'élément (1 si nouvel élément)
-    - visible : True ou False, en fonction de la disponibilité de l'élément dans l'API d'OSM
-    - n_user : nombre de contributeurs uniques 
-    - n_chgset : nombre de change sets nécessaires à la construction de l'élément
-    - created_at : date de création de l'élément
-    - lastmodif_at : date de dernière modification
-    - lifecycle : différence entre première et dernière modification si l'élément n'est plus visible, ou entre première modification et date d'extraction des données sinon
-    - mntime_between_modif : durée moyenne entre deux modifications sur l'élément courant (équivalent à lifecycle/version)
+    - `OSMHistoryParsing`: a parsing task, useful to extract the OSM data history, *i.e.* every records for each existing OSM entity (node, way and relation);
+    - `OSMTagParsing`: another parsing task dedicated to the tag extraction, which returns the tag genome (one tag per row);
+    - `OSMTagMetaAnalysis`: starting from the parsed tag genome, it evaluates the frequency of each tag key and each tag value for given tag key (TO BE CONTINUED) -- **final task** ;
+    - `ElementMetadataExtract`: extract the metadata associated to each OSM element (node, way or relation), from the parsed OSM history -- **final task**;
+    - `ChangeSetMetadataExtract`: extract the metadata associated to each OSM change set;
+    - `OSMElementEnrichment`:
+    - `UserMetadataExtract`: extract the metadata associated to each OSM contributor -- **final task**
+    - `MasterTask`: a downstream task that aggregates all final tasks
 
-### chgsets
+These classes depends on two parameters (namely: `datarep` and `dsname`), that are the relative path to data directory on the user machine and the data set name (*e.g. bordeaux-metropole, aquitaine, france* and so on...).
 
-    - chgset: ID du change set
-    - uid : ID de l'utilisateur ayant créé le change set
-    - n_modif : nombre de modifications dans le change set
-    - n_nodemodif : nombre de modifications sur les nodes dans le change set
-    - n_waymodif : nombre de modifications sur les ways dans le change set
-    - n_relationmodif : nombre de modifications sur les relations dans le change set
-    - n_uniqelem : nombre d'éléments modifiés dans le change set
-    - n_uniqnode : nombre de nodes modifiés dans le change set
-    - n_uniqway : nombre de ways modifiés dans le change set
-    - n_uniqrelation : nombre de relations modifiées dans le change set
-    - opened_at : date d'ouverture du change set (approximée par la date de première modification en son sein)
-    - user_lastchgset : différence temporelle entre la date d'ouverture du change set et la précédente ouverture de change set par le même utilisateur
-    - lastmodif_at : date de fermeture du change set (approximée par la date de la dernière modification)
-    - duration : durée du change set (vue comme la différence temporelle entre la première et la dernière modification)
+### Run it from the command line!
+
+Here are some example of command line utilization:
+
+```bash
+python -m luigi osm-tasks MasterTask --datarep datapath --dsname bordeaux-metropole --local-scheduler
+python3 -m luigi osm-tasks UserMetadataExtract --local-scheduler
+luigi --module osm-tasks OSMTagMetaAnalysis --dsname aquitaine-2017-03-23 --local-scheduler
+```
+
+It is possible to see in this examples that both parameters admit default values (they are not always explicitly set): `datarep=data` (a directory or a symbolic link to a directory in the source repository) and `dsname=bordeaux-metropole` (a small data set centered on the city of Bordeaux, France).
+
+For further details about running Luigi command, please refer to the [Luigi documentation](https://luigi.readthedocs.io/en/stable/)
+
+## OSM data description
+
+### OSM history
+
+The first dataframe gather every element modifications (primary key: `{elem,id,version}`):
+
+    - elem: OSM entity type ("node", "way" or "relation")
+    - id: ID of the element
+    - version: version number, 1 if new element (remark: a few elements begin with a version>1)
+    - visible: True or False, True if the element is visible on the OSM API, in the current version
+    - ts: timestamp of the element modification
+    - uid: ID of the user who did the modification
+    - chgset: ID of the change set in which the modification took place
+    - ntags: number of tags associated to the element, in the current version
+    - tagkeys: keys of the element tags, in the current version
+
+After running the task `OSMElementEnrichment`, this dataframe is brighted up with new features:
+
+    - first_uid: ID of the user who created the element
+    - vmax: up-to-date element version number
+    - last_uid: ID of the last contributor
+    - available: True if the element is visible in its up-to-date version, False otherwise
+    - init: True if the version is the first known version of the element, False otherwise
+    - up-to-date: True if the version is the last known version of the element, False otherwise
+    - willbe_corr: True if a different user has proposed a more recent version for the current element, False otherwise
+    - willbe_autocorr: True if the same user proposed a more recent version of the current element, False otherwise
+    - nextmodif_in: time before the next element modification
+    - nextcorr_in: time before the next element correction by a different user
+    - nextauto_in: time before the next element correction by the same user
     
-### users
+### OSM metadata
+
+#### elements
+
+This dataframe represents the first metadata structure, centered on OSM elements (primary key: `{elem,id}`):
+
+    - elem: OSM entity type ("node", "way" or "relation")
+    - id: ID of the element
+    - version: total number of known versions
+    - visible: True or False, True if the element is visible on the OSM API, in the last known version
+    - n_user: number of unique contributors
+    - n_chgset: number of change sets during which the element has been built
+    - created_at: element creation timestamp
+    - latsmodif_at: element last modification timestamp
+    - lifecycle: difference between first and last modifications if the element is not visible any more, or between the first modification and the extraction date otherwise
+    - mntime_between_modif: mean time between two modifications of the current element (equals to lifecycle/version)
+
+#### chgsets
+
+This second metadata structure focuses on OSM change sets (primary key: `{chgset}`):
+
+    - chgset: ID of the current change set
+    - uid: ID of user who created the change set
+    - n_modif: number of modifications realized in the change set
+    - n_nodemodif: number of node modifications realized in the change set
+    - n_waymodif: number of way modifications realized in the change set
+    - n_relationmodif: number of relation modifications realized in the change set
+    - n_uniqelem: number of unique elements that have been modified in the change set
+    - n_uniqnode: number of unique nodes that have been modified in the change set
+    - n_uniqway: number of unique ways that have been modified in the change set
+    - n_uniqrelation: number of unique relations that have been modified in the change set
+    - opened_at: change set opening date (seen as the firt modification timestamp)
+    - user_lastchgset: difference between current change set opening date and user previous change set opening date 
+    - lastmodif_at: change set closing date (seen as the last modification timestamp)
+    - duration_insec: change set duration, in seconds (seen as the temporal difference between first and last modifications)
+    
+#### users
+
+TO BE CONTINUED :warning: :warning: :warning:
+
+This last metadata structure is the main metadata source. It focuses on OSM users (primary key: `{uid}`):
 
     - uid : ID de l'utilisateur
     - n_chgset : nombre de change sets ouverts par l'utilisateur
