@@ -290,16 +290,12 @@ class OSMElementEnrichment(luigi.Task):
         osm_elements['init'] = osm_elements.version == osm_elements.vmin
         osm_elements['up_to_date'] = osm_elements.version == osm_elements.vmax
         osm_elements = osm_elements.drop(['vmin'], axis=1)
-
-        # Whether or not an element is corrected in the current version
-        osm_elements['is_corr'] = np.logical_and(osm_elements.id.diff()==0,
-                                                 osm_elements.uid.diff()!=0)
-        osm_elements['is_autocorr'] = np.logical_and(osm_elements.id.diff()==0,
-                                                 osm_elements.uid.diff()==0)
         
         # Whether or not an element will be corrected in the last version
-        osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
-                                                  osm_elements.uid.diff(-1)!=0)        
+        osm_elements['willbe_corr'] = np.logical_and(osm_elements.id
+                                                     .diff(-1)==0,
+                                                  osm_elements.uid
+                                                     .diff(-1)!=0)        
         osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id
                                                          .diff(-1)==0,
                                                          osm_elements.uid
@@ -320,9 +316,7 @@ class OSMElementEnrichment(luigi.Task):
         osm_elements['nextauto_in'] = (osm_elements.nextauto_in
                                        .where(osm_elements.willbe_autocorr,
                                                        other=pd.NaT))
-        osm_elements = osm_elements.drop(['willbe_corr', 'willbe_autocorr'],
-                                         axis=1)
-
+        
         # Element saving
         with self.output().open('w') as outputflow:
             osm_elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -388,6 +382,26 @@ class UserMetadataExtract(luigi.Task):
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_uniqelem',
                                   'n', 'elem_bychgset')
 
+        # Update features
+        user_md['update_medtime'] = (osm_elements
+                                     .groupby('uid')['nextmodif_in']
+                                     .apply(lambda x: x.median())
+                                     .reset_index()['nextmodif_in'])
+        user_md['corr_medtime'] = (osm_elements
+                                   .groupby('uid')['nextcorr_in']
+                                   .apply(lambda x: x.median())
+                                   .reset_index()['nextcorr_in'])
+        osmelem_corr = osm_elements.query("willbe_corr")
+        user_md = groupuser_count(user_md, osmelem_corr, 'uid', 'willbe_corr',
+                                  '_corr')
+        user_md['autocorr_medtime'] = (osm_elements
+                                       .groupby('uid')['nextauto_in']
+                                       .apply(lambda x: x.median())
+                                       .reset_index()['nextauto_in'])
+        osmelem_autocorr = osm_elements.query("willbe_autocorr")
+        user_md = groupuser_count(user_md, osmelem_autocorr, 'uid',
+                                  'willbe_autocorr', '_autocorr')
+        
         # Modification-related features
         user_md = groupuser_count(user_md, osm_elements, 'uid', 'id', '_modif')
         #
@@ -468,25 +482,11 @@ class UserMetadataExtract(luigi.Task):
         user_md = groupuser_stats(user_md, osmelem_del_wrong, 'uid', 'vmax',
                                   'v', '_del_wrong')
     
-
-        # Update times
-        user_md['update_medtime'] = (osm_elements
-                                     .groupby('uid')['nextmodif_in']
-                                     .apply(lambda x: x.median())
-                                     .reset_index()['nextmodif_in'])
-        user_md['corr_medtime'] = (osm_elements
-                                   .groupby('uid')['nextcorr_in']
-                                   .apply(lambda x: x.median())
-                                   .reset_index()['nextcorr_in'])
-        user_md['autocorr_medtime'] = (osm_elements
-                                       .groupby('uid')['nextauto_in']
-                                       .apply(lambda x: x.median())
-                                       .reset_index()['nextauto_in'])
-
         # Metadata saving
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
+            
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
     """
