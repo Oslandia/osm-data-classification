@@ -446,14 +446,27 @@ class UserMetadataExtract(luigi.Task):
         user_md = groupuser_nunique(user_md, osmelem_cr, 'uid', 'id', '_cr')
         user_md = groupuser_stats(user_md, osmelem_cr, 'uid', 'vmax',
                                   'v', '_cr')
+        osmelem_cr_wrong = osm_elements.query("init and not available")
+        user_md = groupuser_nunique(user_md, osmelem_cr_wrong, 'uid', 'id',
+                                    '_cr_wrong')
+        user_md = groupuser_stats(user_md, osmelem_cr_wrong, 'uid', 'vmax',
+                                  'v', '_cr_wrong')
         osmelem_imp = osm_elements.query("not init and visible and available")
         user_md = groupuser_nunique(user_md, osmelem_imp, 'uid', 'id', '_imp')
         user_md = groupuser_stats(user_md, osmelem_imp, 'uid', 'vmax',
                                   'v', '_imp')
+        osmelem_imp_wrong = osm_elements.query("not init and visible and not available")
+        user_md = groupuser_nunique(user_md, osmelem_imp_wrong, 'uid', 'id', '_imp_wrong')
+        user_md = groupuser_stats(user_md, osmelem_imp_wrong, 'uid', 'vmax',
+                                  'v', '_imp_wrong')
         osmelem_del = osm_elements.query("not init and not visible and not available")
         user_md = groupuser_nunique(user_md, osmelem_del, 'uid', 'id', '_del')
         user_md = groupuser_stats(user_md, osmelem_del, 'uid', 'vmax',
                                   'v', '_del')
+        osmelem_del_wrong = osm_elements.query("not init and not visible and available")
+        user_md = groupuser_nunique(user_md, osmelem_del_wrong, 'uid', 'id', '_del_wrong')
+        user_md = groupuser_stats(user_md, osmelem_del_wrong, 'uid', 'vmax',
+                                  'v', '_del_wrong')
     
 
         # Update times
