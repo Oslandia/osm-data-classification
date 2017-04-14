@@ -213,7 +213,8 @@ class ChangeSetMetadataExtract(luigi.Task):
         chgset_md = pd.merge(chgset_md, chgset_md_byelem, on='chgset')
         chgset_md.columns.values[-4:] = ['n_modif', 'n_nodemodif',
                                          'n_relationmodif', 'n_waymodif']
-        modif_bychgset = (osm_elements.groupby(['elem', 'id', 'chgset'])['version']
+        modif_bychgset = (osm_elements
+                          .groupby(['elem', 'id', 'chgset'])['version']
                           .count()
                           .reset_index())
         chgset_md['version'] = (modif_bychgset.groupby(['chgset'])['id']
@@ -232,15 +233,21 @@ class ChangeSetMetadataExtract(luigi.Task):
                                   .min()
                                   .reset_index()['ts'])
         chgset_md.sort_values(by=['uid','opened_at'], inplace=True)
-        chgset_md['user_lastchgset'] = chgset_md.groupby('uid')['opened_at'].diff()
+        chgset_md['user_lastchgset'] = (chgset_md.groupby('uid')['opened_at']
+                                        .diff())
+        chgset_md.user_lastchgset = (chgset_md.user_lastchgset
+                                     .astype('timedelta64[h]'))
         chgset_md['lastmodif_at'] = (osm_elements.groupby('chgset')['ts']
                                      .max()
                                      .reset_index()['ts'])
-        chgset_md['duration'] = chgset_md.lastmodif_at - chgset_md.opened_at
-        chgset_md.duration = chgset_md.duration.astype('timedelta64[s]')
+        chgset_md['duration_insec'] = (chgset_md.lastmodif_at
+                                       - chgset_md.opened_at)
+        chgset_md.duration_insec = (chgset_md.duration_insec
+                                    .astype('timedelta64[s]'))
         with self.output().open('w') as outputflow:
             chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
+            
 class OSMElementEnrichment(luigi.Task):
     """ Luigi task: building of new features for OSM element history
     """
@@ -304,13 +311,15 @@ class OSMElementEnrichment(luigi.Task):
         # Time before the next modification
         osm_elements['nextmodif_in'] = - osm_elements.ts.diff(-1)
         osm_elements.loc[osm_elements.up_to_date,['nextmodif_in']] = pd.NaT
+        osm_elements.nextmodif_in = (osm_elements.nextmodif_in
+                                     .astype('timedelta64[h]'))
 
         # Time before the next modification, if it is done by another user
         osm_elements['nextcorr_in'] = osm_elements.nextmodif_in
         osm_elements['nextcorr_in'] = (osm_elements.nextcorr_in
                                        .where(osm_elements.willbe_corr,
                                               other=pd.NaT))
-
+        
         # Time before the next modification, if it is done by the same user
         osm_elements['nextauto_in'] = osm_elements.nextmodif_in
         osm_elements['nextauto_in'] = (osm_elements.nextauto_in
@@ -343,19 +352,12 @@ class UserMetadataExtract(luigi.Task):
     def run(self):
         print("Extraction of user metadata...")
         with self.input()['chgsets'].open('r') as inputflow:
-            chgset_md = pd.read_csv(inputflow,
-                                    index_col=0)
-            chgset_md.user_lastchgset = pd.to_timedelta(chgset_md
-                                                        .user_lastchgset)
-            # chgset_md.duration = pd.to_timedelta(chgset_md.duration)
+            chgset_md = pd.read_csv(inputflow, index_col=0)
+        
         with self.input()['enrichhist'].open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-            osm_elements.nextmodif_in = pd.to_timedelta(osm_elements
-                                                        .nextmodif_in)
-            osm_elements.nextcorr_in = pd.to_timedelta(osm_elements.nextcorr_in)
-            osm_elements.nextauto_in = pd.to_timedelta(osm_elements.nextauto_in)
 
         # Basic features: nb change sets, timestamps
         user_md = (osm_elements.groupby('uid')['chgset']
@@ -371,34 +373,26 @@ class UserMetadataExtract(luigi.Task):
         user_md['activity'] = user_md.last_at - user_md.first_at
 
         # Change set-related features
-        user_md['meantime_between_chgset'] = (chgset_md
-                                              .groupby('uid')['user_lastchgset']
-                                              .apply(lambda x: x.mean())
-                                              .reset_index()['user_lastchgset'])
-        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'duration',
-                                        '', '_chgset_duration')
+        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'user_lastchgset',
+                                  't', '_between_chgsets_inhour')
+        user_md = groupuser_stats(user_md, chgset_md, 'uid', 'duration_insec',
+                                        'd', '_chgset_insec')
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_modif',
                                   'n', '_modif_bychgset')
         user_md = groupuser_stats(user_md, chgset_md, 'uid', 'n_uniqelem',
-                                  'n', 'elem_bychgset')
+                                  'n', '_elem_bychgset')
 
         # Update features
-        user_md['update_medtime'] = (osm_elements
-                                     .groupby('uid')['nextmodif_in']
-                                     .apply(lambda x: x.median())
-                                     .reset_index()['nextmodif_in'])
-        user_md['corr_medtime'] = (osm_elements
-                                   .groupby('uid')['nextcorr_in']
-                                   .apply(lambda x: x.median())
-                                   .reset_index()['nextcorr_in'])
+        user_md = groupuser_stats(user_md, osm_elements, 'uid', 'nextmodif_in',
+                                  't', '_update_inhour')
         osmelem_corr = osm_elements.query("willbe_corr")
+        user_md = groupuser_stats(user_md, osmelem_corr, 'uid', 'nextcorr_in',
+                                  't', '_corr_inhour')
         user_md = groupuser_count(user_md, osmelem_corr, 'uid', 'willbe_corr',
                                   '_corr')
-        user_md['autocorr_medtime'] = (osm_elements
-                                       .groupby('uid')['nextauto_in']
-                                       .apply(lambda x: x.median())
-                                       .reset_index()['nextauto_in'])
         osmelem_autocorr = osm_elements.query("willbe_autocorr")
+        user_md = groupuser_stats(user_md, osmelem_autocorr, 'uid',
+                                  'nextauto_in', 't', '_autocorr_inhour')
         user_md = groupuser_count(user_md, osmelem_autocorr, 'uid',
                                   'willbe_autocorr', '_autocorr')
         
@@ -450,7 +444,7 @@ class UserMetadataExtract(luigi.Task):
                           .count()
                           .reset_index())
         user_md = groupuser_stats(user_md, contrib_byelem, 'uid', 'version',
-                                  'n', 'modif_byelem')
+                                  'n', '_modif_byelem')
         user_md = groupuser_count(user_md, contrib_byelem.query("version==1"),
                                   'uid', 'id', '_with_1_contrib')
 

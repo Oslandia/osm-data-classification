@@ -100,7 +100,7 @@ def groupuser_nunique(metadata, data, grp_feat, res_feat, namesuffix):
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
 
-def groupuser_stats(metadata, data, grp_feat, res_feat, namesuffix):
+def groupuser_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     """Group-by 'data' by 'grp_feat' and element type features, compute basic
     statistic features (min, median, max) corresponding to each
     grp_feat-elemtype tuples and merge them into metadata table
@@ -116,14 +116,17 @@ def groupuser_stats(metadata, data, grp_feat, res_feat, namesuffix):
     res_feat: object
         string that indicates the measured feature (how many items correspond
     to the criterion)
+    nameprefix: object
+        string that begins the new feature name
     namesuffix: object
         string that ends the new feature name
 
     """
     md_ext = (data.groupby(grp_feat)[res_feat].agg({'min': "min",
-                                              'med': "median",
-                                              'max': "max"}).reset_index())
-    colnames = ["n" + op + "_" + namesuffix for op in md_ext.columns.values[1:]]
+                                                    'med': "median",
+                                                    'max': "max"}).reset_index())
+    # md_ext.med = md_ext.med.astype(int)
+    colnames = [nameprefix + op + namesuffix for op in md_ext.columns.values[1:]]
     md_ext.columns = [grp_feat, *colnames]
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
