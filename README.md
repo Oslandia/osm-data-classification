@@ -122,18 +122,19 @@ This second metadata structure focuses on OSM change sets (primary key: `{chgset
 
     - chgset: ID of the current change set
     - uid: ID of user who created the change set
-    - n_modif: number of modifications realized in the change set
-    - n_nodemodif: number of node modifications realized in the change set
-    - n_waymodif: number of way modifications realized in the change set
-    - n_relationmodif: number of relation modifications realized in the change set
-    - n_uniqelem: number of unique elements that have been modified in the change set
-    - n_uniqnode: number of unique nodes that have been modified in the change set
-    - n_uniqway: number of unique ways that have been modified in the change set
-    - n_uniqrelation: number of unique relations that have been modified in the change set
     - opened_at: change set opening date (seen as the firt modification timestamp)
     - user_lastchgset: difference between current change set opening date and user previous change set opening date 
     - lastmodif_at: change set closing date (seen as the last modification timestamp)
     - duration_insec: change set duration, in seconds (seen as the temporal difference between first and last modifications)
+    - n_<elem/node/way/relation>_modif: number of <element/node/way/relation> modifications in the change set
+    - n_<elem/node/way/relation>_modif_cr: number of <element/node/way/relation> creations in the change set
+    - n_<elem/node/way/relation>_modif_del: number of <element/node/way/relation> improvements in the change set
+    - n_<elem/node/way/relation>_modif_imp: number of <element/node/way/relation> deletions in the change set
+    - n<min/med/max>_modif_byelem: <minimal/median/maximal> number of modifications per unique element
+    - n_<elem/node/way/relation>: number of unique <element/node/way/relation> that have been modified in the change set
+    - n_<elem/node/way/relation>_cr: number of unique <element/node/way/relation> that have been created in the change set
+    - n_<elem/node/way/relation>_imp: number of unique <element/node/way/relation> that have been improved in the change set
+    - n_<elem/node/way/relation>_del: number of unique <element/node/way/relation> that have been deleted in the change set
     
 #### users
 
@@ -146,41 +147,41 @@ This last metadata structure is the main metadata source. It focuses on OSM user
     - first_at: date of the user first modification
     - last_at: data of the user last modification
     - activity: user activity on the API (seen as the difference between the first and last contributions)
-    - t<med/min/max>_between_chgsets_inhour: <median/minimal/maximal> time between two change set creations (in hour)
-    - d<med/min/max>_chgset_insec: <median/minimal/maximal> change set duration (in seconds) -- by definition <86400
-    - n<med/min/max>_modif_bychgset: <median/minimal/maximal> number of modifications done by the user per change set
-    - n<med/min/max>_elem_bychgset: <median/minimal/maximal> number of OSM elements modified by the user per change set
-    - t<med/min/max>_update_inhour: <median/minimal/maximal> time of validity for user contributions (before the next version)
-    - t<med/min/max>_corr_inhour: <median/minimal/maximal> time of validity for user contributions (before a modification by another user)
-    - n_<node/relation/way/elem>_corr: number of <node/relation/way/elem> that have been modified by the user and corrected after
-    - t<med/min/max>_autocorr_inhour: <median/minimal/maximal> time of validity for user contributions (before a modification by the same user)
-    - n_<node/relation/way/elem>_autocorr: number of <node/relation/way/elem> that have been modified by the user and auto-corrected after
-    - n_<node/relation/way/elem>_modif: number of <node/relation/way/elem> modifications done by the user
-    - n_<node/relation/way/elem>_modif_cr: number of <node/relation/way/elem> creations done by the user
-    - n_<node/relation/way/elem>_modif_crutd: number of <node/relation/way/elem> creations done by the user and still valid at the extraction date
-    - n_<node/relation/way/elem>_modif_crmod: number of <node/relation/way/elem> creations done by the user and modified since
-    - n_<node/relation/way/elem>_modif_crdel: number of <node/relation/way/elem> creations done by the user and deleted since 
-    - n_<node/relation/way/elem>_modif_del: number of <node/relation/way/elem> deletions done by the user 
-    - n_<node/relation/way/elem>_modif_delutd: number of <node/relation/way/elem> deletions done by the user and still invisible at the extraction date 
-    - n_<node/relation/way/elem>_modif_delrebirth: number of <node/relation/way/elem> deletions by the user and reset since
-    - v<med/min/max>_modif_del: <median/minimal/maximal> version of elements when deleted by the user
-    - n_<node/relation/way/elem>_modif_imp: number of <node/relation/way/elem> improvements done by the user
-    - n_<node/relation/way/elem>_modif_imputd: number of <node/relation/way/elem> improvements done by the user and still valid at the extraction date
-    - n_<node/relation/way/elem>_modif_impmod: number of <node/relation/way/elem> improvements done by the user and modified since
-    - n_<node/relation/way/elem>_modif_impdel: number of <node/relation/way/elem> improvements done by the user and deleted since
-    - v<med/min/max>_modif_imp: <median/minimal/maximal> version of elements when improved by the user
-    - n<med/min/max>_modif_byelem: <median/minimal/maximal> number of modifications done by the user per unique elements
-    - n_<node/relation/way/element>_with_1_contrib: number of <node/relation/way/element> with one single contribution done by the user
-    - n_<node/relation/way/element>: number of <node/relation/way/element> for which the user have contributed
-    - n_<node/relation/way/element>_cr: number of <node/relation/way/element> created by the user and still valid on the API
-    - v<med/min/max>_cr: <median/minimal/maximal> version reached by elements created by the user
-    - n_<node/relation/way/element>_cr_wrong: number of <node/relation/way/element> created by the user and deleted later
-    - v<med/min/max>_cr_wrong: <median/minimal/maximal> version reached by elements wrongly created by the user (i.e. elements dropped from the API)
-    - n_<node/relation/way/element>_imp: number of <node/relation/way/element> improved by the user and still valid on the API
-    - v<med/min/max>_imp: <median/minimal/maximal> version reached by elements improved by the user
-    - n_<node/relation/way/element>_imp_wrong: number of <node/relation/way/element> improved by the user and deleted later
-    - v<med/min/max>_imp_wrong: <median/minimal/maximal> version reached by elements improved by the user but dropped from the API since
-    - n_<node/relation/way/element>_del: number of <node/relation/way/element> deleted by the user and still invisible on the API
-    - v<med/min/max>_del: <median/minimal/maximal> version reached by elements deleted by the user
-    - n_<node/relation/way/element>_del_wrong: number of <node/relation/way/element> deleted by the user and reset on the API later
-    - v<med/min/max>_del_wrong: <median/minimal/maximal> version reached by elements wrongly deleted by the user (i.e. elements not dropped from the API)
+    - t<min/med/max>_between_chgsets_inhour: <minimal/median/maximal> time between two change set creations (in hour)
+    - d<min/med/max>_chgset_insec: <minimal/median/maximal> change set duration (in seconds) -- by definition <86400
+    - n<min/med/max>_modif_bychgset: <minimal/median/maximal> number of modifications done by the user per change set
+    - n<min/med/max>_elem_bychgset: <minimal/median/maximal> number of OSM elements modified by the user per change set
+    - t<min/med/max>_update_inhour: <minimal/median/maximal> time of validity for user contributions (before the next version)
+    - t<min/med/max>_corr_inhour: <minimal/median/maximal> time of validity for user contributions (before a modification by another user)
+    - n_<elem/node/way/relation>_corr: number of <element/node/way/relation> that have been modified by the user and corrected after
+    - t<min/med/max>_autocorr_inhour: <minimal/median/maximal> time of validity for user contributions (before a modification by the same user)
+    - n_<elem/node/way/relation>_autocorr: number of <element/node/way/relation> that have been modified by the user and auto-corrected after
+    - n_<elem/node/way/relation>_modif: number of <element/node/way/relation> modifications done by the user
+    - n_<elem/node/way/relation>_modif_cr: number of <element/node/way/relation> creations done by the user
+    - n_<elem/node/way/relation>_modif_crutd: number of <element/node/way/relation> creations done by the user and still valid at the extraction date
+    - n_<elem/node/way/relation>_modif_crmod: number of <element/node/way/relation> creations done by the user and modified since
+    - n_<elem/node/way/relation>_modif_crdel: number of <element/node/way/relation> creations done by the user and deleted since 
+    - n_<elem/node/way/relation>_modif_del: number of <element/node/way/relation> deletions done by the user 
+    - n_<elem/node/way/relation>_modif_delutd: number of <element/node/way/relation> deletions done by the user and still invisible at the extraction date 
+    - n_<elem/node/way/relation>_modif_delrebirth: number of <element/node/way/relation> deletions by the user and reset since
+    - v<min/med/max>_modif_del: <minimal/median/maximal> version of elements when deleted by the user
+    - n_<elem/node/way/relation>_modif_imp: number of <element/node/way/relation> improvements done by the user
+    - n_<elem/node/way/relation>_modif_imputd: number of <element/node/way/relation> improvements done by the user and still valid at the extraction date
+    - n_<elem/node/way/relation>_modif_impmod: number of <element/node/way/relation> improvements done by the user and modified since
+    - n_<elem/node/way/relation>_modif_impdel: number of <element/node/way/relation> improvements done by the user and deleted since
+    - v<min/med/max>_modif_imp: <minimal/median/maximal> version of elements when improved by the user
+    - n<min/med/max>_modif_byelem: <minimal/median/maximal> number of modifications done by the user per unique elements
+    - n_<elem/node/way/relation>_with_1_contrib: number of <element/node/way/relation> with one single contribution done by the user
+    - n_<elem/node/way/relation>: number of <element/node/way/relation> for which the user have contributed
+    - n_<elem/node/way/relation>_cr: number of <element/node/way/relation> created by the user and still valid on the API
+    - v<min/med/max>_cr: <minimal/median/maximal> version reached by elements created by the user
+    - n_<elem/node/way/relation>_cr_wrong: number of <element/node/way/relation> created by the user and deleted later
+    - v<min/med/max>_cr_wrong: <minimal/median/maximal> version reached by elements wrongly created by the user (i.e. elements dropped from the API)
+    - n_<elem/node/way/relation>_imp: number of <element/node/way/relation> improved by the user and still valid on the API
+    - v<min/med/max>_imp: <minimal/median/maximal> version reached by elements improved by the user
+    - n_<elem/node/way/relation>_imp_wrong: number of <element/node/way/relation> improved by the user and deleted later
+    - v<min/med/max>_imp_wrong: <minimal/median/maximal> version reached by elements improved by the user but dropped from the API since
+    - n_<elem/node/way/relation>_del: number of <element/node/way/relation> deleted by the user and still invisible on the API
+    - v<min/med/max>_del: <minimal/median/maximal> version reached by elements deleted by the user
+    - n_<elem/node/way/relation>_del_wrong: number of <element/node/way/relation> deleted by the user and reset on the API later
+    - v<min/med/max>_del_wrong: <minimal/median/maximal> version reached by elements wrongly deleted by the user (i.e. elements not dropped from the API)
