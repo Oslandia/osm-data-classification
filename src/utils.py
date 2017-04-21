@@ -272,20 +272,130 @@ def extract_chgset_metadata(osm_elements):
 
     return chgset_md
 
-def extract_user_metadata(osm_elements):
+def extract_user_metadata(osm_elements, chgset_md):
     """ Extract user metadata from OSM history data
 
     Parameters
     ----------
     osm_elements: pd.DataFrame
         OSM history data
+    chgset_md: pd.DataFrame
+        OSM change set metadata
     
     Return
     ------
     user_md: pd.DataFrame
-        User metadata with timestamp information, user-related features
+        User metadata with timestamp information, changeset-related features
     and other features describing modification and OSM elements themselves
     
     """
     user_md = init_metadata(osm_elements, 'uid')
+
+    # Change set-related features
+    user_md['n_chgset'] = (osm_elements.groupby('uid')['chgset']
+                           .nunique()
+                           .reset_index())['chgset']
+    user_md = group_stats(user_md, chgset_md, 'uid', 'user_lastchgset_h',
+                          't', '_between_chgsets_h')
+    user_md = group_stats(user_md, chgset_md, 'uid', 'duration_m',
+                                    'd', '_chgset_insec')
+    user_md = group_stats(user_md, chgset_md, 'uid', 'n_elem_modif',
+                              'n', '_modif_bychgset')
+    user_md = group_stats(user_md, chgset_md, 'uid', 'n_elem',
+                              'n', '_elem_bychgset')
+
+    # Update features
+    user_md = group_stats(user_md, osm_elements, 'uid', 'nextmodif_in',
+                              't', '_update_inhour')
+    osmelem_corr = osm_elements.query("willbe_corr")
+    user_md = group_stats(user_md, osmelem_corr, 'uid', 'nextcorr_in',
+                              't', '_corr_h')
+    user_md = group_count(user_md, osmelem_corr, 'uid', 'willbe_corr',
+                              '_corr')
+    osmelem_autocorr = osm_elements.query("willbe_autocorr")
+    user_md = group_stats(user_md, osmelem_autocorr, 'uid',
+                              'nextauto_in', 't', '_autocorr_h')
+    user_md = group_count(user_md, osmelem_autocorr, 'uid',
+                              'willbe_autocorr', '_autocorr')
+
+    # Modification-related features
+    user_md = group_count(user_md, osm_elements, 'uid', 'id', '_modif')
+    #
+    osmmodif_cr = osm_elements.query("init")        
+    user_md = group_count(user_md, osmmodif_cr, 'uid', 'id',
+                              '_modif_cr')
+    osmmodif_cr_utd = osmmodif_cr.query("up_to_date")
+    user_md = group_count(user_md, osmmodif_cr_utd, 'uid', 'id',
+                              '_modif_crutd')
+    osmmodif_cr_mod = osmmodif_cr.query("not up_to_date and available")
+    user_md = group_count(user_md, osmmodif_cr_mod, 'uid', 'id',
+                              '_modif_crmod')
+    osmmodif_cr_del = osmmodif_cr.query("not up_to_date and not available")
+    user_md = group_count(user_md, osmmodif_cr_del, 'uid', 'id',
+                              '_modif_crdel')
+    #
+    osmmodif_del = osm_elements.query("not init and not visible")
+    user_md = group_count(user_md, osmmodif_del, 'uid', 'id',
+                              '_modif_del')
+    osmmodif_del_utd = osmmodif_del.query("not available")
+    user_md = group_count(user_md, osmmodif_del_utd, 'uid', 'id',
+                              '_modif_delutd')
+    osmmodif_del_rebirth = osmmodif_del.query("available")
+    user_md = group_count(user_md, osmmodif_del_rebirth, 'uid', 'id',
+                              '_modif_delrebirth')
+    user_md = group_stats(user_md, osmmodif_del, 'uid', 'version',
+                              'v', '_modif_del')
+    #
+    osmmodif_imp = osm_elements.query("not init and visible")
+    user_md = group_count(user_md, osmmodif_imp, 'uid', 'id',
+                              '_modif_imp')
+    osmmodif_imp_utd = osmmodif_imp.query("up_to_date")
+    user_md = group_count(user_md, osmmodif_imp_utd, 'uid', 'id',
+                              '_modif_imputd')
+    osmmodif_imp_mod = osmmodif_imp.query("not up_to_date and available")
+    user_md = group_count(user_md, osmmodif_imp_mod, 'uid', 'id',
+                              '_modif_impmod')
+    osmmodif_imp_del = osmmodif_imp.query("not up_to_date and not available")
+    user_md = group_count(user_md, osmmodif_imp_del, 'uid', 'id',
+                              '_modif_impdel')
+    user_md = group_stats(user_md, osmmodif_imp, 'uid', 'version',
+                              'v', '_modif_imp')
+
+    # Number of modifications per unique element
+    contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
+                      .count()
+                      .reset_index())
+    user_md = group_stats(user_md, contrib_byelem, 'uid', 'version',
+                              'n', '_modif_byelem')
+    user_md = group_count(user_md, contrib_byelem.query("version==1"),
+                              'uid', 'id', '_with_1_contrib')
+
+    # User-related features
+    user_md = group_nunique(user_md, osm_elements, 'uid', 'id', '')
+    osmelem_cr = osm_elements.query("init and available")
+    user_md = group_nunique(user_md, osmelem_cr, 'uid', 'id', '_cr')
+    user_md = group_stats(user_md, osmelem_cr, 'uid', 'vmax',
+                              'v', '_cr')
+    osmelem_cr_wrong = osm_elements.query("init and not available")
+    user_md = group_nunique(user_md, osmelem_cr_wrong, 'uid', 'id',
+                                '_cr_wrong')
+    user_md = group_stats(user_md, osmelem_cr_wrong, 'uid', 'vmax',
+                              'v', '_cr_wrong')
+    osmelem_imp = osm_elements.query("not init and visible and available")
+    user_md = group_nunique(user_md, osmelem_imp, 'uid', 'id', '_imp')
+    user_md = group_stats(user_md, osmelem_imp, 'uid', 'vmax',
+                              'v', '_imp')
+    osmelem_imp_wrong = osm_elements.query("not init and visible and not available")
+    user_md = group_nunique(user_md, osmelem_imp_wrong, 'uid', 'id', '_imp_wrong')
+    user_md = group_stats(user_md, osmelem_imp_wrong, 'uid', 'vmax',
+                              'v', '_imp_wrong')
+    osmelem_del = osm_elements.query("not init and not visible and not available")
+    user_md = group_nunique(user_md, osmelem_del, 'uid', 'id', '_del')
+    user_md = group_stats(user_md, osmelem_del, 'uid', 'vmax',
+                              'v', '_del')
+    osmelem_del_wrong = osm_elements.query("not init and not visible and available")
+    user_md = group_nunique(user_md, osmelem_del_wrong, 'uid', 'id', '_del_wrong')
+    user_md = group_stats(user_md, osmelem_del_wrong, 'uid', 'vmax',
+                              'v', '_del_wrong')
+
     return user_md
