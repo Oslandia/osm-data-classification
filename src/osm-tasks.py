@@ -122,53 +122,7 @@ class OSMTagMetaAnalysis(luigi.Task):
             fulltaganalys.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
 
-class ElementMetadataExtract(luigi.Task):
-    """ Luigi task: extraction of metadata for each OSM element
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-
-    def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-elem-md.csv")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath())
-
-    def requires(self):
-        return OSMHistoryParsing(self.datarep, self.dsname)
-
-    def run(self):
-        with self.input().open('r') as inputflow:
-            osm_elements = pd.read_csv(inputflow,
-                                       index_col=0,
-                                       parse_dates=['ts'])
-        elem_md = (osm_elements.groupby(['elem', 'id'])['version']
-                   .max()
-                   .reset_index())
-        elem_md = pd.merge(elem_md, osm_elements[['elem','id','version','visible']],
-                           on=['elem','id','version'])
-        elem_md['n_user'] = (osm_elements.groupby(['elem', 'id'])['uid']
-                             .nunique()
-                             .reset_index())['uid']
-        elem_md['n_chgset'] = (osm_elements.groupby(['elem', 'id'])['chgset']
-                               .nunique()
-                               .reset_index())['chgset']
-        elem_md['created_at'] = (osm_elements.groupby(['elem', 'id'])['ts']
-                                 .min()
-                                 .reset_index()['ts'])
-        elem_md['lastmodif_at'] = (osm_elements.groupby(['elem', 'id'])['ts']
-                                   .max()
-                                   .reset_index()['ts'])
-        elem_md['lifecycle'] = elem_md.lastmodif_at - elem_md.created_at
-        timehorizon = pd.to_datetime("2017-02-13 00:00:00")
-        elem_md.loc[elem_md.visible.values, "lifecycle"] = timehorizon - elem_md.loc[elem_md.visible.values, "created_at"]
-        elem_md['mntime_between_modif'] = (elem_md.lifecycle / elem_md.version).astype('timedelta64[m]')
-        with self.output().open('w') as outputflow:
-            elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
-
-
-class OSMElementEnrichment(luigi.Task):
+            class OSMElementEnrichment(luigi.Task):
     """ Luigi task: building of new features for OSM element history
     """
     datarep = luigi.Parameter("data")
@@ -248,6 +202,52 @@ class OSMElementEnrichment(luigi.Task):
         # Element saving
         with self.output().open('w') as outputflow:
             osm_elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+
+class ElementMetadataExtract(luigi.Task):
+    """ Luigi task: extraction of metadata for each OSM element
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
+                self.dsname + "-elem-md.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return OSMHistoryParsing(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            osm_elements = pd.read_csv(inputflow,
+                                       index_col=0,
+                                       parse_dates=['ts'])
+        elem_md = (osm_elements.groupby(['elem', 'id'])['version']
+                   .max()
+                   .reset_index())
+        elem_md = pd.merge(elem_md, osm_elements[['elem','id','version','visible']],
+                           on=['elem','id','version'])
+        elem_md['n_user'] = (osm_elements.groupby(['elem', 'id'])['uid']
+                             .nunique()
+                             .reset_index())['uid']
+        elem_md['n_chgset'] = (osm_elements.groupby(['elem', 'id'])['chgset']
+                               .nunique()
+                               .reset_index())['chgset']
+        elem_md['created_at'] = (osm_elements.groupby(['elem', 'id'])['ts']
+                                 .min()
+                                 .reset_index()['ts'])
+        elem_md['lastmodif_at'] = (osm_elements.groupby(['elem', 'id'])['ts']
+                                   .max()
+                                   .reset_index()['ts'])
+        elem_md['lifecycle'] = elem_md.lastmodif_at - elem_md.created_at
+        timehorizon = pd.to_datetime("2017-02-13 00:00:00")
+        elem_md.loc[elem_md.visible.values, "lifecycle"] = timehorizon - elem_md.loc[elem_md.visible.values, "created_at"]
+        elem_md['mntime_between_modif'] = (elem_md.lifecycle / elem_md.version).astype('timedelta64[m]')
+        with self.output().open('w') as outputflow:
+            elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
             
 class ChangeSetMetadataExtract(luigi.Task):

@@ -189,8 +189,8 @@ def extract_elem_metadata(osm_elements):
     Return
     ------
     elem_md: pd.DataFrame
-        Change set metadata with timestamp information, user-related features
-    and other features describing modification and OSM elements themselves
+        Change set metadata with timestamp information, version-related features
+    and number of unique change sets (resp. users)
     
     """
     elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
@@ -233,9 +233,43 @@ def extract_chgset_metadata(osm_elements):
     
     """
     chgset_md = init_metadata(osm_elements, 'chgset', 'duration_m', 'minute')
-    chgset_md = pd.merge(chgset_md, osm_elements[['elem','id','uid']],
-                         on=['elem','id'])
-    
+
+    # User-related features
+    chgset_md = pd.merge(chgset_md,
+                         osm_elements[['chgset','uid']].drop_duplicates(),
+                         on=['chgset'])
+    chgset_md['user_lastchgset_h'] = (chgset_md.groupby('uid')['first_at']
+                                      .diff())
+    chgset_md.user_lastchgset_h = (chgset_md.user_lastchgset_h /
+                                   timedelta(hours=1))
+
+    # Modification-related features
+    chgset_md = group_count(chgset_md, osm_elements, 'chgset', 'id', '_modif')
+    osmmodif_cr = osm_elements.query("init")        
+    chgset_md = group_count(chgset_md, osmmodif_cr, 'chgset', 'id', '_modif_cr')
+    osmmodif_del = osm_elements.query("not init and not visible")
+    chgset_md = group_count(chgset_md, osmmodif_del, 'chgset', 'id',
+                            '_modif_del')
+    osmmodif_imp = osm_elements.query("not init and visible")
+    chgset_md = group_count(chgset_md, osmmodif_imp, 'chgset', 'id',
+                            '_modif_imp')
+
+    # Number of modifications per unique element
+    contrib_byelem = (osm_elements.groupby(['elem', 'id', 'chgset'])['version']
+                      .count()
+                      .reset_index())
+    chgset_md = group_stats(chgset_md, contrib_byelem, 'chgset', 'version',
+                            'n', '_modif_byelem')
+
+    # Element-related features
+    chgset_md = group_nunique(chgset_md, osm_elements, 'chgset', 'id', '')        
+    osmelem_cr = osm_elements.query("init and available")
+    chgset_md = group_nunique(chgset_md, osmelem_cr, 'chgset', 'id', '_cr')
+    osmelem_imp = osm_elements.query("not init and visible and available")
+    chgset_md = group_nunique(chgset_md, osmelem_imp, 'chgset', 'id', '_imp')
+    osmelem_del = osm_elements.query("not init and not visible and not available")
+    chgset_md = group_nunique(chgset_md, osmelem_del, 'chgset', 'id', '_del')
+
     return chgset_md
 
 def extract_user_metadata(osm_elements):
