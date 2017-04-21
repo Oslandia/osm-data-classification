@@ -7,6 +7,7 @@ Some utility functions aiming to analyse OSM data
 
 import pandas as pd
 import numpy as np
+from datetime import timedelta
 
 ### OSM data exploration ######################
 def updatedelem(data):
@@ -133,3 +134,100 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     md_ext.columns = [grp_feat, *colnames]
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
+def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
+                  timeunit='day'):
+    """ This function produces an init metadata table based on 'init_feature'
+    in table 'osm_elements'. The intialization consider timestamp measurements
+    (generated for each metadata tables, i.e. elements, change sets and users).
+
+    Parameters
+    ----------
+    osm_elements: pd.DataFrame
+        OSM history data
+    init_feat: object
+        metadata basic feature name in string format
+    duration_feat: object
+        metadata duration feature name in string format
+    timeunit: object
+        time unit in which 'duration_feature' will be expressed
+
+    Return
+    ------
+    metadata: pd.DataFrame
+    metadata table with following features:
+    init_feature (int) -- initializing feature ID
+    first_at (datetime) -- first timestamp
+    last_at (datetime) -- last timestamp
+    activity (int) -- activity (in 'timeunit' format)
+    
+    """
+    metadata = (osm_elements.groupby(init_feat)['ts']
+                .agg({'first_at':"min", 'last_at':"max"})
+                .reset_index())
+    metadata[duration_feat] = metadata.last_at - metadata.first_at
+    if timeunit == 'second':
+        metadata[duration_feat] = (metadata[duration_feat] /
+                                   timedelta(seconds=1))
+    if timeunit == 'minute':
+        metadata[duration_feat] = (metadata[duration_feat] /
+                                   timedelta(minutes=1))
+    if timeunit == 'hour':
+        metadata[duration_feat] = metadata[duration_feat] / timedelta(hours=1)
+    if timeunit == 'day':
+        metadata[duration_feat] = metadata[duration_feat] / timedelta(days=1)
+    return metadata
+
+
+def extract_elem_metadata(osm_elements):
+    """ Extract element metadata from OSM history data
+
+    Parameters
+    ----------
+    osm_elements: pd.DataFrame
+        OSM history data
+    
+    Return
+    ------
+    elem_md: pd.DataFrame
+        Change set metadata with timestamp information, user-related features
+    and other features describing modification and OSM elements themselves
+    
+    """
+    elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
+    return elem_md
+
+def extract_chgset_metadata(osm_elements):
+    """ Extract change set metadata from OSM history data
+
+    Parameters
+    ----------
+    osm_elements: pd.DataFrame
+        OSM history data
+    
+    Return
+    ------
+    chgset_md: pd.DataFrame
+        Change set metadata with timestamp information, user-related features
+    and other features describing modification and OSM elements themselves
+    
+    """
+    chgset_md = init_metadata(osm_elements, 'chgset', 'duration_m', 'minute')
+    return chgset_md
+
+def extract_user_metadata(osm_elements):
+    """ Extract user metadata from OSM history data
+
+    Parameters
+    ----------
+    osm_elements: pd.DataFrame
+        OSM history data
+    
+    Return
+    ------
+    user_md: pd.DataFrame
+        User metadata with timestamp information, user-related features
+    and other features describing modification and OSM elements themselves
+    
+    """
+    user_md = init_metadata(osm_elements, 'uid')
+    return user_md
