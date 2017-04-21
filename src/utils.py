@@ -194,6 +194,27 @@ def extract_elem_metadata(osm_elements):
     
     """
     elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
+    elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
+                       .max()
+                       .reset_index())['version']
+    elem_md = pd.merge(elem_md, osm_elements[['elem','id','version','visible']],
+                       on=['elem', 'id', 'version'])
+    elem_md['n_chgset'] = (osm_elements.groupby(['elem', 'id'])['chgset']
+                           .nunique()
+                           .reset_index())['chgset']
+    elem_md['n_user'] = (osm_elements.groupby(['elem', 'id'])['uid']
+                         .nunique()
+                         .reset_index())['uid']
+    elem_md['n_autocorr'] = (osm_elements
+                             .groupby(['elem','id'])['willbe_autocorr']
+                             .sum()
+                             .reset_index()['willbe_autocorr']
+                             .astype('int'))
+    elem_md['n_corr'] = (osm_elements
+                             .groupby(['elem','id'])['willbe_corr']
+                             .sum()
+                             .reset_index()['willbe_corr']
+                             .astype('int'))
     return elem_md
 
 def extract_chgset_metadata(osm_elements):
@@ -212,6 +233,9 @@ def extract_chgset_metadata(osm_elements):
     
     """
     chgset_md = init_metadata(osm_elements, 'chgset', 'duration_m', 'minute')
+    chgset_md = pd.merge(chgset_md, osm_elements[['elem','id','uid']],
+                         on=['elem','id'])
+    
     return chgset_md
 
 def extract_user_metadata(osm_elements):
