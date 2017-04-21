@@ -36,8 +36,6 @@ class OSMHistoryParsing(luigi.Task):
                     'uid', 'chgset', 'ntags', 'tagkeys']
         elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
         elements = elements.sort_values(by=['elem', 'id', 'version'])
-        print("There are {0} items in the OSM history.".format(len(elements)))
-        print("Write OSM history data into {0}".format(self.outputpath()))
         with self.output().open('w') as outputflow:
             elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
@@ -63,7 +61,6 @@ class OSMTagParsing(luigi.Task):
         print("There are {0} tag records in this dataset".format(len(taghandler.taggenome)))
         tag_genome = pd.DataFrame(taghandler.taggenome)
         tag_genome.columns = ['elem', 'id', 'version', 'tagkey', 'tagvalue']
-        print("Write OSM tag genome into {0}".format(self.outputpath()))
         with self.output().open('w') as outputflow:
             tag_genome.to_csv(outputflow)
 
@@ -88,11 +85,9 @@ class OSMTagMetaAnalysis(luigi.Task):
     def run(self):
         with self.input()['history'].open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow, index_col=0)
-        print("Recovering OSM elements: {0} elements in this dataset!"
-              .format(len(osm_elements)))
         with self.input()['taggenome'].open('r') as inputflow:
             tag_genome = pd.read_csv(inputflow, index_col=0)
-        print("Recovering OSM tag genome: {0} tag items!".format(len(tag_genome)))
+
         ### Tag count analysis
         # How many unique tag keys per OSM elements?
         tagcount = (tag_genome.groupby('elem')['tagkey']
@@ -106,17 +101,14 @@ class OSMTagMetaAnalysis(luigi.Task):
                        .fillna(0))
         tagkeycount['elem'] = tagkeycount.apply(sum, axis=1)
         tagkeycount = tagkeycount.sort_values('elem', ascending=False)
-        # The 10 most encountered tag keys in OSM history
-        print(tagkeycount.head(10))
 
         ### Analyse of tag key frequency (amongst all elements)
         fulltaganalys = pd.merge(osm_elements[['elem', 'id', 'version']],
                                  tag_genome,
                                  on=['elem','id','version'],
                                  how="outer")
-        tagfreq = tagmetanalyse.tag_frequency(fulltaganalys, ['elem','version'])
-        # When are elements tagged with 'highway' keys?
-        print(tagfreq.loc['highway'])
+        tagfreq = tagmetanalyse.tag_frequency(fulltaganalys,
+                                              ['elem','version'])
 
         ### Analyse of tag value frequency (amongst all tagged elements)
         tagmetanalyse.tagvalue_analysis(tag_genome, 'highway', ['version'])
@@ -125,10 +117,6 @@ class OSMTagMetaAnalysis(luigi.Task):
         # For element with a specific tag key (e.g. 'highway')
         tagvalue_freq = tagmetanalyse.tagvalue_frequency(tag_genome, "highway",
                                                          ['elem','version'])
-
-        # How many elements are tagged with value 'residential', amongst
-        # "highway" elements?
-        print(tagvalue_freq.loc['residential',0:10])
 
         with self.output().open('w') as outputflow:
             fulltaganalys.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -155,7 +143,6 @@ class ElementMetadataExtract(luigi.Task):
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-        print("Extraction of elements metadata...")
         elem_md = (osm_elements.groupby(['elem', 'id'])['version']
                    .max()
                    .reset_index())
@@ -198,7 +185,6 @@ class OSMElementEnrichment(luigi.Task):
         return OSMHistoryParsing(self.datarep, self.dsname)
 
     def run(self):
-        print("Feature extraction from OSM history data...")
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
@@ -281,7 +267,6 @@ class ChangeSetMetadataExtract(luigi.Task):
         return OSMElementEnrichment(self.datarep, self.dsname)
 
     def run(self):
-        print("Extraction of change sets metadata...")
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
@@ -358,7 +343,6 @@ class UserMetadataExtract(luigi.Task):
                                                    self.dsname)}
 
     def run(self):
-        print("Extraction of user metadata...")
         with self.input()['chgsets'].open('r') as inputflow:
             chgset_md = pd.read_csv(inputflow, index_col=0)
         
