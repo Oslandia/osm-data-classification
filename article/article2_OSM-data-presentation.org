@@ -1,0 +1,35 @@
+#+TITLE: OSM data presentation: which data, how to get them?
+#+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
+
+# Common introduction for articles of the OSM-data-quality series
+At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
+projects and handling Open (geospatial) Data. In this article series, we will
+play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
+subsequent data. Here comes the second article of this series, dedicated to the
+presentation of OSM data itself.
+
+* Introduction...
+
+Introduction of the article
+
+* What do we mean by "data quality"...
+
+Introduction of the project, explain what is OSM data quality, call some
+references to make the speech stronger
+
+* What sort of data are behind the OpenStreetMap API?...
+
+Present OSM data, its format, the available features (here we can cite
+[Osmium]() documentation to get a clear overview of OSM data). Typically we
+have .osm data *vs* .osh data
+
+Write about the OSM API, give some example of OSM entities (node, way,
+relation, change sets, users...), distinguish visible elements from deleted
+ones
+
+* From the OSM history dumps to usable data sets...
+
+First choice: exploit in-base data, or .csv files !
+
+Develop the extraction process with the pyosmium tool, capitalize from the
+first article written by dga

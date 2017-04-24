@@ -1,0 +1,22 @@
+#+TITLE: OSM data analysis framework: how to handle such data?
+#+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
+
+# Common introduction for articles of the OSM-data-quality series
+At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with the [OpenStreetMap](https://www.openstreetmap.org/)
+map and subsequent data. Here comes the first article of this series, dedicated
+to the presentation of our working framework.
+
+* Introduction...
+
+Introduction of the article
+
+* Python is your friend, Luigi your plumber...
+
+Presentation of Luigi, the used Python framework
+
+* Outline of the project: characterize OSM data quality...
+
+Give some tracks to analyse OSM data, keeping in mind the quality
+assessment. Here we will provide the outline of the project by associating each
+Luigi classes with forthcoming blog entries

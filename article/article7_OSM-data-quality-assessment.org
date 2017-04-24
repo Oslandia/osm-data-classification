@@ -1,0 +1,37 @@
+#+TITLE: OSM data quality assessment: is the OSM data quality "good"?
+#+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
+
+# Common introduction for articles of the OSM-data-quality series
+At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
+projects and handling Open (geospatial) Data. In this article series, we will
+play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
+subsequent data. Here comes the seventh article of this series, dedicated to
+the OSM data quality evaluation.
+
+* Introduction...
+
+Introduction of the article
+
+* Capitalize from clustering on metadata...
+
+As a recall, we have seen in the last post that OSM metadata, and especially
+user metadata allow us to produce user clusters. These clusters give a roughly
+faithful picture of the user ability to make OSM trustworthy.
+
+* Characterize OSM entities from user classification...
+
+Starting from previous observations, we can deduce a little bit more
+information. Each OSM entity have received one or more contributions by listed
+users. These users are either beginners, or intermediate users, or even OSM
+experts, according to previous classification. It is possible to design a
+synthetic score applied to each entity by using this fact. Let's say the entity
+quality is good if at least one experienced user contributes to it. That leads
+us to classify the OSM entities themselves in return!
+
+* Keep it visual, man!
+
+From the last conclusions, we are able to produce some customized maps, based
+on hypothesis on entity quality. If each OSM entities (*e.g.* roads) can be
+characterized in terms of quality, by the way of a synthetic score for example,
+then we can draw quality maps by highlighting the most trustworthy entities, as
+well as those with which we have to stay cautious.

@@ -1,0 +1,39 @@
+#+TITLE: OSM tag genome: how are OSM objects tagged?
+#+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
+
+# Common introduction for articles of the OSM-data-quality series
+At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
+projects and handling Open (geospatial) Data. In this article series, we will
+play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
+subsequent data. Here comes the fourth article of this series, dedicated to the
+analysis of OSM tag genome, *i.e.* tag keys and values that are used within the
+OSM API.
+
+* Introduction...
+
+Introduction of the article
+
+* Overview of the OSM object tags...
+
+What kind of tags do we have to characterize OSM objects ? There are tag keys
+on the first hand and tag values on the other hand. It can be interesting to
+describe both sets.
+
+* Analyse of the global tag genome...
+
+Provide a short statistical description of the tag genome, on a whole OSM
+extraction.
+
+- How many tag per object (node, way, relation)?
+- What is the temporal evolution of object tags, and more specifically in terms
+  of object version?
+
+* Analyse the tag key/value frequency...
+
+If we focus on specific tag keys, or tag values, it is straightforward to ask
+how spread are some typical tags. For example, we can focus on road data, and
+evaluate how many highway tag are available in the API.
+
+:warning: The analysis has been undertaken in a very simple manner for now, a
+few additional investigations are needed to make the blog article content
+sufficiently substantial

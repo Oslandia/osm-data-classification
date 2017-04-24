@@ -1,0 +1,41 @@
+#+TITLE: OSM data historical overview: what is the OSM API evolution through time?
+#+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
+
+# Common introduction for articles of the OSM-data-quality series
+At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
+projects and handling Open (geospatial) Data. In this article series, we will
+play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
+subsequent data. Here comes the third article of this series, dedicated to the
+chronological overview of OSM data.
+
+* Introduction...
+
+Introduction of the article
+
+* How to extract OSM data history...
+
+** Get the data...
+
+By taking a local example (*e.g.* Bordeaux-metropole), extract the OSM data
+history and evaluate the API evolution time after time.
+
+** Build the OSM historical evolution through a simple procedure...
+
+We have a simple but seminal procedure called =datedelems= that allows us to
+get the OSM API picture given a date. As a corollary we can build some time
+series aiming to describe the evolution of the API in terms of OSM objects
+(nodes, ways, relations) or users.
+
+* How do the OSM API evolve through time?...
+
+** Some object-focused insights of the OSM API evolution...
+
+What is the temporal evolution of nodes, ways, relations?
+
+Can we compare areas? (Hypothesis: some areas have been built faster than
+others, *e.g.* compare a urban area and a desert area)
+
+** Some global considerations: how many active users?...
+
+This is necessarily uncomplete if we consider only local extraction. However we
+can try to obtain the change set and user statistics for full-planet dumps.
