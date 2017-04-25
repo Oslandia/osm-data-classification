@@ -2,10 +2,11 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool projects and handling Open
-(geospatial) Data. In this article series, we will play with the [OpenStreetMap](https://www.openstreetmap.org/)
-map and subsequent data. Here comes the first article of this series, dedicated
-to the presentation of our working framework.
+At [Oslandia](http://oslandia.com/), we like working with Open Source tool
+projects and handling Open (geospatial) Data. In this article series, we will
+play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
+subsequent data. Here comes the first article of this series, dedicated to the
+presentation of our working framework.
 
 * Introduction...
 

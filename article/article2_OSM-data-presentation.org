@@ -10,14 +10,84 @@ presentation of OSM data itself.
 
 * Introduction...
 
-Introduction of the article
+As you should know, OpenStreetMap is a project which creates and distributes
+free geographical data for the world. Like Wikipedia, it's a community of people
+who can create and update some content available for everyone. Thus, anyone can
+edit a building, a road, a place or a mailbox.
+
+When you work with data which cames from a collaborative community, it's
+important to get quality data. In a Wikipedia article, you can have a lot of
+linked resources, notes and a content updated by several contributors. You have
+to be confident with the data you work with. Is this road accurate enough? Is
+this street name missing?
+
+Our main purpose is to answer to this question: *can you assess (and how) the
+quality of [[https://www.openstreetmap.org][OpenStreetMap]] data?* Firstly, this post deals with spatial data
+quality. Then, we dig into the OpenStreetMap history data and its contributors
+and analyze it with the Python programming language.
+
+*Note*: for the rest of this article:
+
+  -  /OSM/ means OpenStreetMap
+  -  /pbf/ is the file extension for [[https://developers.google.com/protocol-buffers/][Protocol Buffer]]
 
 * What do we mean by "data quality"...
 
-Introduction of the project, explain what is OSM data quality, call some
-references to make the speech stronger
+Let's remind you that OpenStreetMap is a community, as Wikipedia, where everyone
+can create, edit and delete roads, buildings, places, etc. Thus, the question
+about the data quality is relevant.
+
+You can suppose for instance that the quality of a contribution depends on the
+user. If the user is experienced, you can suppose that the contribution should
+be good. And when you don't have reference data to measure the data accuracy,
+you can suppose that if the road was created a few years ago with 20 updates, it
+should be complete and accurate enough.
+
+The following article "Assessing the quality of OpenStreeMap Contributors
+together with their Contributions" recall us that the quality of spatial data
+has a few criteria:
+
+  1. attribute accuracy
+  2. positional accuracy
+  3. temporal accuracy
+  4. logical consistency
+  5. completness
+
+For instance, the ISO standard organization has the norm [[https://www.iso.org/fr/committee/54904.html][ISO TC211]] which is the
+Standardization in the field of digital geographic information and mentions some
+of quality attributes above.
+
+Then article intends to classify some OSM contributors based on the quality and
+quantity of their contributions. Five classes are used: "beginner", "regular",
+"intermediate", "expert", and "professional mappers". As the authors work with a
+OSM Germany region with reference data, i.e. roads data, they can assess the
+positional accuracy of a contribution. Moreover, they take into account the
+completness and the semantic accuracy. Although they don't give the relation
+between a contributor class and the ranges of the evaluation items,
+i.e. completness, positional and semantic accuracies splitted into 5 ranges
+each, the approach is interesting.
+
+You can note some differences with our approach: we don't have any geospatial
+data reference which can give you a positional accuracy. And the authors decided
+to take a snaphost of the OSM data instead of using OSM history data.
+
+See also the article about the [[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]] which lists several tools
+which help lead to better quality of OSM data.
+
+:warning: *** enhance the bibliography ***
 
 * What sort of data are behind the OpenStreetMap API?...
+
+It's a simple but complex task.
+
++ simple because you just has to download the =osm= or =pbf= history dump file
+  from this link https://planet.openstreetmap.org/ The PBF (Protocol Buffer)
+  file format is not so big: +50Go. Note that the XML file is compressed with
+  =bzip2=. It can be quite long (+36 hours) and take some place (1TB) if you
+  uncompress it ([[https://wiki.openstreetmap.org/wiki/Planet.osm/full#Data_Format][cited source]])
+
++ complex because when you want to extract data, it can be a long and tedious
+  task
 
 Present OSM data, its format, the available features (here we can cite
 [Osmium]() documentation to get a clear overview of OSM data). Typically we
