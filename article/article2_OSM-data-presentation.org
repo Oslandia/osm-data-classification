@@ -103,3 +103,7 @@ First choice: exploit in-base data, or .csv files !
 
 Develop the extraction process with the pyosmium tool, capitalize from the
 first article written by dga
+
+* Conclusion...
+
+:warning: to do
