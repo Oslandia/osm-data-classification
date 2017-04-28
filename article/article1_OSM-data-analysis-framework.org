@@ -84,7 +84,24 @@ following figure, obtained with the help of the Luigi daemon, which permits to
 explore the task pipeline graphically as well as to explore their
 accomplishment degree while running.
 
-:warning: <global_workflow_scheme.png>
+file:../figs/luigi_dependency_graph_example.png
+
+We can identify some of previously mentionned tasks in this graph:
+
+- =OSMHistoryParsing= and =OSMTagParsing= are sources, these tasks provide
+  initial data sets by using `pyosmium` capacities.
+- =OSMElementEnrichment= is an intermediary task in which additional features
+  are merged to OSM history data
+- These additional features are used in every subsequent tasks:
+  =OSMTagMetaAnalysis=, =ElementMetadataExtract=, =ChangeSetMetadataExtract=
+  and =UserMetadataExtract=. The former task ends tag analysis, while the
+  latter ones generate metadata from OSM history.
+- =MasterTask= is an abstract task that yields each final tasks. Its completion
+  equals to the success of the pipelined procedure.
+
+In this example we do not have put other tasks in the pipeline (*e.g.*
+machine-learning-related procedures), however they can be integrated in the
+framework with a minimal effort.
 
 * Conclusion...
 
