@@ -84,7 +84,9 @@ following figure, obtained with the help of the Luigi daemon, which permits to
 explore the task pipeline graphically as well as to explore their
 accomplishment degree while running.
 
-file:../figs/luigi_dependency_graph_example.png
+#+CAPTION: Example of Luigi dependency graph
+#+NAME: fig:luigi-dep-graph
+[[./../figs/luigi_dependency_graph_example.png]]
 
 We can identify some of previously mentionned tasks in this graph:
 
