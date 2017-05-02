@@ -8,102 +8,175 @@ play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
 subsequent data. Here comes the second article of this series, dedicated to the
 presentation of OSM data itself.
 
-* Introduction...
+* Introduction
 
 As you should know, OpenStreetMap is a project which creates and distributes
 free geographical data for the world. Like Wikipedia, it's a community of people
 who can create and update some content available for everyone. Thus, anyone can
-edit a building, a road, a place or a mailbox.
+edit buildings, roads, places or even trees and mailboxes!
 
-When you work with data which cames from a collaborative community, it's
-important to get quality data. In a Wikipedia article, you can have a lot of
-linked resources, notes and a content updated by several contributors. You have
-to be confident with the data you work with. Is this road accurate enough? Is
-this street name missing?
+Working with community-built data forces to take care of data quality. We have
+to be confident with the data we work this. Is this road geometry accurate
+enough? Is this street name missing? This is fundamental for companies and NGO
+who use OSM on a daily basis.
 
-Our main purpose is to answer to this question: *can you assess (and how) the
-quality of [[https://www.openstreetmap.org][OpenStreetMap]] data?* Firstly, this post deals with spatial data
-quality. Then, we dig into the OpenStreetMap history data and its contributors
-and analyze it with the Python programming language.
+Our main purpose is to answer to this question: *can you assess the quality of
+[[https://www.openstreetmap.org][OpenStreetMap]] data? (and how?)* This post is dedicated to the data parsing,
+from native OpenStreetMap API.
 
-*Note*: for the rest of this article:
+For the article remainder, we use the following acronyms:
 
   -  /OSM/ means OpenStreetMap
   -  /pbf/ is the file extension for [[https://developers.google.com/protocol-buffers/][Protocol Buffer]]
 
-* What do we mean by "data quality"...
+* What do we mean by "data quality"
 
-Let's remind you that OpenStreetMap is a community, as Wikipedia, where everyone
-can create, edit and delete roads, buildings, places, etc. Thus, the question
-about the data quality is relevant.
+Let's remind you that OSM is a community, as Wikipedia, where everyone can
+create, edit and delete entities. You can suppose that the quality of a
+contribution depends on the user who made it.
 
-You can suppose for instance that the quality of a contribution depends on the
-user. If the user is experienced, you can suppose that the contribution should
-be good. And when you don't have reference data to measure the data accuracy,
-you can suppose that if the road was created a few years ago with 20 updates, it
+If the user is experienced, you can suppose that the contribution should be
+good. And when you don't have reference data to measure the data accuracy, you
+can suppose that if the road was created a few years ago with 20 updates, it
 should be complete and accurate enough.
 
-The following article "Assessing the quality of OpenStreeMap Contributors
-together with their Contributions" recall us that the quality of spatial data
-has a few criteria:
+** geospatial data quality components
 
-  1. attribute accuracy
-  2. positional accuracy
-  3. temporal accuracy
-  4. logical consistency
-  5. completness
+Van Oort (2006) defines several spatial data quality criteria:
 
-For instance, the ISO standard organization has the norm [[https://www.iso.org/fr/committee/54904.html][ISO TC211]] which is the
-Standardization in the field of digital geographic information and mentions some
-of quality attributes above.
+- lineage
+- positional accuracy
+- attribute accuracy
+- logical accuracy
+- completeness
+- semantic accuracy
+- usage, purpose, constraints
+- temporal quality
+- variation in quality
+- meta-quality
+- resolution
 
-Then article intends to classify some OSM contributors based on the quality and
-quantity of their contributions. Five classes are used: "beginner", "regular",
-"intermediate", "expert", and "professional mappers". As the authors work with a
-OSM Germany region with reference data, i.e. roads data, they can assess the
-positional accuracy of a contribution. Moreover, they take into account the
-completness and the semantic accuracy. Although they don't give the relation
-between a contributor class and the ranges of the evaluation items,
-i.e. completness, positional and semantic accuracies splitted into 5 ranges
-each, the approach is interesting.
+This classification has been recalled in further contributions,
+however most studies focus on positional accuracy. For instance,
+Haklay (2010), Koukoletsos /et al./ (2011) or Helbich /et al./ (2012)
+compared OSM data with Ordnance Survey data, an alternative data
+source considered as a ground truth.
 
-You can note some differences with our approach: we don't have any geospatial
-data reference which can give you a positional accuracy. And the authors decided
-to take a snaphost of the OSM data instead of using OSM history data.
+There are two differences with our approach: we don't have any
+geospatial data reference to cope with the positional
+accuracy. Moreover the authors decided to take a snapshot of the OSM
+data instead of using OSM history data.
 
-See also the article about the [[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]] which lists several tools
-which help lead to better quality of OSM data.
+** OSM contributors and data quality
 
-:warning: *** enhance the bibliography ***
+Other references focus on OSM contributors. Arsanjani /et al./ (2013)
+classified OSM contributors based on the quality and quantity of their
+contributions in Heidelberg (Germany). Five classes are used:
+"beginner", "regular", "intermediate", "expert", and "professional
+mappers". The authors work with with reference data in addition to OSM
+data, they can assess the positional accuracy of a
+contribution. Moreover, they take into account the completness and the
+semantic accuracy. Then Neis /et al./ (2014) proposed a whole set of
+statistic dedicated to OSM contributors. They provide hand-made
+groups, and characterize contributions regarding dates, hours, user
+localisation and activity.
 
-* What sort of data are behind the OpenStreetMap API?...
+Additional references can be mentionned to overcome the OSM data
+qualiy issue. The [[https://www.iso.org/committee/54904.html][ISO/TC 211 working group]] published a set of norms
+for geographical information standardization. For instance, the norm
+ISO19157:2013 (2013) cites some of quality attributes mentionned
+above. See also the Wikipedia notice about the [[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]]
+which lists several tools to supervise the OSM data construction.
 
-It's a simple but complex task.
+* From the OSM history dumps to usable data sets
 
-+ simple because you just has to download the =osm= or =pbf= history dump file
-  from this link https://planet.openstreetmap.org/ The PBF (Protocol Buffer)
-  file format is not so big: +50Go. Note that the XML file is compressed with
-  =bzip2=. It can be quite long (+36 hours) and take some place (1TB) if you
-  uncompress it ([[https://wiki.openstreetmap.org/wiki/Planet.osm/full#Data_Format][cited source]])
+Extracting OSM data is a simple but complex task.
 
++ simple because you just has to download the =osh= or =pbf= history
+  dump file from [[https://planet.openstreetmap.org/][Planet OSM website]] (=osm= format refers to latest
+  data, whereas =osh= refers to history data).
 + complex because when you want to extract data, it can be a long and tedious
   task
 
-Present OSM data, its format, the available features (here we can cite
-[Osmium]() documentation to get a clear overview of OSM data). Typically we
-have .osm data *vs* .osh data
+The PBF (Protocol Buffer) file format is quite big: ~57Go. Note that
+the XML file is compressed with =bzip2=. It can be long (+36
+hours) and take some place (1TB) if you uncompress it (see more on [[https://wiki.openstreetmap.org/wiki/Planet.osm/full#Data_Format][OSM wiki]]).
 
-Write about the OSM API, give some example of OSM entities (node, way,
-relation, change sets, users...), distinguish visible elements from deleted
-ones
+The challenge here is to pass from these native format to in-base data
+or /.csv/ files. Several tools exist to accomplish this effort:
+[[https://github.com/openstreetmap/osm2pgsql][osm2pgsql]], [[https://github.com/openstreetmap/osmosis][osmosis]], [[https://github.com/osmcode/osmium-tool][osmium-tool]] or [[https://github.com/osmcode/libosmium][osmium]]. We propose here to use the
+latter, and its dedicated [[http://docs.osmcode.org/pyosmium/v2.11.0/][Python library]]. This Python extension can be
+installed through /apt-get/:
 
-* From the OSM history dumps to usable data sets...
+#+BEGIN_SRC bash
+sudo apt-get install python-pyosmium
+#+END_SRC
 
-First choice: exploit in-base data, or .csv files !
+...or via /pip/:
 
-Develop the extraction process with the pyosmium tool, capitalize from the
-first article written by dga
+#+BEGIN_SRC bash
+pip install pyosmium
+#+END_SRC
 
-* Conclusion...
+* What sort of data are behind the OpenStreetMap API?
 
-:warning: to do
+[[http://docs.osmcode.org/pyosmium/v2.11.0/][Pyosmium documentation]] is a rich source of information in order to
+understand the /pyosmium/ library functioning. Several features can be
+identified within the OSM data.
+
+Within the OSM API, a set of OSM seminal entities can be easily identified:
+
+- nodes, characterized by geographical coordinates;
+- ways, characterized by a list of nodes;
+- relations, characterized by a set of "members", /i.e./ nodes, ways
+  or other relations.
+
+In addition to these three element types, a fundamental object is the
+change set. It describes a set of modifications done by a single user,
+during a limited amount of time.
+
+Each of these OSM objects are characterized by a set of common
+attributes, that are IDs, timestamps, visible /(is the object still
+visible on the API?)/, user ID, or a list of tags /(a tag being the
+association between a key and a value)/.
+
+Starting from these OSM elements, we can straightforwardly answer
+typical question as:
+
++ How many nodes do each user create?
++ How frequent are the mofification for each contributor?
++ How many tags do each OSM element contain?
++ ...
+
+Considering the history of OSM data makes the data set even more
+complete: it allows us to study the temporal evolution of the API.
+
+* Conclusion
+
+The OSM data features are full of information. After extracting them,
+we plan to use them in order to characterize the OSM data quality, as
+described above. It will be the aim of next articles.
+
+* References
+
+- Arsanjani, J, Barron, C, Bakillah, M, Helbich, M. 2013. Assessing
+  the quality of OpenStreetMap contributors together with their
+  contributions. /Proceedings of the AGILE./ p14-17.
+- Haklay, M. 2010. How good is volunteered geographical information? A
+  comparative study of OpenStreetMap and Ordnance Survey
+  datasets. /Environment and planning B: Planning and design./ 37(4),
+  p.682-703.
+- Helbich, M, Amelunxen, C, Neis, P, Zipf, A. 2012. Comparative
+  spatial analysis of positional accuracy of OpenStreetMap and
+  proprietary geodata. /Proceedings of GI Forum./ p.24-33.
+- ISO. 2013. Geographic information: data
+  quality. /ISO19157:2013./ Geneva, Switzerland: ISO.
+- Koukoletsos, T, Haklay, M, Ellul, C. 2011. An automated method to
+  assess data completeness and positional accuracy of
+  OpenStreetMap. /GeoComputation./ 3, p.236-241.
+- Neis, P, Zipf, A. 2012. Analyzing the contributor activity of a
+  volunteered geographic information project: the case of
+  OpenStreetMap. /ISPRS International Journal of Geo-Information,
+  Molecular Diversity Preservation./ 1, p.146-165.
+- Van Oort, P. 2006. Spatial data quality: from description to
+  application. /PhD report./ Wageningen Universiteit.
