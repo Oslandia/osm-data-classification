@@ -78,7 +78,7 @@ historical evolution of a typical OSM area (*e.g.* =Bordeaux-metropole=)
 
 ### Fourth article
 
-Second analysis: create an element taxonomy through the tag genome analysis
+Second analysis: describe the set of tags applied to OSM elements, evaluate the tag key and value frequencies
 
 
 ### Fifth article
@@ -98,6 +98,7 @@ Use contributor classification to evaluate OSM entities (*e.g.* roads)
 Build OSM maps using the previous classification
 
 :warning: ***still to do***
+
 
 ### Eighth article
 
