@@ -31,7 +31,7 @@ We organize the analysis of OSM data quality in three main task categories,
 that we will describe as follows. Some of these tasks will be developped in
 subsequent blog articles.
 
-** OSM data parsing
+** OSM Data Parsing
 
 The first task of the data analysis is the parsing process. We start from files
 in a typical OpenStreetMap file format, with the *.pbf* extension. After this
@@ -40,11 +40,11 @@ data as well.
 
 Here are some example of Luigi tasks in this way:
 
-- To parse the OSM entities (nodes, ways, relations)
-- To parse the OSM tags (keys and values)
-- To parse the OSM users directly from the contributions
+- parse the OSM entities (nodes, ways, relations)
+- parse the OSM tags (keys and values)
+- parse the OSM users directly from the contributions
 
-** OSM metadata building
+** OSM Metadata Building
 
 If we focus on the first previous example, the OSM entity parsing, we get the
 history of each OSM elements. These elements are nodes, characterized by
@@ -56,12 +56,12 @@ Each of these elements are created (that's quite obvious!), and may be modified
 or even deleted in the OSM API. These modifications are done within *change
 sets* by OSM *contributors*. We then may identify typical Luigi tasks :
 
-- To extract OSM element metadata (date of creation, number of versions...)
-- To extract OSM change set metadata (timestamps, number of done modifications...)
-- To extract OSM user metadata (timestamps, number of opened change sets,
+- extract the OSM element metadata (date of creation, number of versions...)
+- extract the OSM changeset metadata (timestamps, number of done modifications...)
+- extract the OSM user metadata (timestamps, number of opened change sets,
   number of modifications...)
 
-** OSM metadata analysis
+** OSM Metadata Analysis
 
 A last major part of the analysis concerns the metadata analysis: these data
 are extremely useful in the quality evaluation: we hypothesize that knowing the
@@ -72,9 +72,9 @@ element will let us think that this element is of good quality.
 Here we develop a more machine-learning-focused framework to exploit the data,
 as illustrates by the following tasks:
 
-- To prepare the data
-- To reduce dimensionality through a Principle Component Analysis
-- To classify the users with the help of k-means algorithm
+- prepare the data
+- reduce dimensionality through a Principle Component Analysis
+- classify the users with the help of the k-means algorithm
 
 * Outline of the project: characterize OSM data quality
 
@@ -91,7 +91,7 @@ accomplishment degree while running.
 We can identify some of previously mentionned tasks in this graph:
 
 - =OSMHistoryParsing= and =OSMTagParsing= are sources, these tasks provide
-  initial data sets by using `pyosmium` capacities.
+  initial data sets by using =pyosmium= capacities.
 - =OSMElementEnrichment= is an intermediary task in which additional features
   are merged to OSM history data
 - These additional features are used in every subsequent tasks:
