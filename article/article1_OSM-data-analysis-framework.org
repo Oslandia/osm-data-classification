@@ -8,7 +8,7 @@ play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
 subsequent data. Here comes the first article of this series, dedicated to the
 presentation of our working framework.
 
-* Python is your friend, Luigi your plumber...
+* Python is your friend, Luigi your plumber
 
 In this project, we have used our favourite data handling tool, namely Python
 with its pandas and numpy packages. That is quite sufficient to download and
@@ -25,13 +25,13 @@ applications are extremely compatible with this package. That is particularly
 true if we consider Map/Reduce frameworks. Here we will demonstrate that Luigi
 keeps its interest in our case, with a slightly different usage.
 
-* What are the main tasks in our workflow?...
+* What are the main tasks in our workflow?
 
 We organize the analysis of OSM data quality in three main task categories,
 that we will describe as follows. Some of these tasks will be developped in
 subsequent blog articles.
 
-** OSM data parsing...
+** OSM data parsing
 
 The first task of the data analysis is the parsing process. We start from files
 in a typical OpenStreetMap file format, with the *.pbf* extension. After this
@@ -44,7 +44,7 @@ Here are some example of Luigi tasks in this way:
 - To parse the OSM tags (keys and values)
 - To parse the OSM users directly from the contributions
 
-** OSM metadata building...
+** OSM metadata building
 
 If we focus on the first previous example, the OSM entity parsing, we get the
 history of each OSM elements. These elements are nodes, characterized by
@@ -61,7 +61,7 @@ sets* by OSM *contributors*. We then may identify typical Luigi tasks :
 - To extract OSM user metadata (timestamps, number of opened change sets,
   number of modifications...)
 
-** OSM metadata analysis...
+** OSM metadata analysis
 
 A last major part of the analysis concerns the metadata analysis: these data
 are extremely useful in the quality evaluation: we hypothesize that knowing the
@@ -76,7 +76,7 @@ as illustrates by the following tasks:
 - To reduce dimensionality through a Principle Component Analysis
 - To classify the users with the help of k-means algorithm
 
-* Outline of the project: characterize OSM data quality...
+* Outline of the project: characterize OSM data quality
 
 To summarize all these points, we have designed a complete framework and made
 it effective by the way of the Luigi package. It can be illustrate by the
@@ -105,7 +105,7 @@ In this example we do not have put other tasks in the pipeline (*e.g.*
 machine-learning-related procedures), however they can be integrated in the
 framework with a minimal effort.
 
-* Conclusion...
+* Conclusion
 
 Here we have described how we plan to analyze the OSM data and how to assess
 its quality. Even if other choices exist (we still have choice!) we use Python
