@@ -8,10 +8,6 @@ play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
 subsequent data. Here comes the third article of this series, dedicated to the
 chronological overview of OSM data.
 
-* Introduction...
-
-Introduction of the article
-
 * How to extract OSM data history...
 
 ** Get the data...
@@ -19,12 +15,33 @@ Introduction of the article
 By taking a local example (*e.g.* Bordeaux-metropole), extract the OSM data
 history and evaluate the API evolution time after time.
 
+Subsection outline:
+
+- extract the OSM history data: principle and code (pyosmium use)
+- describe fastly the data
+
+#+BEGIN_SRC ipython :session osm :exports both                                   
+  import numpy as np                                                             
+  import pandas as pd                                                            
+  pd.options.display.width = 120                                                 
+#+END_SRC                                                                        
+                                                                                 
+#+RESULTS:                                                                       
+#+begin_example                                                                  
+#+end_example                                                                    
+            
 ** Build the OSM historical evolution through a simple procedure...
 
 We have a simple but seminal procedure called =datedelems= that allows us to
 get the OSM API picture given a date. As a corollary we can build some time
 series aiming to describe the evolution of the API in terms of OSM objects
 (nodes, ways, relations) or users.
+
+Subsection outline :
+
+- present the procedures aiming at extracting the up-to-date elements
+- generalization of this procedure to a date d
+- extraction of the element number evolution
 
 * How do the OSM API evolve through time?...
 
@@ -35,7 +52,17 @@ What is the temporal evolution of nodes, ways, relations?
 Can we compare areas? (Hypothesis: some areas have been built faster than
 others, *e.g.* compare a urban area and a desert area)
 
+Subsection outline :
+
+- temporal evolution of OSM elements on an example (bordeaux-metropole)
+- comparison between several areas (bordeaux, aquitaine, rhone-alpes?)
+
 ** Some global considerations: how many active users?...
 
 This is necessarily uncomplete if we consider only local extraction. However we
 can try to obtain the change set and user statistics for full-planet dumps.
+
+Subsection outline :
+
+- temporal evolution of user and change set numbers on a typical area
+- warning: it is not representative of global OSM contributions (-> case of change set dump)
