@@ -4,7 +4,7 @@
 # Common introduction for articles of the OSM-data-quality series
 At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
 projects and handling Open (geospatial) Data. In this article series, we will
-play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
+play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
 subsequent data. Here comes the second article of this series, dedicated to the
 presentation of OSM data itself.
 
@@ -24,10 +24,7 @@ Our main purpose is to answer to this question: *can you assess the quality of
 [[https://www.openstreetmap.org][OpenStreetMap]] data? (and how?)* This post is dedicated to the data parsing,
 from native OpenStreetMap API.
 
-For the article remainder, we use the following acronyms:
-
-  -  /OSM/ means OpenStreetMap
-  -  /pbf/ is the file extension for [[https://developers.google.com/protocol-buffers/][Protocol Buffer]]
+/pbf/ is the file extension for [[https://developers.google.com/protocol-buffers/][Protocol Buffer]]
 
 * What do we mean by "data quality"
 
@@ -92,9 +89,9 @@ which lists several tools to supervise the OSM data construction.
 
 Extracting OSM data is a simple but complex task.
 
-+ simple because you just has to download the =osh= or =pbf= history
-  dump file from [[https://planet.openstreetmap.org/][Planet OSM website]] (=osm= format refers to latest
-  data, whereas =osh= refers to history data).
++ simple because you just have to download the history dump in =pbf= ([[https://developers.google.com/protocol-buffers/][Protocol
+  Buffer]]) or =osh= formats from [[https://planet.openstreetmap.org/][Planet OSM website]] (=osm= format refers to
+  latest data, whereas =osh= refers to history data).
 + complex because when you want to extract data, it can be a long and tedious
   task
 

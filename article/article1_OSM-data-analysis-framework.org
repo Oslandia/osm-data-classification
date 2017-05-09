@@ -4,7 +4,7 @@
 # Common introduction for articles of the OSM-data-quality series
 At [Oslandia](http://oslandia.com/), we like working with Open Source tool
 projects and handling Open (geospatial) Data. In this article series, we will
-play with the [OpenStreetMap](https://www.openstreetmap.org/) map and
+play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
 subsequent data. Here comes the first article of this series, dedicated to the
 presentation of our working framework.
 
