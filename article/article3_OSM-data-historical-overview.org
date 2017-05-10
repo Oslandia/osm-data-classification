@@ -21,6 +21,9 @@ bounding box drawn directly with OpenStreetMap [[https://www.openstreetmap.org/#
 former solution is easier, we detail here the latter one in order to use a
 smaller data set.
 
+*Note*: =osmium-tool= is available as a package in the Debian GNU/Linux
+distribution.
+
 Let us work with a bounding box capture focused on Bordeaux, a medium-sized
 French city. We use the following bounding box coordinates: the top-left corner
 is at ={44.9335, -0.7179}= whilst the bottom-right corner is at ={44.7216,
@@ -57,27 +60,76 @@ osmium extract --with-history --config=region.json latest-planet.osh.pbf
 #+END_SRC
 
 The =--with-history= flag is important. We want to study the temporal evolution
-of some OSM entities, the number of contributions, and check some
-specific OSM entities such as nodes, ways or relations and get their
-history.
-
-*Note*: =osmium-tool= is quite easy to install because it's available as a
-package in the Debian GNU/Linux distribution.
+of some OSM entities, the number of contributions, and check some specific OSM
+entities such as nodes, ways or relations and get their history. The only thing
+to do is to set the output file name, let say it will be
+=bordeaux-metropole.osh.pbf= in our case.
 
 ** Extract OSM data history
 
-From now, we have a /pbf/ file that contain every OSM element versions through time.
+At this point, we have a /pbf/ file that contain every OSM element versions
+through time. We still have to write them into a /csv/ file. Here we use
+[[http://docs.osmcode.org/pyosmium/latest/index.html][pyosmium]] (see previous article).
+
+This operation can be done through a simple Python file. First we have to
+import the useful libraries, that are pandas (to handle dataframes and /csv/
+files) and pyosmium. Then, we define a small OSM data handler, that saves every
+nodes into the =elemtimeline= attribute (/i.e./ a list). This example is
+limited to node for a sake of concision, however this class is easily
+extensible to other OSM objects. We can observe that several node attributes
+are recorded: the element type ("node" for nodes, of course!), ID, version in
+the history, if it is currently visible on the API, timestamp (when the version
+has been set), user ID, change set ID and the number of associated tags. These
+attributes are also available for ways and relations, letting the chance to put
+a little more abstract in this class definition!
 
 #+BEGIN_SRC ipython :session osm :exports both                                   
-  import numpy as np                                                             
-  import pandas as pd                                                            
-  pd.options.display.width = 120
-#+END_SRC                                                                        
-                                                                                 
-#+RESULTS:                                                                       
-#+begin_example                                                                  
-#+end_example                                                                    
-            
+  import pyosmium as osm
+  import pandas as pd
+
+  class TimelineHandler(osm.SimpleHandler):
+      def __init__(self):
+          osm.SimpleHandler.__init__(self)
+          self.elemtimeline = []
+      
+      def node(self, n):
+          self.elemtimeline.append(["node", 
+                                    n.id, 
+                                    n.version, 
+                                    n.visible, 
+                                    pd.Timestamp(n.timestamp), 
+                                    n.uid, 
+                                    n.changeset, 
+                                    len(n.tags)])
+#+END_SRC
+
+An instance of this class can be created so as to save OSM nodes within the
+bordeaux metropole area. We pass the input file name to the =apply_file=
+procedure, that scans the input file and fills the handler list
+accordingly. After that we just have to transform the list into a pandas
+DataFrame, to make further treatments easier.
+
+#+BEGIN_SRC ipython :session osm :exports both
+  tlhandler = TimelineHandler()
+  tlhandler.apply_file("bordeaux-metropole.osh.pbf")
+  colnames = ['type', 'id', 'version', 'visible', 'ts', 'uid', 'chgset', 'ntags']
+  elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
+  elements = elements.sort_values(by=['type', 'id', 'ts'])
+  elements.head(10)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+With the help of pandas library, to save the file into /csv/ format is straightforward:
+#+BEGIN_SRC ipython :session osm :exports both
+  elements.to_csv("bordeaux-metropole.csv", date_format='%Y-%m-%d %H:%M:%S')
+#+END_SRC
+
+At this point, the OSM data history is available in a /csv/ file format, with a
+whole set of attributes that will be useful to describe the data.
+
 * How do the OSM API evolve through time?...
 
 ** Build the OSM historical evolution through a simple procedure...
