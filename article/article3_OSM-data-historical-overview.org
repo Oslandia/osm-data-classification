@@ -17,7 +17,7 @@ chronological overview of OSM data.
 First of all we have to recover a dataset. Two major solutions exist: either we
 can dowload a regional area on [[http://download.geofabrik.de/][Geofabrik]] (/e.g./ a continent, a country, or
 even a sub-region, like Aquitaine), or we can extract another area through a
-bounding box drawn directly with OpenStreetMap [[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] with [[http://osmcode.org/osmium-tool/][osmium]]-tool. Even if the
+bounding box drawn directly with OpenStreetMap [[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] with [[http://osmcode.org/osmium-tool/][osmium-tool]]. Even if the
 former solution is easier, we detail here the latter one in order to use a
 smaller data set.
 
@@ -27,8 +27,8 @@ distribution.
 Let us work with a bounding box capture focused on Bordeaux, a medium-sized
 French city. We use the following bounding box coordinates: the top-left corner
 is at ={44.9335, -0.7179}= whilst the bottom-right corner is at ={44.7216,
--0.4134}=. These coordinates seem quite weird, however there are just hand-made,
-by successive zooms in the OSM API.
+-0.4134}=. These coordinates seem quite weird, however there are just
+hand-made, by successive zooms in the OSM API.
 
 #+CAPTION: Hand-made bounding box on Bordeaux city (France)
 #+NAME: fig:osm-bb-example
@@ -130,39 +130,142 @@ With the help of pandas library, to save the file into /csv/ format is straightf
 At this point, the OSM data history is available in a /csv/ file format, with a
 whole set of attributes that will be useful to describe the data.
 
-* How do the OSM API evolve through time?...
+* How do the OSM API evolve through time?
 
-** Build the OSM historical evolution through a simple procedure...
+** A simple procedure to build dated OSM histories
 
-We have a simple but seminal procedure called =datedelems= that allows us to
-get the OSM API picture given a date. As a corollary we can build some time
-series aiming to describe the evolution of the API in terms of OSM objects
-(nodes, ways, relations) or users.
+From the OSM data history we can recover the current state of OSM data (or more
+precisely, the API state at the data extraction date). The only step that is
+needed is to select the up-to-date OSM objects, /i.e./ those with the last
+existing version.
 
-Subsection outline :
+#+BEGIN_SRC ipython :session osm :exports both
+  def updatedelem(data):
+      updata = data.groupby(['elem','id'])['version'].max().reset_index()
+      return pd.merge(updata, data, on=['id','version'])
+  uptodate_elem = updatedelem(elements)
+  uptodate_elem.shape
+#+END_SRC
 
-- present the procedures aiming at extracting the up-to-date elements
-- generalization of this procedure to a date d
-- extraction of the element number evolution
+#+RESULTS:
+#+begin_example
+#+end_example
 
-** Some object-focused insights of the OSM API evolution...
+This seem to be a quite useless function: we could have found directly such
+data on GeoFabrik website, isn't it? ... Well, it is not useless. As an
+extension of this first procedure, we propose a simple but seminal procedure
+called =datedelems= that allows us to get the OSM API picture given a specific
+date:
 
-What is the temporal evolution of nodes, ways, relations?
+#+BEGIN_SRC ipython :session osm :exports both
+  def datedelems(history, date):
+      datedelems = (history.query("ts <= @date")
+                    .groupby(['elem','id'])['version']
+                    .max()
+                    .reset_index())
+      return pd.merge(datedelems, history, on=['elem','id','version'])
+  oldelem = datedelems(elements, "2014-01-01")
+  oldelem.shape
+#+END_SRC
 
-Can we compare areas? (Hypothesis: some areas have been built faster than
-others, *e.g.* compare a urban area and a desert area)
+We can notice in this function that pandas allows to express queries in a
+SQL-like mode, a very useful practice to explore data!
 
-Subsection outline :
+#+RESULTS:
+#+begin_example
+#+end_example
 
-- temporal evolution of OSM elements on an example (bordeaux-metropole)
-- comparison between several areas (bordeaux, aquitaine, rhone-alpes?)
+As a corollary we can build some time series aiming to describe the evolution
+of the API in terms of OSM objects (nodes, ways, relations) or users.
 
-** Some global considerations: how many active users?...
+** How to get the OSM API evolution?
 
-This is necessarily uncomplete if we consider only local extraction. However we
-can try to obtain the change set and user statistics for full-planet dumps.
+For instance, what if we consider OSM API state month after month? What is the
+temporal evolution of node, way, or relation amounts? The following procedure
+helps us to describe the OSM API at a given date: how many node/way/relation
+there are, how many user have contributed, how many change sets have been
+opened. Further statistics may be designed, in the same manner.
 
-Subsection outline :
+#+BEGIN_SRC ipython :session osm :exports both
+  def osm_stats(osm_history, timestamp):
+      osmdata = datedelems(osm_history, timestamp)    
+      nb_nodes = len(osmdata.query('elem=="node"'))
+      nb_ways = len(osmdata.query('elem=="way"'))
+      nb_relations = len(osmdata.query('elem=="relation"'))
+      nb_users = osmdata.uid.nunique()
+      nb_chgsets = osmdata.chgset.nunique()
+      return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]
+  oldstats = osm_stats(elements, "2014-01-01")
+  oldstats
+#+END_SRC
 
-- temporal evolution of user and change set numbers on a typical area
-- warning: it is not representative of global OSM contributions (-> case of change set dump)
+By designing a last function, we can obtain a pandas dataframe that summarizes
+basic statistics at regular timestamps: in this example, we focus on monthly
+evaluations, however everything is possible... A finner analysis is possible,
+by taking advantage of pandas time series capabilities.
+
+#+BEGIN_SRC ipython :session osm :exports both
+  def osm_chronology(history, start_date, end_date):
+      timerange = pd.date_range(start_date, end_date, freq="1M").values 
+      osmstats = [osm_stats(history, str(date)) for date in timerange]
+      osmstats = pd.DataFrame(osmstats, index=timerange,
+                              columns=['n_nodes', 'n_ways', 'n_relations',
+                                       'n_users', 'n_chgsets'])
+      return osmstats
+#+END_SRC
+
+These developments open further possibilities. Areas are comparable through
+their history. A basic hypothesis could be: some areas have been built faster
+than others, *e.g.* urban areas /vs/ desert areas. To investigate on the
+evolutions of their OSM objects appears as a very appealing way to address this
+issue!
+
+** What about the Bordeaux area?
+
+To illustrate the previous points, we can call the =osm_chronology= procedure
+to Bordeaux-related OSM data. We can study the last 10 years, as an example:
+
+#+BEGIN_SRC ipython :session osm :exports both
+  chrono_data = osm_chronology(elements, "2007-01-01", "2017-01-01")
+  chrono_data.iloc[ [:10,-10:] , ]
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+The figure below describe the evolution of nodes, ways and relations around
+Bordeaux between 2007 and 2017. We can see that there was a clear rise of OSM
+platform after a few years...
+
+#+CAPTION: Amount of OSM objects in the area of Bordeaux (France)
+#+NAME: fig:bm-chronology
+[[./../figs/bordeaux-metropole-chronology-objects.png]]
+
+We can also measure the number of active users in this area, at the same period. 
+
+#+CAPTION: Amount of OSM objects in the area of Bordeaux (France)
+#+NAME: fig:bm-chronology
+[[./../figs/bordeaux-metropole-chronology-users.png]]
+
+This last point is necessarily uncomplete if we consider only local
+data. Active users all around the world are not those who have collaborated for
+this specific region. However the change set and user statistics for
+full-planet dumps exist, if you are interested in going deeper about this point!
+
+Before concluding this article, here is provided a comparison between OSM node
+amounts in several french areas. We just mention small areas, to keep the
+evaluation short: Upper Normandy, a roughly rural environment with some
+medium-sized cities (Rouen, Le Havre, Evreux...), Corsica, an montainous island
+near to mainland France and French Guiana, an overseas area mainly composed of
+jungle:
+
+#+CAPTION: Amount of OSM nodes in several french areas
+#+NAME: fig:multiarea-chronology
+[[./../figs/multi-area-chronology.png]]
+
+* Conclusion
+
+After this third article dedicated to OSM data analysis, we hope you will be OK
+with OSM data parsing. In next article, we will focus to another parsing task:
+the tag set exploration.
