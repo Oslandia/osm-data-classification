@@ -2,34 +2,84 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
+At [Oslandia](http://oslandia.com/), we like working with Open Source tool
 projects and handling Open (geospatial) Data. In this article series, we will
 play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
 subsequent data. Here comes the third article of this series, dedicated to the
 chronological overview of OSM data.
 
-* How to extract OSM data history...
+* How to get the data
 
-** Get the data...
+** Build our own OSM data sample
 
-By taking a local example (*e.g.* Bordeaux-metropole), extract the OSM data
-history and evaluate the API evolution time after time.
+:warning: to be checked !!!
 
-Subsection outline:
+First of all we have to recover a dataset. Two major solutions exist: either we
+can dowload a regional area on [[http://download.geofabrik.de/][Geofabrik]] (/e.g./ a continent, a country, or
+even a sub-region, like Aquitaine), or we can extract another area through a
+bounding box drawn directly with OpenStreetMap [[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] with [[http://osmcode.org/osmium-tool/][osmium]]-tool. Even if the
+former solution is easier, we detail here the latter one in order to use a
+smaller data set.
 
-- extract the OSM history data: principle and code (pyosmium use)
-- describe fastly the data
+Let us work with a bounding box capture focused on Bordeaux, a medium-sized
+French city. We use the following bounding box coordinates: the top-left corner
+is at ={44.9335, -0.7179}= whilst the bottom-right corner is at ={44.7216,
+-0.4134}=. These coordinates seem quite weird, however there are just hand-made,
+by successive zooms in the OSM API.
+
+#+CAPTION: Hand-made bounding box on Bordeaux city (France)
+#+NAME: fig:osm-bb-example
+[[./../figs/osm_boundingbox_example.png]]
+
+They are integrated in the following JSON configuration file:
+
+#+BEGIN_SRC js
+  {
+    "extracts": [
+      {
+        "output": "region-history.osh.pbf",
+        "output_format": "osh.pbf",
+        "description": "extract OSM history for a specific region",
+        "bbox": {"left": -0.7179,
+                 "right": -0.4134,
+                 "top": 44.9335,
+                 "bottom": 44.7216}
+      }
+    ],
+    "directory": "/path/to/outputdir/"
+  }
+#+END_SRC
+
+And this JSON file is used by osmium to build a standard /pbf/ file:
+
+#+BEGIN_SRC shell
+osmium extract --with-history --config=region.json latest-planet.osh.pbf
+#+END_SRC
+
+The =--with-history= flag is important. We want to study the temporal evolution
+of some OSM entities, the number of contributions, and check some
+specific OSM entities such as nodes, ways or relations and get their
+history.
+
+*Note*: =osmium-tool= is quite easy to install because it's available as a
+package in the Debian GNU/Linux distribution.
+
+** Extract OSM data history
+
+From now, we have a /pbf/ file that contain every OSM element versions through time.
 
 #+BEGIN_SRC ipython :session osm :exports both                                   
   import numpy as np                                                             
   import pandas as pd                                                            
-  pd.options.display.width = 120                                                 
+  pd.options.display.width = 120
 #+END_SRC                                                                        
                                                                                  
 #+RESULTS:                                                                       
 #+begin_example                                                                  
 #+end_example                                                                    
             
+* How do the OSM API evolve through time?...
+
 ** Build the OSM historical evolution through a simple procedure...
 
 We have a simple but seminal procedure called =datedelems= that allows us to
@@ -42,8 +92,6 @@ Subsection outline :
 - present the procedures aiming at extracting the up-to-date elements
 - generalization of this procedure to a date d
 - extraction of the element number evolution
-
-* How do the OSM API evolve through time?...
 
 ** Some object-focused insights of the OSM API evolution...
 
