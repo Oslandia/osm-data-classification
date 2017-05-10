@@ -246,7 +246,7 @@ We can also measure the number of active users in this area, at the same period.
 
 #+CAPTION: Amount of OSM objects in the area of Bordeaux (France)
 #+NAME: fig:bm-chronology
-[[./../figs/bordeaux-metropole-chronology-users.png]]
+[[./../figs/bordeaux-metropole-chronology-contrib.png]]
 
 This last point is necessarily uncomplete if we consider only local
 data. Active users all around the world are not those who have collaborated for
@@ -261,8 +261,12 @@ near to mainland France and French Guiana, an overseas area mainly composed of
 jungle:
 
 #+CAPTION: Amount of OSM nodes in several french areas
-#+NAME: fig:multiarea-chronology
-[[./../figs/multi-area-chronology.png]]
+#+NAME: fig:multiarea-chronology-nodes
+[[./../figs/multiarea-chronology-nodes.png]]
+
+#+CAPTION: Number of active contributors in several french areas
+#+NAME: fig:multiarea-chronology-users
+[[./../figs/multiarea-chronology-users.png]]
 
 * Conclusion
 
