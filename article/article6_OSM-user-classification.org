@@ -1,0 +1,71 @@
+#+TITLE: OSM user classification: let's use machine learning!
+#+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
+
+# Common introduction for articles of the OSM-data-quality series
+At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
+projects and handling Open (geospatial) Data. In this article series, we will
+play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
+subsequent data. Here comes the sixth article of this series, dedicated to user
+classification using the power of machine learning algorithms
+
+* Introduction...
+
+Introduction of the article
+
+* Recall of the user metadata...
+
+Present the perimeter of user metadata, by restraining the selected
+features. Give some arguments to justify this limitation.
+
+Typically, we will keep only element-related features (*i.e.* the sum of node-,
+way- and relation counters) to make the analysis simpler.
+
+:warning: some tests still have to be undertaken to verify that this step is
+necessary, or if the following section (PCA) addresses the dimensionality issue
+
+* Develop a Principle Component Analysis (PCA)...
+
+If we keep every single
+[previously-computed](https://git.oslandia.net/Oslandia/osland-ia/blob/master/article/article5_OSM-metadata-description.org)
+features, we will have to cope with more than 140 variables. Reducing the
+dimensionality of the problem appears as a unavoidable pre-requisite before
+undertaking any classification effort.
+
+** Design the PCA...
+
+Choose the number of dimension according to the explained variance.
+
+** Describe some individuals positioning after dimensionality reduction...
+
+Can we interpret the dimension meaning, starting from some examples?
+
+* Cluster the user starting from their past activity...
+
+At this point, we have a set of active users (those who have contributed to the
+focused area). We propose now to classify each of them without any knowledge on
+their identity or experience with geospatial data or OSM API, by the way of
+unsupervised learning. Indeed we will design clusters with the k-means
+algorithm, and the only input we have are the synthetic dimensions given by
+previous PCA. These dimensions contain information about the past contributions
+of each user.
+
+Recall that we are investigating on OSM data quality, it is quite hard to have
+an absolute answer, especially without any trustworthy "ground truth". Here we
+hypothesize that typical groups of users (*e.g.* beginners, intermediate,
+advanced, experts...) will arise from the classification algorithm.
+
+** k-means design: how many cluster may we expect from the OSM metadata?...
+
+Investigate on the optimal number of clusters: we only have access to soft
+recommendation given by state-of-the-art procedure, namely elbow method,
+clustering silhouette and so on... How many clusters can be identified?
+
+:warning: Some methods are still in a draft state, for now. They have to be
+enhanced, or deleted from the analysis.
+
+** k-means running: OSM contributor classification...
+
+From a OSM data sample (we do not use full-planet data at this point...),
+several kind of users arise. Here we will describe them, and interpret the
+result in terms of API using: how does the API works? How is it fulfilled by
+contributors?

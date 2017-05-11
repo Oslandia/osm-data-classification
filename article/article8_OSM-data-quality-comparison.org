@@ -1,0 +1,39 @@
+#+TITLE: OSM data comparison: is the quality deducible from the comparison with an alternative data source?
+#+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
+
+# Common introduction for articles of the OSM-data-quality series
+At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
+projects and handling Open (geospatial) Data. In this article series, we will
+play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
+subsequent data. Here comes the second article of this series, dedicated to the
+comparison between OSM data and an alternative data source considered as a
+"ground truth".
+
+* Introduction...
+
+Introduction of the article
+
+
+* The limitation of an unsupervised learning approach...
+
+Consider the OSM data quality only with OSM history data is powerful, however
+we can not ignore that this approach contains major drawbacks. The first of
+them is the abstraction of the method, that sounds as a black-magic-box
+regarding the data.
+
+Another point that is not addressed by this method is the geographical aspect
+of data. It is kind of hard to consider that a road, for example, is
+well-located without considering its geographical characteristics.
+
+* Verify the geographical quality of OSM data...
+
+** Methodology: use an alternative data source...
+
+Present all alternative data sources, and evaluate their advantages as well as
+their drawbacks
+
+** Let's focus on orthoimages: the way to address the geospatial quality?...
+
+How to compare OSM data with orthoimage? A road to image recognition...
+
+:warning: ***Not undertaken yet... and not necessarily fully understood by the team***

@@ -5,6 +5,7 @@
 Some utility functions aiming to analyse OSM data
 """
 
+import datetime as dt
 import pandas as pd
 import numpy as np
 from datetime import timedelta
@@ -38,6 +39,42 @@ def datedelems(history, date):
                   .max()
                   .reset_index())
     return pd.merge(datedelems, history, on=['elem','id','version'])
+
+def osm_stats(osm_history, timestamp):
+    """Compute some simple statistics about OSM elements (number of nodes,
+    ways, relations, number of active contributors, number of change sets
+
+    Parameters
+    ----------
+    osm_history: df
+        OSM element up-to-date at timestamp
+    timestamp: datetime
+        date at which OSM elements are evaluated
+    """
+    osmdata = datedelems(osm_history, timestamp)    
+#    nb_nodes, nb_ways, nb_relations = list(osm_data.elem.value_counts())
+    nb_nodes = len(osmdata.query('elem=="node"'))
+    nb_ways = len(osmdata.query('elem=="way"'))
+    nb_relations = len(osmdata.query('elem=="relation"'))
+    nb_users = osmdata.uid.nunique()
+    nb_chgsets = osmdata.chgset.nunique()
+    return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]    
+
+def osm_chronology(history, start_date, end_date=dt.datetime.now()):
+    """Evaluate the chronological evolution of OSM element numbers
+
+    Parameters
+    ----------
+    history: df
+        OSM element timeline
+    
+    """
+    timerange = pd.date_range(start_date, end_date, freq="1M").values 
+    osmstats = [osm_stats(history, str(date)) for date in timerange]
+    osmstats = pd.DataFrame(osmstats, index=timerange,
+                            columns=['n_nodes', 'n_ways', 'n_relations',
+                                     'n_users', 'n_chgsets'])
+    return osmstats
 
 ### OSM metadata extraction ####################
 def group_count(metadata, data, grp_feat, res_feat, namesuffix):
