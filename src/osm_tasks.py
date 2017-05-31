@@ -94,19 +94,80 @@ class OSMTagParsing(luigi.Task):
         taghandler.apply_file(datapath)
         tag_genome = pd.DataFrame(taghandler.taggenome)
         tag_genome.columns = ['elem', 'id', 'version', 'tagkey', 'tagvalue']
+        tag_genome = tag_genome.sort_values(['elem', 'id', 'version'],
+                                            ascending=False)
         with self.output().open('w') as outputflow:
             tag_genome.to_csv(outputflow)
 
 
-class OSMTagMetaAnalysis(luigi.Task):
-    """ Luigi task: OSM tag genome meta analysis
+class OSMTagCount(luigi.Task):
+    """ Luigi task: OSM tag count
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-fulltag-analysis.csv")
+                        self.dsname+"-tagcount.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return OSMTagParsing(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            tag_genome = pd.read_csv(inputflow, index_col=0)
+
+        tagcount = (tag_genome.groupby('elem')['tagkey']
+                    .nunique()
+                    .reset_index())
+
+        with self.output().open('w') as outputflow:
+            tagcount.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+class OSMTagKeyCount(luigi.Task):
+    """ Luigi task: OSM tag key count
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-tagkeycount.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return OSMTagParsing(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            tag_genome = pd.read_csv(inputflow, index_col=0)
+
+        # List of tag keys and number of elements they are associated with
+        tagkeycount = (tag_genome.groupby(['tagkey','elem'])['elem']
+                       .count()
+                       .unstack()
+                       .fillna(0))
+        tagkeycount['elem'] = tagkeycount.apply(sum, axis=1)
+        tagkeycount = tagkeycount.sort_values('elem', ascending=False)
+
+        with self.output().open('w') as outputflow:
+            tagkeycount.to_csv(outputflow,
+                               date_format='%Y-%m-%d %H:%M:%S')
+
+class OSMTagFreq(luigi.Task):
+    """ Luigi task: analyse of tag key frequency (amongst all elements)
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-tagfreq.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -120,39 +181,77 @@ class OSMTagMetaAnalysis(luigi.Task):
             osm_elements = pd.read_csv(inputflow, index_col=0)
         with self.input()['taggenome'].open('r') as inputflow:
             tag_genome = pd.read_csv(inputflow, index_col=0)
-
-        ### Tag count analysis
-        # How many unique tag keys per OSM elements?
-        tagcount = (tag_genome.groupby('elem')['tagkey']
-                    .nunique()
-                    .reset_index())
-
-        # List of tag keys and number of elements they are associated with
-        tagkeycount = (tag_genome.groupby(['tagkey','elem'])['elem']
-                       .count()
-                       .unstack()
-                       .fillna(0))
-        tagkeycount['elem'] = tagkeycount.apply(sum, axis=1)
-        tagkeycount = tagkeycount.sort_values('elem', ascending=False)
-
-        ### Analyse of tag key frequency (amongst all elements)
         fulltaganalys = pd.merge(osm_elements[['elem', 'id', 'version']],
                                  tag_genome,
                                  on=['elem','id','version'],
                                  how="outer")
         tagfreq = tagmetanalyse.tag_frequency(fulltaganalys,
                                               ['elem','version'])
-
-        ### Analyse of tag value frequency (amongst all tagged elements)
-        tagmetanalyse.tagvalue_analysis(tag_genome, 'highway', ['version'])
-
-        ### Analyse of tag value frequency (amongst all tagged element)
-        # For element with a specific tag key (e.g. 'highway')
-        tagvalue_freq = tagmetanalyse.tagvalue_frequency(tag_genome, "highway",
-                                                         ['elem','version'])
-
         with self.output().open('w') as outputflow:
-            fulltaganalys.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+            tagfreq.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+class OSMTagValue(luigi.Task):
+    """ Luigi task: analyse of tag value frequency (among all tagged elements)
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-tagvalue.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return OSMTagParsing(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            tag_genome = pd.read_csv(inputflow, index_col=0)
+        tagvalue = tagmetanalyse.tagvalue_analysis(tag_genome, 'highway',
+                                                   ['version'])
+        with self.output().open('w') as outputflow:
+            tagvalue.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+class OSMTagValueFreq(luigi.Task):
+    """Luigi task: Analyse of tag value frequency 
+    (amongst all tagged element), with a specific tag key (e.g. 'highway')
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-tagvalue-freq.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return OSMTagParsing(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            tag_genome = pd.read_csv(inputflow, index_col=0)
+        tagvalue_freq = tagmetanalyse.tagvalue_frequency(tag_genome,
+                                                         "highway",
+                                                         ['elem', 'version'])
+        with self.output().open('w') as outputflow:
+            tagvalue_freq.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+class OSMTagMetaAnalysis(luigi.Task):
+    """ Luigi task: generic task that implements the tag meta-analysis
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    
+    def requires(self):
+        yield OSMTagCount(self.datarep, self.dsname)
+        yield OSMTagKeyCount(self.datarep, self.dsname)
+        yield OSMTagFreq(self.datarep, self.dsname)
+        yield OSMTagValue(self.datarep, self.dsname)
+        yield OSMTagValueFreq(self.datarep, self.dsname)
 
 
 class OSMElementEnrichment(luigi.Task):
