@@ -36,7 +36,11 @@ The source files are organized as follow:
     - `utils.py`: some functions used all along the process by other modules;
     - `osmparsing.py`: OSM data parser classes, built as pyosmium handlers, these classes allow to extract OSM history data from a native OSM file (in .pbf format) and return .csv files;
     - `tagmetanalyse.py`: functions used in the context of tag genome analysis;
-    - `count-changeset-by-user.py`: ?
+    - `extract-changesets.py`: take the `changesets-latest.osm` from
+      http://planet.openstreetmap.org/planet/ and turn it into a huge CSV file (~210Go)
+    - `process-changesets-user-history.py` : take the previous changesets
+      history CSV file and extract the total number of changesets by user and
+      the used OSM editors by user thanks to dask, i.e. to process large CSV file.
 
 ## How to run this code?
 
