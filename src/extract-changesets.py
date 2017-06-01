@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 # coding: utf-8
 
-"""Extract changeset from a OSM history changeset file
+"""Extract changeset from the (huge) OSM history changeset XML file.
 """
 
 import sys
 import re
-import json
 
 
 id_re = r'id="(?P<id>\d+)"'
