@@ -309,8 +309,35 @@ class ChgsetPCA(luigi.Task):
         pca_var.to_hdf(path, '/features')
         pca_ind.to_hdf(path, '/individuals')
 
+class ChgsetKmeans(luigi.Task):
+    """Luigi task: classify change sets with a kmeans algorithm; a PCA procedure
+    is a prerequisite for this task
 
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    nbmin_clusters = luigi.parameter.IntParameter(2)
+    nbmax_clusters = luigi.parameter.IntParameter(7)
     
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-chgset-kmeans.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return ChgsetPCA(self.datarep, self.dsname)
+
+    def run(self):
+        inputpath = self.input().path
+        chgset_pca  = pd.read_hdf(inputpath, 'individuals')
+        kmeans = KMeans(n_clusters=self.nbmin_clusters)
+        chgset_kmeans = chgset_pca.copy()
+        chgset_kmeans['Xclust'] = kmeans.fit_predict(chgset_pca.values)
+        print(pd.Series(chgset_kmeans.Xclust).value_counts())
+        with self.output().open('w') as outputflow:
+            chgset_kmeans.to_csv(outputflow)
 
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
@@ -322,4 +349,4 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
-        yield ChgsetPCA(self.datarep, self.dsname, 3, 6, '')
+        yield ChgsetKmeans(self.datarep, self.dsname, 4, 7)
