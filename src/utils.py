@@ -511,7 +511,7 @@ def extract_features(data, pattern):
     pattern: str
     character string that indicates which column has to be kept
     """
-    return data.loc[:,[pattern in col for col in data.columns]]
+    return data[[col for col in data.columns if pattern in col]].copy()
 
 def drop_features(data, pattern):
     """Drop features from data that respect the given string pattern
@@ -523,4 +523,4 @@ def drop_features(data, pattern):
     pattern: str
     character string that indicates which column has to be dropped
     """
-    return data.loc[:,[pattern not in col for col in data.columns]]
+    return data[[col for col in data.columns if pattern not in col]].copy()
