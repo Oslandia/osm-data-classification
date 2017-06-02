@@ -243,7 +243,7 @@ class ChgsetPCA(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     nb_mindimensions = luigi.parameter.IntParameter(3)
     nb_maxdimensions = luigi.parameter.IntParameter(6)
-    features = luigi.Parameter("elem")
+    features = luigi.Parameter('')
 
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
@@ -264,7 +264,7 @@ class ChgsetPCA(luigi.Task):
         if candidate_npc < self.nb_mindimensions:
             candidate_npc = self.nb_mindimensions
         if candidate_npc > self.nb_maxdimensions:
-            candidate_npc = sellf.nb_maxdimensions
+            candidate_npc = self.nb_maxdimensions
         return candidate_npc
     
     def run(self):
@@ -274,12 +274,12 @@ class ChgsetPCA(luigi.Task):
                                        parse_dates=['first_at', 'last_at'])
         # Data preparation
         chgset_md = chgset_md.set_index(['chgset', 'uid'])
-#        chgset_md = utils.extract_features(chgset_md, self.features)
         chgset_md = utils.drop_features(chgset_md, '_at')
-        chgset_md = utils.drop_features(chgset_md, 'relation')
-        chgset_md = utils.drop_features(chgset_md, 'way')
-        chgset_md = utils.drop_features(chgset_md, 'node')
-        print(chgset_md.columns)
+        if self.features != '':
+            for pattern in ['elem', 'node', 'way', 'relation']:
+                if pattern != self.features:
+                    chgset_md = utils.drop_features(chgset_md, pattern)
+        print( chgset_md.columns )
         # Data normalization
         X = StandardScaler().fit_transform(chgset_md.values)
         # Select the most appropriate dimension quantity
@@ -293,7 +293,6 @@ class ChgsetPCA(luigi.Task):
                                      'varexp': var_exp,
                                      'cumvar': cum_var_exp})[['eig','varexp',
                                                               'cumvar']]
-        print(var_analysis)
         # Run the PCA
         npc = self.set_nb_dimensions(var_analysis)
         print("npc = {0}".format(npc))
@@ -320,4 +319,4 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
-        yield ChgsetPCA(self.datarep, self.dsname, 3, 6, 'elem')
+        yield ChgsetPCA(self.datarep, self.dsname, 3, 6, '')
