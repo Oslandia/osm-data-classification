@@ -1,4 +1,3 @@
-
 #+TITLE: OSM tag genome: how are OSM objects tagged?
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
@@ -22,11 +21,82 @@ describe both sets.
 
 ** Definition of a specified handler
 
-class description and instanciation
+class description and instanciation - TagGenomeHandler
+
+#+BEGIN_SRC ipython :session osm :exports both                                   
+  import pyosmium as osm
+  import pandas as pd
+
+  class TagGenomeHandler(osm.SimpleHandler):
+      def __init__(self):
+          osm.SimpleHandler.__init__(self)
+          self.taggenome = []
+      
+      def tag_inventory(self, elem, elem_type):
+          for tag in elem.tags:
+              self.taggenome.append([elem_type, 
+                                     elem.id, 
+                                     elem.version, 
+                                     tag.k, 
+                                     tag.v])
+
+      def node(self, n):
+          self.tag_inventory("node", n)
+
+      def way(self, w):
+          self.tag_inventory("way", w)
+
+      def relation(self, r):
+          self.tag_inventory("relation", r)
+#+END_SRC
+
+Relatively similar to last handler class (see previous article), we introduce
+here the differentiation between OSM elements (node, way, relation): we see
+that it is fairly straightforward to parse tags for each element types
+
+In this version of the tag genome, we do not have every history element
+versions, there are only versions in which elements are tagged. A simple
+merging procedure with the complete history can do the job, if this format is
+needed.
 
 ** Description of the tag genome in some examples
 
-show some object example
+show some object examples:
+
+#+BEGIN_SRC ipython :session osm :exports both
+  taghandler = TagGenomeHandler()
+  taghandler.apply_file("bordeaux-metropole.osh.pbf")
+  colnames = ['type', 'id', 'version', 'tagkey', 'tagvalue']
+  tag_genome = pd.DataFrame(taghandler.taggenome, columns=colnames)
+  tag_genome = elements.sort_values(by=['type', 'id'])
+  tag_genome.head(10)
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+If we consider a specific node, for instance the node characterized by ID
+n°1000:
+
+#+BEGIN_SRC ipython :session osm :exports both
+  tag_genome.query("id=1000")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#+end_example
+
+The same example with untagged versions (by considering we have modified the
+`tag_genome` object:
+
+#+BEGIN_SRC ipython :session osm :exports both
+  tag_genome.query("id=1000")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+#+end_example
 
 * Analyse of the global tag genome
 
@@ -41,8 +111,10 @@ extraction.
 
 How OSM objects are tagged :
 
-- how many tags;
-- the most frequent tags (in general);
+- how many tags (keys, values) per element type (task TagCount);
+- the most frequent tag keys (task TagKeyCount);
+- the most frequent tag values (task TagValueCount);
+- the most frequent tag values for specific keys (task TagValue)
 
 ** OSM tags over time
 
