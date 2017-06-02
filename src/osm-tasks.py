@@ -255,6 +255,18 @@ class ChgsetPCA(luigi.Task):
     def requires(self):
         return ChangeSetMetadataExtract(self.datarep, self.dsname)
 
+    def compute_variance(self, X):
+        cov_mat = np.cov(X.T)
+        eig_vals, eig_vecs = np.linalg.eig(cov_mat)
+        eig_vals = sorted(eig_vals, reverse=True)
+        tot = sum(eig_vals)
+        varexp = [(i/tot)*100 for i in eig_vals]
+        cumvarexp = np.cumsum(varexp)
+        varmat = pd.DataFrame({'eig': eig_vals,
+                               'varexp': varexp,
+                               'cumvar': cumvarexp})[['eig','varexp','cumvar']]
+        return varmat
+        
     def set_nb_dimensions(self, var_analysis):
         candidate_npc = 0
         for i in range(len(var_analysis)):
@@ -266,7 +278,7 @@ class ChgsetPCA(luigi.Task):
         if candidate_npc > self.nb_maxdimensions:
             candidate_npc = self.nb_maxdimensions
         return candidate_npc
-    
+
     def run(self):
         with self.input().open('r') as inputflow:
             chgset_md  = pd.read_csv(inputflow,
@@ -279,23 +291,12 @@ class ChgsetPCA(luigi.Task):
             for pattern in ['elem', 'node', 'way', 'relation']:
                 if pattern != self.features:
                     chgset_md = utils.drop_features(chgset_md, pattern)
-        print( chgset_md.columns )
         # Data normalization
         X = StandardScaler().fit_transform(chgset_md.values)
         # Select the most appropriate dimension quantity
-        cov_mat = np.cov(X.T)
-        eig_vals, eig_vecs = np.linalg.eig(cov_mat)
-        eig_vals = sorted(eig_vals, reverse=True)
-        tot = sum(eig_vals)
-        var_exp = [(i/tot)*100 for i in eig_vals]
-        cum_var_exp = np.cumsum(var_exp)
-        var_analysis = pd.DataFrame({'eig': eig_vals,
-                                     'varexp': var_exp,
-                                     'cumvar': cum_var_exp})[['eig','varexp',
-                                                              'cumvar']]
+        var_analysis = self.compute_variance(X)
         # Run the PCA
         npc = self.set_nb_dimensions(var_analysis)
-        print("npc = {0}".format(npc))
         pca = PCA(n_components=npc)
         Xpca = pca.fit_transform(X)
         pca_cols = ['PC' + str(i+1) for i in range(npc)]
@@ -308,6 +309,8 @@ class ChgsetPCA(luigi.Task):
         pca_var.to_hdf(path, '/features')
         pca_ind.to_hdf(path, '/individuals')
 
+
+    
 
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
