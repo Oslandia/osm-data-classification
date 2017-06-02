@@ -6,9 +6,13 @@
 import os.path as osp
 
 import luigi
-from luigi.format import UTF8
+from luigi.format import MixedUnicodeBytes, UTF8
 import pandas as pd
 import numpy as np
+
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
 
 import osmparsing
 import tagmetanalyse
@@ -231,6 +235,136 @@ class UserMetadataExtract(luigi.Task):
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
+
+# class getPCAfeatures(luigi.Task):
+class ChgsetPCA(luigi.Task):
+    """ Luigi task: get change set PCA feature contributions
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    nb_mindimensions = luigi.Parameter(3)
+#    nb_maxdimensions = luigi.Parameter(6)
+    features = luigi.Parameter("elem")
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-chgset-pca.h5")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        return ChangeSetMetadataExtract(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            chgset_md  = pd.read_csv(inputflow,
+                                       index_col=0,
+                                       parse_dates=['first_at', 'last_at'])
+        # Data preparation
+        chgset_md = chgset_md.set_index(['chgset', 'uid'])
+        chgset_md = utils.extract_features(chgset_md, self.features)
+        chgset_md = utils.drop_features(chgset_md, '_at')
+        chgset_md = utils.drop_features(chgset_md, 'relation')
+        chgset_md = utils.drop_features(chgset_md, 'way')
+        chgset_md = utils.drop_features(chgset_md, 'node')
+        # Data normalization
+        X = StandardScaler().fit_transform(chgset_md.values)
+        # Select the most appropriate dimension quantity
+        cov_mat = np.cov(X.T)
+        eig_vals, eig_vecs = np.linalg.eig(cov_mat)
+        eig_vals = sorted(eig_vals, reverse=True)
+        tot = sum(eig_vals)
+        var_exp = [(i/tot)*100 for i in eig_vals]
+        cum_var_exp = np.cumsum(var_exp)
+        var_analysis = pd.DataFrame({'eig': eig_vals,
+                                     'varexp': var_exp,
+                                     'cumvar': cum_var_exp})[['eig','varexp',
+                                                              'cumvar']]
+        # Run the PCA
+        npc = self.nb_mindimensions
+        pca = PCA(n_components=npc)
+        Xpca = pca.fit_transform(X)
+        pca_cols = ['PC' + str(i+1) for i in range(npc)]
+        pca_var = pd.DataFrame(pca.components_, index=pca_cols,
+                               columns=chgset_md.columns).T
+        pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
+                               index=chgset_md.index.get_level_values('chgset'))
+        
+        path = self.output().path
+        pca_var.to_hdf(path, '/features')
+        pca_ind.to_hdf(path, '/individuals')
+
+
+
+        
+# class getPCAindividual(luigi.Task):
+#     """ Luigi task: PCA on OSM change set metadata
+#     """
+#     datarep = luigi.Parameter("data")
+#     dsname = luigi.Parameter("bordeaux-metropole")
+#     nb_mindimensions = luigi.Parameter(3)
+#     nb_maxdimensions = luigi.Parameter(6)
+#     features = luigi.Parameter("elem")
+
+#     def outputpath(self):
+#         return osp.join(self.datarep, "output-extracts", self.dsname,
+#                         self.dsname+"-chgset-pca.csv")
+
+#     def output(self):
+#         return luigi.LocalTarget(self.outputpath())
+
+#     def requires(self):
+#         return ChangeSetMetadataExtract(self.datarep, self.dsname)
+
+#     def run(self):
+#         with self.input().open('r') as inputflow:
+#             chgset_md  = pd.read_csv(inputflow,
+#                                        index_col=0,
+#                                        parse_dates=['first_at', 'last_at'])
+#         # Data preparation
+#         chgset_md = utils.extract_features(chgset_md, self.features)
+#         chgset_md = chgset_md.set_index(['chgset', 'uid'])
+#         chgset_md = utils.drop_features(chgset_md, '_at')
+#         chgset_md = drop_features(chgset_md, 'relation')
+#         chgset_md = drop_features(chgset_md, 'way')
+#         chgset_md = drop_features(chgset_md, 'node')
+#         # Data normalization
+#         X = StandardScaler().fit_transform(chgset_md.values)
+#         # Select the most appropriate dimension quantity
+#         cov_mat = np.cov(X.T)
+#         eig_vals, eig_vecs = np.linalg.eig(cov_mat)
+#         eig_vals = sorted(eig_vals, reverse=True)
+#         tot = sum(eig_vals)
+#         var_exp = [(i/tot)*100 for i in eig_vals]
+#         cum_var_exp = np.cumsum(var_exp)
+#         var_analysis = pd.DataFrame({'eig': eig_vals,
+#                                      'varexp': var_exp,
+#                                      'cumvar': cum_var_exp})[['eig','varexp',
+#                                                               'cumvar']]
+#         # Run the PCA
+#         npc = self.nb_mindimensions
+#         pca = PCA(n_components=npc)
+#         Xpca = pca.fit_transform(X)
+#         feat_contrib = pd.DataFrame(pca.components_, index=pca_cols,
+#                                     columns=chgset_md.columns).T
+#         pca_scor = pd.DataFrame(Xpca, columns=pca_cols,
+#                                 index=chgset_md.index.get_level_values('chgset'))
+#         with self.output().open('w') as outputflow:
+#             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+# class ChgsetPCA(luigi.Task):
+#     """ Luigi task: PCA on OSM change set metadata
+#     """
+#     datarep = luigi.Parameter("data")
+#     dsname = luigi.Parameter("bordeaux-metropole")
+#     nb_mindimensions = luigi.Parameter(3)
+#     nb_maxdimensions = luigi.Parameter(6)
+#     features = luigi.Parameter("elem")
+
+#     def requires(self):
+#         yield getPCAfeatures(self.datarep, self.dsname)
+#         yield getPCAscores(self.datarep, self.dsname)
             
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
@@ -241,4 +375,5 @@ class MasterTask(luigi.Task):
     def requires(self):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
-        yield OSMTagMetaAnalysis(self.datarep, self.dsname)
+        # FIXME yield OSMTagMetaAnalysis(self.datarep, self.dsname)
+        yield ChgsetPCA(self.datarep, self.dsname, 3, 'elem')

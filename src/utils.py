@@ -500,3 +500,27 @@ def extract_user_metadata(osm_elements, chgset_md):
                               'v', '_del_wrong')
 
     return user_md
+
+def extract_features(data, pattern):
+    """Extract features from data that respect the given string pattern
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+    starting dataframe
+    pattern: str
+    character string that indicates which column has to be kept
+    """
+    return data.loc[:,[pattern in col for col in data.columns]]
+
+def drop_features(data, pattern):
+    """Drop features from data that respect the given string pattern
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+    starting dataframe
+    pattern: str
+    character string that indicates which column has to be dropped
+    """
+    return data.loc[:,[pattern not in col for col in data.columns]]
