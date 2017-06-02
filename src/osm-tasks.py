@@ -316,8 +316,8 @@ class ChgsetKmeans(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-    nbmin_clusters = luigi.parameter.IntParameter(2)
-    nbmax_clusters = luigi.parameter.IntParameter(7)
+    nbmin_clusters = luigi.parameter.IntParameter(3)
+    nbmax_clusters = luigi.parameter.IntParameter(8)
     
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
@@ -329,13 +329,40 @@ class ChgsetKmeans(luigi.Task):
     def requires(self):
         return ChgsetPCA(self.datarep, self.dsname)
 
+    def elbow_derivation(self, elbow):
+        """Compute an elbow derivative proxy to identify the optimal cluster number; do
+        not consider cluster number strictly smaller than the nbmin_clusters
+        parameter
+
+        """
+        elbow_deriv = [0]
+        for i in range(1, len(elbow)-1):
+            if i < self.nbmin_clusters:
+                elbow_deriv.append(0)
+            else:
+                elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
+        return elbow_deriv
+    
+    def set_nb_clusters(self, Xpca):
+        """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
+        optimal number of clusters
+
+        """
+        scores = []
+        for i in range(1, self.nbmax_clusters + 1):
+            kmeans = KMeans(n_clusters=i)
+            kmeans.fit(Xpca)
+            scores.append(kmeans.inertia_)
+        elbow_deriv = self.elbow_derivation(scores)
+        nbc =  1 + elbow_deriv.index(max(elbow_deriv))
+        return nbc
+        
     def run(self):
         inputpath = self.input().path
         chgset_pca  = pd.read_hdf(inputpath, 'individuals')
-        kmeans = KMeans(n_clusters=self.nbmin_clusters)
+        kmeans = KMeans(n_clusters=self.set_nb_clusters(chgset_pca.values))
         chgset_kmeans = chgset_pca.copy()
         chgset_kmeans['Xclust'] = kmeans.fit_predict(chgset_pca.values)
-        print(pd.Series(chgset_kmeans.Xclust).value_counts())
         with self.output().open('w') as outputflow:
             chgset_kmeans.to_csv(outputflow)
 
@@ -349,4 +376,4 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
-        yield ChgsetKmeans(self.datarep, self.dsname, 4, 7)
+        yield ChgsetKmeans(self.datarep, self.dsname, 2, 10)
