@@ -16,7 +16,7 @@ from extract_user_editor import editor_name, editor_count, get_top_editor
 OUTPUT_DIR = 'output-extracts'
 
 
-class TopMostUsedEditor(luigi.Task):
+class TopMostUsedEditors(luigi.Task):
     """Compute the most used editor. Transform the editor name such as JOSM/1.2.3
     into josm in order to have
     """
