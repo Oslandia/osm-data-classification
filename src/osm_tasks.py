@@ -533,3 +533,4 @@ class MasterTask(luigi.Task):
 
     def complete(self):
         return False
+
