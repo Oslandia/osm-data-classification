@@ -254,18 +254,6 @@ class ChgsetPCA(luigi.Task):
 
     def requires(self):
         return ChangeSetMetadataExtract(self.datarep, self.dsname)
-
-    def compute_variance(self, X):
-        cov_mat = np.cov(X.T)
-        eig_vals, eig_vecs = np.linalg.eig(cov_mat)
-        eig_vals = sorted(eig_vals, reverse=True)
-        tot = sum(eig_vals)
-        varexp = [(i/tot)*100 for i in eig_vals]
-        cumvarexp = np.cumsum(varexp)
-        varmat = pd.DataFrame({'eig': eig_vals,
-                               'varexp': varexp,
-                               'cumvar': cumvarexp})[['eig','varexp','cumvar']]
-        return varmat
         
     def set_nb_dimensions(self, var_analysis):
         candidate_npc = 0
@@ -294,7 +282,7 @@ class ChgsetPCA(luigi.Task):
         # Data normalization
         X = StandardScaler().fit_transform(chgset_md.values)
         # Select the most appropriate dimension quantity
-        var_analysis = self.compute_variance(X)
+        var_analysis = utils.compute_pca_variance(X)
         # Run the PCA
         npc = self.set_nb_dimensions(var_analysis)
         pca = PCA(n_components=npc)
