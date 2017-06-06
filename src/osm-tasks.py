@@ -237,7 +237,7 @@ class UserMetadataExtract(luigi.Task):
 
 
 class ChgsetPCA(luigi.Task):
-    """ Luigi task: get change set PCA feature contributions
+    """ Luigi task: compute PCA for change set metadata
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
