@@ -300,7 +300,6 @@ class ChgsetPCA(luigi.Task):
 class ChgsetKmeans(luigi.Task):
     """Luigi task: classify change sets with a kmeans algorithm; a PCA procedure
     is a prerequisite for this task
-
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
@@ -316,25 +315,10 @@ class ChgsetKmeans(luigi.Task):
 
     def requires(self):
         return ChgsetPCA(self.datarep, self.dsname)
-
-    def elbow_derivation(self, elbow, nbmin_clusters):
-        """Compute an elbow derivative proxy to get the optimal cluster number; do not
-        consider cluster number strictly smaller than the nbmin_clusters
-        parameter
-
-        """
-        elbow_deriv = [0]
-        for i in range(1, len(elbow)-1):
-            if i < nbmin_clusters:
-                elbow_deriv.append(0)
-            else:
-                elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
-        return elbow_deriv
-    
+  
     def set_nb_clusters(self, Xpca):
         """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
         optimal number of clusters
-
         """
         scores = []
         for i in range(1, self.nbmax_clusters + 1):
