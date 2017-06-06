@@ -546,3 +546,23 @@ def compute_pca_variance(X):
                            'varexp': varexp,
                            'cumvar': cumvarexp})[['eig','varexp','cumvar']]
     return varmat
+
+def elbow_derivation(elbow, nbmin_clusters):
+    """Compute a proxy of the elbow function derivative to automatically
+    extract the optimal number of cluster; this number must be higher that nbmin_clusters
+
+    Parameters
+    ----------
+    elbow: list
+        contains value of the elbow function for each number of clusters
+    nbmin_clusters: integer
+        lower bound of the number of clusters
+    
+    """
+    elbow_deriv = [0]
+    for i in range(1, len(elbow)-1):
+        if i < nbmin_clusters:
+            elbow_deriv.append(0)
+        else:
+            elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
+    return elbow_deriv

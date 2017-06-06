@@ -317,15 +317,15 @@ class ChgsetKmeans(luigi.Task):
     def requires(self):
         return ChgsetPCA(self.datarep, self.dsname)
 
-    def elbow_derivation(self, elbow):
-        """Compute an elbow derivative proxy to identify the optimal cluster number; do
-        not consider cluster number strictly smaller than the nbmin_clusters
+    def elbow_derivation(self, elbow, nbmin_clusters):
+        """Compute an elbow derivative proxy to get the optimal cluster number; do not
+        consider cluster number strictly smaller than the nbmin_clusters
         parameter
 
         """
         elbow_deriv = [0]
         for i in range(1, len(elbow)-1):
-            if i < self.nbmin_clusters:
+            if i < nbmin_clusters:
                 elbow_deriv.append(0)
             else:
                 elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
@@ -341,7 +341,7 @@ class ChgsetKmeans(luigi.Task):
             kmeans = KMeans(n_clusters=i)
             kmeans.fit(Xpca)
             scores.append(kmeans.inertia_)
-        elbow_deriv = self.elbow_derivation(scores)
+        elbow_deriv = self.elbow_derivation(scores, self.nbmin_clusters)
         nbc =  1 + elbow_deriv.index(max(elbow_deriv))
         return nbc
         
