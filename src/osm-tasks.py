@@ -325,7 +325,7 @@ class ChgsetKmeans(luigi.Task):
             kmeans = KMeans(n_clusters=i)
             kmeans.fit(Xpca)
             scores.append(kmeans.inertia_)
-        elbow_deriv = self.elbow_derivation(scores, self.nbmin_clusters)
+        elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
         nbc =  1 + elbow_deriv.index(max(elbow_deriv))
         return nbc
         
