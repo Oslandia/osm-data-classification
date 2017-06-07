@@ -76,11 +76,7 @@ through time. We still have to write them into a /csv/ file. Here we use
 
 This operation can be done through a simple Python file (see snippets below).
 
-<<<<<<< HEAD
-#+BEGIN_SRC ipython :session osm :exports both                                   
-=======
 #+BEGIN_SRC ipython :session osm :exports both
->>>>>>> article: update the third one about data hist. overview
   import osmium as osm
   import pandas as pd
 
