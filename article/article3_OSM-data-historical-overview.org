@@ -39,19 +39,19 @@ They are integrated in the following JSON configuration file, as well as the
 output file name:
 
 #+BEGIN_SRC js
-{ 
-  "extracts": [ 
-    { 
-      "output": "bordeaux-metropole.osh.pbf", 
-      "output_format": "osh.pbf", 
+{
+  "extracts": [
+    {
+      "output": "bordeaux-metropole.osh.pbf",
+      "output_format": "osh.pbf",
       "description": "extract OSM history for Bordeaux (France)",
-      "bbox": {"left": -0.7179, 
-               "right": -0.4134, 
-               "top": 44.9335, 
-               "bottom": 44.7216} 
-     } 
-  ], 
-  "directory": "/path/to/outputdir/" 
+      "bbox": {"left": -0.7179,
+               "right": -0.4134,
+               "top": 44.9335,
+               "bottom": 44.7216}
+     }
+  ],
+  "directory": "/path/to/outputdir/"
 }
 #+END_SRC
 
@@ -74,9 +74,13 @@ At this point, we have a /pbf/ file that contains every OSM element versions
 through time. We still have to write them into a /csv/ file. Here we use
 [[http://docs.osmcode.org/pyosmium/latest/index.html][pyosmium]] (see previous article).
 
-This operation can be done through a simple Python file (see snippets below). 
+This operation can be done through a simple Python file (see snippets below).
 
+<<<<<<< HEAD
 #+BEGIN_SRC ipython :session osm :exports both                                   
+=======
+#+BEGIN_SRC ipython :session osm :exports both
+>>>>>>> article: update the third one about data hist. overview
   import osmium as osm
   import pandas as pd
 
@@ -84,15 +88,15 @@ This operation can be done through a simple Python file (see snippets below).
       def __init__(self):
           osm.SimpleHandler.__init__(self)
           self.elemtimeline = []
-      
+
       def node(self, n):
-          self.elemtimeline.append(["node", 
-                                    n.id, 
-                                    n.version, 
-                                    n.visible, 
-                                    pd.Timestamp(n.timestamp), 
-                                    n.uid, 
-                                    n.changeset, 
+          self.elemtimeline.append(["node",
+                                    n.id,
+                                    n.version,
+                                    n.visible,
+                                    pd.Timestamp(n.timestamp),
+                                    n.uid,
+                                    n.changeset,
                                     len(n.tags)])
 #+END_SRC
 
@@ -170,31 +174,14 @@ precisely, the API state at the data extraction date). The only step that is
 needed is to select the up-to-date OSM objects, /i.e./ those with the last
 existing version, through a =group-by= operation.
 
+
 #+BEGIN_SRC ipython :session osm :exports both
   def updatedelem(data):
       updata = data.groupby(['type','id'])['version'].max().reset_index()
-      return pd.merge(updata, data, on=['type','id','version'])
-
+      return pd.merge(updata, data, on=['id','version'])
   uptodate_elem = updatedelem(elements)
   uptodate_elem.head()
 #+END_SRC
-
-#+RESULTS:
-#+begin_example
-   type        id  version visible                        ts    uid  chgset  \
-0  node  21457126       48   False 2008-01-17 16:42:01+00:00  24281  653744   
-1  node  21457144        9   False 2008-01-17 16:45:43+00:00  24281  653744   
-2  node  21457152        7   False 2008-03-06 20:51:58+00:00  25762  277530   
-3  node  21457164        5   False 2008-01-17 16:48:00+00:00  24281  653744   
-4  node  21457175        4   False 2008-01-17 16:47:51+00:00  24281  653744   
-
-   ntags  
-0      0  
-1      0  
-2      0  
-3      0  
-4      0  
-#+end_example
 
 This seem to be a quite useless function: we could have found directly such
 data on GeoFabrik website, isn't it? ... Well, it is not that useless. As an
@@ -247,10 +234,10 @@ statistics may be designed, in the same manner.
 
 #+BEGIN_SRC ipython :session osm :exports both
   def osm_stats(osm_history, timestamp):
-      osmdata = datedelems(osm_history, timestamp)    
-      nb_nodes = len(osmdata.query('type=="node"'))
-      nb_ways = len(osmdata.query('type=="way"'))
-      nb_relations = len(osmdata.query('type=="relation"'))
+      osmdata = datedelems(osm_history, timestamp)
+      nb_nodes = len(osmdata.query('type == "node"'))
+      nb_ways = len(osmdata.query('type == "way"'))
+      nb_relations = len(osmdata.query('type == "relation"'))
       nb_users = osmdata.uid.nunique()
       nb_chgsets = osmdata.chgset.nunique()
       return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]
@@ -272,7 +259,7 @@ by taking advantage of pandas time series capabilities.
 
 #+BEGIN_SRC ipython :session osm :exports both
   def osm_chronology(history, start_date, end_date):
-      timerange = pd.date_range(start_date, end_date, freq="1M").values 
+      timerange = pd.date_range(start_date, end_date, freq="1M").values
       osmstats = [osm_stats(history, str(date)) for date in timerange]
       osmstats = pd.DataFrame(osmstats, index=timerange,
                               columns=['n_nodes', 'n_ways', 'n_relations',
