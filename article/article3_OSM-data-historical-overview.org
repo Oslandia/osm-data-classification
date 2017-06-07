@@ -32,7 +32,7 @@ hand-made, by successive zooms in the OSM API.
 
 #+CAPTION: Hand-made bounding box on Bordeaux city (France)
 #+NAME: fig:osm-bb-example
-#+attr_html: :width 200px
+#+attr_html: :width 800px
 [[./../figs/osm_boundingbox_example.png]]
 
 They are integrated in the following JSON configuration file, as well as the
@@ -325,7 +325,7 @@ entities.
 
 #+CAPTION: Amount of OSM objects in the area of Bordeaux (France)
 #+NAME: fig:bm-chronology
-#+attr_html: :width 200px
+#+attr_html: :width 800px
 [[./../figs/bordeaux-metropole-chronology-logscale.png]]
 
 As a remark, the number of active contributor plotted here is not really
@@ -350,7 +350,7 @@ Guiana.
 
 #+CAPTION: Amount of OSM nodes in several french areas
 #+NAME: fig:multiarea-chronology-nodes
-#+attr_html: :width 200px
+#+attr_html: :width 800px
 [[./../figs/multiarea-chronology-weighted.png]]
 
 Without any surprise, it is the mainland area (Upper Normandy) that is the most
