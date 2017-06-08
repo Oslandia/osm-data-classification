@@ -322,7 +322,7 @@ class ChgsetKmeans(luigi.Task):
         """
         scores = []
         for i in range(1, self.nbmax_clusters + 1):
-            kmeans = KMeans(n_clusters=i)
+            kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
             kmeans.fit(Xpca)
             scores.append(kmeans.inertia_)
         elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
@@ -332,12 +332,20 @@ class ChgsetKmeans(luigi.Task):
     def run(self):
         inputpath = self.input().path
         chgset_pca  = pd.read_hdf(inputpath, 'individuals')
-        kmeans = KMeans(n_clusters=self.set_nb_clusters(chgset_pca.values))
-        chgset_kmeans = chgset_pca.copy()
-        chgset_kmeans['Xclust'] = kmeans.fit_predict(chgset_pca.values)
-        with self.output().open('w') as outputflow:
-            chgset_kmeans.to_csv(outputflow)
-
+        kmeans = KMeans(n_clusters=self.set_nb_clusters(chgset_pca.values),
+                        n_init=100, max_iter=1000)
+        kmeans_ind = chgset_pca.copy()
+        kmeans_ind['Xclust'] = kmeans.fit_predict(chgset_pca.values)
+        kmeans_centroids = pd.DataFrame(kmeans.cluster_centers_,
+                                        columns=chgset_pca.columns)
+        kmeans_centroids['n_individuals'] = (kmeans_ind
+                                             .groupby('Xclust')
+                                             .count())['PC1']
+        # Save the kmeans results into a binary file
+        path = self.output().path
+        kmeans_ind.to_hdf(path, '/individuals')
+        kmeans_centroids.to_hdf(path, '/centroids')
+        
 class UserPCA(luigi.Task):
     """ Luigi task: compute PCA for user metadata
     """
@@ -424,7 +432,7 @@ class UserKmeans(luigi.Task):
         """
         scores = []
         for i in range(1, self.nbmax_clusters + 1):
-            kmeans = KMeans(n_clusters=i)
+            kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
             kmeans.fit(Xpca)
             scores.append(kmeans.inertia_)
         elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
@@ -434,12 +442,20 @@ class UserKmeans(luigi.Task):
     def run(self):
         inputpath = self.input().path
         user_pca  = pd.read_hdf(inputpath, 'individuals')
-        kmeans = KMeans(n_clusters=self.set_nb_clusters(user_pca.values))
-        user_kmeans = user_pca.copy()
-        user_kmeans['Xclust'] = kmeans.fit_predict(user_pca.values)
-        with self.output().open('w') as outputflow:
-            user_kmeans.to_csv(outputflow)
-
+        kmeans = KMeans(n_clusters=self.set_nb_clusters(user_pca.values),
+                        n_init=100, max_iter=1000)
+        kmeans_ind = user_pca.copy()
+        kmeans_ind['Xclust'] = kmeans.fit_predict(user_pca.values)
+        kmeans_centroids = pd.DataFrame(kmeans.cluster_centers_,
+                                      columns=user_pca.columns)
+        kmeans_centroids['n_individuals'] = (kmeans_ind
+                                             .groupby('Xclust')
+                                             .count())['PC1']
+                # Save the kmeans results into a binary file
+        path = self.output().path
+        kmeans_ind.to_hdf(path, '/individuals')
+        kmeans_centroids.to_hdf(path, '/centroids')
+        
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
     """
