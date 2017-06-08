@@ -39,6 +39,33 @@ class OSMHistoryParsing(luigi.Task):
         with self.output().open('w') as outputflow:
             elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
+class OSMChronology(luigi.Task):
+    """ Luigi task: evaluation of OSM element historical evolution
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-chronology.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return OSMHistoryParsing(self.datarep, self.dsname)
+
+    def run(self):
+        print("Feature extraction from OSM history data...")
+        with self.input().open('r') as inputflow:
+            osm_elements = pd.read_csv(inputflow,
+                                       index_col=0,
+                                       parse_dates=['ts'])
+        osm_stats = osm_chronology(osm_elements, '2006-12-31', '2017-03-01')
+
+        with self.output().open('w') as outputflow:
+            osm_stats.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
 
 class OSMTagParsing(luigi.Task):
 
@@ -242,3 +269,4 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
+        yield OSMChronology(self.datarep, self.dsname)
