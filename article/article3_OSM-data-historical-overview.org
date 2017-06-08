@@ -2,11 +2,10 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like working with Open Source tool
-projects and handling Open (geospatial) Data. In this article series, we will
-play with [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) and the
-subsequent data. Here comes the third article of this series, dedicated to the
-chronological overview of OSM data.
+At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with [[https://www.openstreetmap.org/][OpenStreetMap]]
+(/OSM/) and the subsequent data. Here comes the third article of this series,
+dedicated to the chronological overview of OSM data.
 
 * How to get the data
 
