@@ -212,7 +212,7 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
         metadata[duration_feat] = metadata[duration_feat] / timedelta(hours=1)
     if timeunit == 'day':
         metadata[duration_feat] = metadata[duration_feat] / timedelta(days=1)
-    return metadata
+    return metadata.sort_values(by=['first_at'])
 
 def enrich_osm_elements(osm_elements):
     """Enrich OSM history data by computing additional features
