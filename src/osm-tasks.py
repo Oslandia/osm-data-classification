@@ -44,6 +44,8 @@ class OSMChronology(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
+    start_date = luigi.Parameter('2006-01-01')
+    end_date = luigi.Parameter('2017-01-01')
 
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
@@ -61,7 +63,7 @@ class OSMChronology(luigi.Task):
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-        osm_stats = osm_chronology(osm_elements, '2006-12-31', '2017-03-01')
+        osm_stats = osm_chronology(osm_elements, self.start_date, self.end_date)
 
         with self.output().open('w') as outputflow:
             osm_stats.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -269,4 +271,5 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
-        yield OSMChronology(self.datarep, self.dsname)
+        yield OSMChronology(self.datarep, self.dsname,
+                            '2006-01-01', '2017-06-01')
