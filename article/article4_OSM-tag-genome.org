@@ -2,12 +2,11 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
-projects and handling Open (geospatial) Data. In this article series, we will
-play with [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) and the
-subsequent data. Here comes the fourth article of this series, dedicated to the
-analysis of OSM tag genome, *i.e.* tag keys and values that are used within the
-OSM API.
+At [[http://oslandia.com/][Oslandia]], we like workingg with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with [[https://www.openstreetmap.org/][OpenStreetMap]]
+(/OSM/) and the subsequent data. Here comes the fourth article of this series,
+dedicated to the analysis of OSM tag genome, *i.e.* tag keys and values that
+are used within the OSM API.
 
 * OSM tag parsing
 
