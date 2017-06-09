@@ -242,7 +242,7 @@ class ChgsetPCA(luigi.Task):
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
     nb_mindimensions = luigi.parameter.IntParameter(3)
-    nb_maxdimensions = luigi.parameter.IntParameter(6)
+    nb_maxdimensions = luigi.parameter.IntParameter(10)
     features = luigi.Parameter('')
 
     def outputpath(self):
@@ -352,7 +352,7 @@ class UserPCA(luigi.Task):
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
     nb_mindimensions = luigi.parameter.IntParameter(3)
-    nb_maxdimensions = luigi.parameter.IntParameter(6)
+    nb_maxdimensions = luigi.parameter.IntParameter(10)
     features = luigi.Parameter('')
 
     def outputpath(self):
