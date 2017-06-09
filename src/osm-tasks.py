@@ -39,6 +39,34 @@ class OSMHistoryParsing(luigi.Task):
         with self.output().open('w') as outputflow:
             elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
+class OSMChronology(luigi.Task):
+    """ Luigi task: evaluation of OSM element historical evolution
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    start_date = luigi.Parameter('2006-01-01')
+    end_date = luigi.Parameter('2017-01-01')
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-chronology.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return OSMHistoryParsing(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            osm_elements = pd.read_csv(inputflow,
+                                       index_col=0,
+                                       parse_dates='ts')
+        osm_stats = osm_chronology(osm_elements, self.start_date, self.end_date)
+
+        with self.output().open('w') as outputflow:
+            osm_stats.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
 
 class OSMTagParsing(luigi.Task):
 
@@ -58,7 +86,6 @@ class OSMTagParsing(luigi.Task):
         taghandler = osmparsing.TagGenomeHandler()
         datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
         taghandler.apply_file(datapath)
-        print("There are {0} tag records in this dataset".format(len(taghandler.taggenome)))
         tag_genome = pd.DataFrame(taghandler.taggenome)
         tag_genome.columns = ['elem', 'id', 'version', 'tagkey', 'tagvalue']
         with self.output().open('w') as outputflow:
@@ -142,7 +169,7 @@ class OSMElementEnrichment(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates=['ts'])
+                                       parse_dates='ts')
         osm_elements.sort_values(by=['elem','id','version'])
         osm_elements = utils.enrich_osm_elements(osm_elements)
         with self.output().open('w') as outputflow:
@@ -169,7 +196,7 @@ class ElementMetadataExtract(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates=['ts'])
+                                       parse_dates='ts')
         elem_md = utils.extract_elem_metadata(osm_elements)
         with self.output().open('w') as outputflow:
             elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -195,7 +222,7 @@ class ChangeSetMetadataExtract(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates=['ts'])
+                                       parse_dates='ts')
         chgset_md = utils.extract_chgset_metadata(osm_elements)
         with self.output().open('w') as outputflow:
             chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -226,7 +253,7 @@ class UserMetadataExtract(luigi.Task):
         with self.input()['enrichhist'].open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates=['ts'])
+                                       parse_dates='ts')
         user_md = utils.extract_user_metadata(osm_elements, chgset_md)
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -242,3 +269,5 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
+        yield OSMChronology(self.datarep, self.dsname,
+                            '2006-01-01', '2017-06-01')
