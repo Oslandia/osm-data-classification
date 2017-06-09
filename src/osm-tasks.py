@@ -58,7 +58,6 @@ class OSMChronology(luigi.Task):
         return OSMHistoryParsing(self.datarep, self.dsname)
 
     def run(self):
-        print("Feature extraction from OSM history data...")
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
@@ -87,7 +86,6 @@ class OSMTagParsing(luigi.Task):
         taghandler = osmparsing.TagGenomeHandler()
         datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
         taghandler.apply_file(datapath)
-        print("There are {0} tag records in this dataset".format(len(taghandler.taggenome)))
         tag_genome = pd.DataFrame(taghandler.taggenome)
         tag_genome.columns = ['elem', 'id', 'version', 'tagkey', 'tagvalue']
         with self.output().open('w') as outputflow:
