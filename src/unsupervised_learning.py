@@ -5,9 +5,12 @@
 Some utility functions designed for machine learning algorithm exploitation
 """
 
+import re
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import seaborn as sns
 
 def compute_pca_variance(X):
     """Compute the covariance matrix of X and the associated eigen values to
@@ -122,14 +125,47 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
     nb_vertical_plots = int(nb_components/nb_subplot_col)
     if nb_components%nb_subplot_col > 0:
         nb_vertical_plots = nb_vertical_plots + 1
+    blue, red, green = sns.color_palette()[:3]
     f, ax = plt.subplots(nb_vertical_plots, nb_subplot_col, figsize=(16, 12))
     for i in range(nb_components):
         data = feature_contributions[i].sort_values()
+        # bar_color = np.repeat([sns.color_palette()[2]],
+        #                       feature_contributions[i].shape[0],
+        #                       axis=0)
+        bar_color = [sns.color_palette()[c]
+                     for c in split_md_features(data.index.values)]
         ax_ = ax[int(i/nb_subplot_col)][i%nb_subplot_col]
-        ax_.bar(np.arange(len(data)), data.values)
+        ax_.bar(np.arange(len(data)), data.values, color=bar_color)
         ax_.axhline(0, color='k')
         ax_.set_ylim((-0.4,0.4))
         ax_.get_xaxis().set_visible(False)
         ax_.set_title(data.name)
+        if i == 0:
+            blue_patch = mpatches.Patch(color=blue,
+                                        label='Contribution quantity feature')
+            red_patch = mpatches.Patch(color=red, label='Version feature')
+            green_patch = mpatches.Patch(color=green, label='Time feature')
+            ax_.legend(handles=[blue_patch, red_patch, green_patch])
     f.tight_layout()
     f.show()
+
+
+def split_md_features(ft_names):
+    """Split the metadata column into several types of features, e.g. quantity,
+    version and time-related features, by returning a tuple of integer lists
+
+    Parameters
+    ----------
+    ft_names: list
+        List of feature names; key to split the features
+    """
+    quantity_indices = [re.search('^n[_m]', col) is not None for col in ft_names]
+    version_indices = [re.search('^v[_m]', col) is not None for col in ft_names]
+    time_indices = [re.search('^((activity)|([dt][_m]))', col) is not None
+                    for col in ft_names]
+    assert(sum(quantity_indices)+sum(version_indices)+sum(time_indices) ==
+           len(ft_names) )
+    synthesis = np.repeat(0, len(quantity_indices))
+    synthesis[version_indices] = 1
+    synthesis[time_indices] = 2 
+    return synthesis
