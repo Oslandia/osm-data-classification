@@ -9,6 +9,7 @@ import datetime as dt
 import pandas as pd
 import numpy as np
 from datetime import timedelta
+import re
 
 ### OSM data exploration ######################
 def updatedelem(data):
@@ -511,7 +512,8 @@ def extract_features(data, pattern):
     pattern: str
     character string that indicates which column has to be kept
     """
-    return data[[col for col in data.columns if pattern in col]].copy()
+    return data[[col for col in data.columns
+                 if re.search(pattern, col) is not None]].copy()
 
 def drop_features(data, pattern):
     """Drop features from data that respect the given string pattern
@@ -523,5 +525,6 @@ def drop_features(data, pattern):
     pattern: str
     character string that indicates which column has to be dropped
     """
-    return data[[col for col in data.columns if pattern not in col]].copy()
+    return data[[col for col in data.columns
+                 if re.search(pattern, col) is None]].copy()
 
