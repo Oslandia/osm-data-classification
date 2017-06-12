@@ -63,10 +63,13 @@ def one_feature_contribution(component_detail):
         contribution of each features (rows) to a PCA component (column)
     
     """
-    contribution_rank = component_detail.sort_values(ascending=False)
-    most_important_features = pd.concat([contribution_rank.head(5),
-                                         contribution_rank.tail(5)])
-    return most_important_features
+    tab = pd.DataFrame({'component': component_detail})
+    tab['is_positive'] = tab.component > 0
+    tab = abs(tab).sort_values(by='component', ascending=False).head(10)
+    tab.loc[tab.is_positive==0, 'component'] = -tab.component
+    most_important_features = pd.Series(tab.component)
+    most_important_features.name = component_detail.name
+    return most_important_features.sort_values(ascending=False)
 
 def feature_contribution(pca_features):
     """Describe and analyze the feature contribution to each PCA component
