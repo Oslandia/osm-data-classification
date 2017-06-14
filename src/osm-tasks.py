@@ -61,8 +61,8 @@ class OSMChronology(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates='ts')
         osm_stats = osm_chronology(osm_elements, self.start_date, self.end_date)
+                                       parse_dates=['ts'])
 
         with self.output().open('w') as outputflow:
             osm_stats.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -169,7 +169,7 @@ class OSMElementEnrichment(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates='ts')
+                                       parse_dates=['ts'])
         osm_elements.sort_values(by=['elem','id','version'])
         osm_elements = utils.enrich_osm_elements(osm_elements)
         with self.output().open('w') as outputflow:
@@ -196,12 +196,12 @@ class ElementMetadataExtract(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates='ts')
+                                       parse_dates=['ts'])
         elem_md = utils.extract_elem_metadata(osm_elements)
         with self.output().open('w') as outputflow:
             elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-            
+
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
@@ -222,12 +222,12 @@ class ChangeSetMetadataExtract(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates='ts')
+                                       parse_dates=['ts'])
         chgset_md = utils.extract_chgset_metadata(osm_elements)
         with self.output().open('w') as outputflow:
             chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-            
+
 class UserMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM user
     """
@@ -253,18 +253,18 @@ class UserMetadataExtract(luigi.Task):
         with self.input()['enrichhist'].open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-                                       parse_dates='ts')
+                                       parse_dates=['ts'])
         user_md = utils.extract_user_metadata(osm_elements, chgset_md)
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-            
+
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-    
+
     def requires(self):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
