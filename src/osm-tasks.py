@@ -178,7 +178,7 @@ class ElementMetadataExtract(luigi.Task):
         with self.output().open('w') as outputflow:
             elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-            
+
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
@@ -204,7 +204,7 @@ class ChangeSetMetadataExtract(luigi.Task):
         with self.output().open('w') as outputflow:
             chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-            
+
 class UserMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM user
     """
@@ -254,7 +254,7 @@ class ChgsetPCA(luigi.Task):
 
     def requires(self):
         return ChangeSetMetadataExtract(self.datarep, self.dsname)
-        
+
     def set_nb_dimensions(self, var_analysis):
         candidate_npc = 0
         for i in range(len(var_analysis)):
@@ -305,7 +305,7 @@ class ChgsetKmeans(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     nbmin_clusters = luigi.parameter.IntParameter(3)
     nbmax_clusters = luigi.parameter.IntParameter(8)
-    
+
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
                         self.dsname+"-chgset-kmeans.csv")
@@ -315,7 +315,7 @@ class ChgsetKmeans(luigi.Task):
 
     def requires(self):
         return ChgsetPCA(self.datarep, self.dsname)
-  
+
     def set_nb_clusters(self, Xpca):
         """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
         optimal number of clusters
@@ -328,7 +328,7 @@ class ChgsetKmeans(luigi.Task):
         elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
         nbc =  1 + elbow_deriv.index(max(elbow_deriv))
         return nbc
-        
+
     def run(self):
         inputpath = self.input().path
         chgset_pca  = pd.read_hdf(inputpath, 'individuals')
@@ -356,7 +356,7 @@ class UserPCA(luigi.Task):
 
     def requires(self):
         return UserMetadataExtract(self.datarep, self.dsname)
-        
+
     def set_nb_dimensions(self, var_analysis):
         candidate_npc = 0
         for i in range(len(var_analysis)):
@@ -407,7 +407,7 @@ class UserKmeans(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     nbmin_clusters = luigi.parameter.IntParameter(3)
     nbmax_clusters = luigi.parameter.IntParameter(8)
-    
+
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
                         self.dsname+"-user-kmeans.csv")
@@ -417,7 +417,7 @@ class UserKmeans(luigi.Task):
 
     def requires(self):
         return UserPCA(self.datarep, self.dsname)
-  
+
     def set_nb_clusters(self, Xpca):
         """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
         optimal number of clusters
@@ -430,7 +430,7 @@ class UserKmeans(luigi.Task):
         elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
         nbc =  1 + elbow_deriv.index(max(elbow_deriv))
         return nbc
-        
+
     def run(self):
         inputpath = self.input().path
         user_pca  = pd.read_hdf(inputpath, 'individuals')
@@ -445,7 +445,7 @@ class MasterTask(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-    
+
     def requires(self):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
