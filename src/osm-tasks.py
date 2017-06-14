@@ -61,8 +61,8 @@ class OSMChronology(luigi.Task):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
-        osm_stats = osm_chronology(osm_elements, self.start_date, self.end_date)
                                        parse_dates=['ts'])
+        osm_stats = utils.osm_chronology(osm_elements, self.start_date, self.end_date)
 
         with self.output().open('w') as outputflow:
             osm_stats.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
