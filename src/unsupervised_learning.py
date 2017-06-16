@@ -21,7 +21,7 @@ def compute_pca_variance(X):
     X: numpy 2D array
         data matrix, contain the values of the dataframe used as a basis for
     the PCA
-    
+
     """
     cov_mat = np.cov(X.T)
     eig_vals, eig_vecs = np.linalg.eig(cov_mat)
@@ -44,7 +44,7 @@ def elbow_derivation(elbow, nbmin_clusters):
         contains value of the elbow function for each number of clusters
     nbmin_clusters: integer
         lower bound of the number of clusters
-    
+
     """
     elbow_deriv = [0]
     for i in range(1, len(elbow)-1):
@@ -61,7 +61,7 @@ def one_feature_contribution(component_detail):
     ----------
     component_detail: pd.Series
         contribution of each features (rows) to a PCA component (column)
-    
+
     """
     tab = pd.DataFrame({'component': component_detail})
     tab['is_positive'] = tab.component > 0
@@ -78,7 +78,7 @@ def feature_contribution(pca_features):
     ----------
     pca_features: pd.DataFrame
         contribution of each features (rows) to each PCA components (columns)
-    
+
     """
     best_contributions = []
     for col in pca_features:
@@ -94,7 +94,7 @@ def plot_feature_contribution(feature_contributions, nb_subplot_col=2):
     ----------
     feature_contributions: list of pd.DataFrames
         most important features for each PCA component
-    
+
     """
     nb_components = len(feature_contributions)
     nb_vertical_plots = int(nb_components/nb_subplot_col)
@@ -105,14 +105,13 @@ def plot_feature_contribution(feature_contributions, nb_subplot_col=2):
         data = feature_contributions[i].sort_values()
         ax_ = ax[int(i/nb_subplot_col)][i%nb_subplot_col]
         ax_.barh(np.arange(len(data)), data.values, tick_label=data.index)
-        # ax_.set_xticklabels(data.index, rotation=30)
         ax_.axvline(0, color='k')
         ax_.set_xlim((-0.4,0.4))
         ax_.set_title(data.name)
     f.tight_layout()
     f.show()
 
-    
+
 def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
     """Plot the most important feature contributions for each PCA component;
     the chosen format is barplot, with 5 most positive and 5 most
@@ -122,7 +121,7 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
     ----------
     feature_contributions: list of pd.DataFrames
         most important features for each PCA component
-    
+
     """
     nb_components = len(feature_contributions)
     nb_vertical_plots = int(nb_components/nb_subplot_col)
