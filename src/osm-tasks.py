@@ -178,7 +178,7 @@ class ElementMetadataExtract(luigi.Task):
         with self.output().open('w') as outputflow:
             elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-
+            
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
@@ -204,7 +204,7 @@ class ChangeSetMetadataExtract(luigi.Task):
         with self.output().open('w') as outputflow:
             chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-
+            
 class UserMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM user
     """
@@ -236,25 +236,31 @@ class UserMetadataExtract(luigi.Task):
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
 
-class ChgsetPCA(luigi.Task):
-    """ Luigi task: compute PCA for change set metadata
+class MetadataPCA(luigi.Task):
+    """ Luigi task: compute PCA for any metadata
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
     nb_mindimensions = luigi.parameter.IntParameter(3)
     nb_maxdimensions = luigi.parameter.IntParameter(10)
     features = luigi.Parameter('')
 
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-chgset-pca.h5")
+                        self.dsname+"-"+self.metadata_type+"-pca.h5")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
 
     def requires(self):
-        return ChangeSetMetadataExtract(self.datarep, self.dsname)
-
+        if self.metadata_type == "changeset":
+            return ChangeSetMetadataExtract(self.datarep, self.dsname)
+        elif self.metadata_type == "user":
+            return UserMetadataExtract(self.datarep, self.dsname)
+        else:
+            raise Exception()
+        
     def set_nb_dimensions(self, var_analysis):
         candidate_npc = 0
         for i in range(len(var_analysis)):
@@ -269,18 +275,21 @@ class ChgsetPCA(luigi.Task):
 
     def run(self):
         with self.input().open('r') as inputflow:
-            chgset_md  = pd.read_csv(inputflow,
+            metadata  = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['first_at', 'last_at'])
         # Data preparation
-        chgset_md = chgset_md.set_index(['chgset', 'uid'])
-        chgset_md = utils.drop_features(chgset_md, '_at')
+        if self.metadata_type == "changeset":
+            metadata = metadata.set_index(['chgset', 'uid'])
+        else:
+            metadata = metadata.set_index(['uid'])
+        metadata = utils.drop_features(metadata, '_at')
         if self.features != '':
             for pattern in ['elem', 'node', 'way', 'relation']:
                 if pattern != self.features:
-                    chgset_md = utils.drop_features(chgset_md, pattern)
+                    metadata = utils.drop_features(metadata, pattern)
         # Data normalization
-        X = StandardScaler().fit_transform(chgset_md.values)
+        X = StandardScaler().fit_transform(metadata.values)
         # Select the most appropriate dimension quantity
         var_analysis = utils.compute_pca_variance(X)
         # Run the PCA
@@ -289,33 +298,38 @@ class ChgsetPCA(luigi.Task):
         Xpca = pca.fit_transform(X)
         pca_cols = ['PC' + str(i+1) for i in range(npc)]
         pca_var = pd.DataFrame(pca.components_, index=pca_cols,
-                               columns=chgset_md.columns).T
-        pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
-                               index=chgset_md.index.get_level_values('chgset'))
+                               columns=metadata.columns).T
+        if self.metadata_type == "changeset":
+            pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
+                                   index=(metadata.index
+                                          .get_level_values('chgset')))
+        else:
+            pca_ind = pd.DataFrame(Xpca, columns=pca_cols, index=metadata.index)
         # Save the PCA results into a binary file
         path = self.output().path
         pca_var.to_hdf(path, '/features')
         pca_ind.to_hdf(path, '/individuals')
 
-class ChgsetKmeans(luigi.Task):
-    """Luigi task: classify change sets with a kmeans algorithm; a PCA procedure
+class MetadataKmeans(luigi.Task):
+    """Luigi task: classify any metadata with a kmeans algorithm; a PCA procedure
     is a prerequisite for this task
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
     nbmin_clusters = luigi.parameter.IntParameter(3)
     nbmax_clusters = luigi.parameter.IntParameter(8)
-
+    
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-chgset-kmeans.csv")
+                        self.dsname+"-"+self.metadata_type+"-kmeans.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return ChgsetPCA(self.datarep, self.dsname)
-
+        return MetadataPCA(self.datarep, self.dsname, self.metadata_type)
+  
     def set_nb_clusters(self, Xpca):
         """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
         optimal number of clusters
@@ -328,143 +342,33 @@ class ChgsetKmeans(luigi.Task):
         elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
         nbc =  1 + elbow_deriv.index(max(elbow_deriv))
         return nbc
-
+        
     def run(self):
         inputpath = self.input().path
-        chgset_pca  = pd.read_hdf(inputpath, 'individuals')
-        kmeans = KMeans(n_clusters=self.set_nb_clusters(chgset_pca.values),
+        pca_ind  = pd.read_hdf(inputpath, 'individuals')
+        kmeans = KMeans(n_clusters=self.set_nb_clusters(pca_ind.values),
                         n_init=100, max_iter=1000)
-        kmeans_ind = chgset_pca.copy()
-        kmeans_ind['Xclust'] = kmeans.fit_predict(chgset_pca.values)
+        kmeans_ind = pca_ind.copy()
+        kmeans_ind['Xclust'] = kmeans.fit_predict(pca_ind.values)
         kmeans_centroids = pd.DataFrame(kmeans.cluster_centers_,
-                                        columns=chgset_pca.columns)
+                                        columns=pca_ind.columns)
         kmeans_centroids['n_individuals'] = (kmeans_ind
                                              .groupby('Xclust')
                                              .count())['PC1']
         # Save the kmeans results into a binary file
         path = self.output().path
         kmeans_ind.to_hdf(path, '/individuals')
-        kmeans_centroids.to_hdf(path, '/centroids')
-        
-class UserPCA(luigi.Task):
-    """ Luigi task: compute PCA for user metadata
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    nb_mindimensions = luigi.parameter.IntParameter(3)
-    nb_maxdimensions = luigi.parameter.IntParameter(10)
-    features = luigi.Parameter('')
-
-    def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-user-pca.h5")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
-
-    def requires(self):
-        return UserMetadataExtract(self.datarep, self.dsname)
-
-    def set_nb_dimensions(self, var_analysis):
-        candidate_npc = 0
-        for i in range(len(var_analysis)):
-            if var_analysis.iloc[i,0] < 1 or var_analysis.iloc[i,2] > 80:
-                candidate_npc = i+1
-                break
-        if candidate_npc < self.nb_mindimensions:
-            candidate_npc = self.nb_mindimensions
-        if candidate_npc > self.nb_maxdimensions:
-            candidate_npc = self.nb_maxdimensions
-        return candidate_npc
-
-    def run(self):
-        with self.input().open('r') as inputflow:
-            user_md  = pd.read_csv(inputflow,
-                                       index_col=0,
-                                       parse_dates=['first_at', 'last_at'])
-        # Data preparation
-        user_md = user_md.set_index(['uid'])
-        user_md = utils.drop_features(user_md, '_at')
-        if self.features != '':
-            for pattern in ['elem', 'node', 'way', 'relation']:
-                if pattern != self.features:
-                    user_md = utils.drop_features(user_md, pattern)
-        # Data normalization
-        X = StandardScaler().fit_transform(user_md.values)
-        # Select the most appropriate dimension quantity
-        var_analysis = utils.compute_pca_variance(X)
-        # Run the PCA
-        npc = self.set_nb_dimensions(var_analysis)
-        pca = PCA(n_components=npc)
-        Xpca = pca.fit_transform(X)
-        pca_cols = ['PC' + str(i+1) for i in range(npc)]
-        pca_var = pd.DataFrame(pca.components_, index=pca_cols,
-                               columns=user_md.columns).T
-        pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
-                               index=user_md.index)
-        # Save the PCA results into a binary file
-        path = self.output().path
-        pca_var.to_hdf(path, '/features')
-        pca_ind.to_hdf(path, '/individuals')
-
-class UserKmeans(luigi.Task):
-    """Luigi task: classify users with a kmeans algorithm; a PCA procedure
-    is a prerequisite for this task
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    nbmin_clusters = luigi.parameter.IntParameter(3)
-    nbmax_clusters = luigi.parameter.IntParameter(8)
-
-    def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-user-kmeans.csv")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath())
-
-    def requires(self):
-        return UserPCA(self.datarep, self.dsname)
-
-    def set_nb_clusters(self, Xpca):
-        """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
-        optimal number of clusters
-        """
-        scores = []
-        for i in range(1, self.nbmax_clusters + 1):
-            kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
-            kmeans.fit(Xpca)
-            scores.append(kmeans.inertia_)
-        elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
-        nbc =  1 + elbow_deriv.index(max(elbow_deriv))
-        return nbc
-
-    def run(self):
-        inputpath = self.input().path
-        user_pca  = pd.read_hdf(inputpath, 'individuals')
-        kmeans = KMeans(n_clusters=self.set_nb_clusters(user_pca.values),
-                        n_init=100, max_iter=1000)
-        kmeans_ind = user_pca.copy()
-        kmeans_ind['Xclust'] = kmeans.fit_predict(user_pca.values)
-        kmeans_centroids = pd.DataFrame(kmeans.cluster_centers_,
-                                      columns=user_pca.columns)
-        kmeans_centroids['n_individuals'] = (kmeans_ind
-                                             .groupby('Xclust')
-                                             .count())['PC1']
-                # Save the kmeans results into a binary file
-        path = self.output().path
-        kmeans_ind.to_hdf(path, '/individuals')
-        kmeans_centroids.to_hdf(path, '/centroids')
+        kmeans_centroids.to_hdf(path, '/centroids')        
         
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-
+    
     def requires(self):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
-        yield ChgsetKmeans(self.datarep, self.dsname, 3, 10)
-        yield UserKmeans(self.datarep, self.dsname, 3, 10)
+        yield MetadataKmeans(self.datarep, self.dsname, "changeset", 3, 10)
+        yield MetadataKmeans(self.datarep, self.dsname, "user", 3, 10)
