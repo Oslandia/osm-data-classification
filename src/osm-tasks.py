@@ -16,6 +16,7 @@ from sklearn.cluster import KMeans
 
 import osmparsing
 import tagmetanalyse
+import unsupervised_learning as ul
 import utils
 
 class OSMHistoryParsing(luigi.Task):
@@ -291,7 +292,7 @@ class MetadataPCA(luigi.Task):
         # Data normalization
         X = StandardScaler().fit_transform(metadata.values)
         # Select the most appropriate dimension quantity
-        var_analysis = utils.compute_pca_variance(X)
+        var_analysis = ul.compute_pca_variance(X)
         # Run the PCA
         npc = self.set_nb_dimensions(var_analysis)
         pca = PCA(n_components=npc)
@@ -339,7 +340,7 @@ class MetadataKmeans(luigi.Task):
             kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
             kmeans.fit(Xpca)
             scores.append(kmeans.inertia_)
-        elbow_deriv = utils.elbow_derivation(scores, self.nbmin_clusters)
+        elbow_deriv = ul.elbow_derivation(scores, self.nbmin_clusters)
         nbc =  1 + elbow_deriv.index(max(elbow_deriv))
         return nbc
         
