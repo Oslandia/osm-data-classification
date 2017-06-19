@@ -9,6 +9,7 @@ import datetime as dt
 import pandas as pd
 import numpy as np
 from datetime import timedelta
+import re
 
 ### OSM data exploration ######################
 def updatedelem(data):
@@ -500,3 +501,29 @@ def extract_user_metadata(osm_elements, chgset_md):
                               'v', '_del_wrong')
 
     return user_md
+
+def extract_features(data, pattern):
+    """Extract features from data that respect the given string pattern
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+    starting dataframe
+    pattern: str
+    character string that indicates which column has to be kept
+    """
+    return data[[col for col in data.columns
+                 if re.search(pattern, col) is not None]].copy()
+
+def drop_features(data, pattern):
+    """Drop features from data that respect the given string pattern
+
+    Parameters
+    ----------
+    data: pd.DataFrame
+    starting dataframe
+    pattern: str
+    character string that indicates which column has to be dropped
+    """
+    return data[[col for col in data.columns
+                 if re.search(pattern, col) is None]].copy()

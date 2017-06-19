@@ -6,12 +6,17 @@
 import os.path as osp
 
 import luigi
-from luigi.format import UTF8
+from luigi.format import MixedUnicodeBytes, UTF8
 import pandas as pd
 import numpy as np
 
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+
 import osmparsing
 import tagmetanalyse
+import unsupervised_learning as ul
 import utils
 
 class OSMHistoryParsing(luigi.Task):
@@ -259,6 +264,130 @@ class UserMetadataExtract(luigi.Task):
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
 
+class MetadataPCA(luigi.Task):
+    """ Luigi task: compute PCA for any metadata
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_mindimensions = luigi.parameter.IntParameter(3)
+    nb_maxdimensions = luigi.parameter.IntParameter(10)
+    features = luigi.Parameter('')
+
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-"+self.metadata_type+"-pca.h5")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        if self.metadata_type == "changeset":
+            return ChangeSetMetadataExtract(self.datarep, self.dsname)
+        elif self.metadata_type == "user":
+            return UserMetadataExtract(self.datarep, self.dsname)
+        else:
+            raise Exception()
+        
+    def set_nb_dimensions(self, var_analysis):
+        candidate_npc = 0
+        for i in range(len(var_analysis)):
+            if var_analysis.iloc[i,0] < 1 or var_analysis.iloc[i,2] > 80:
+                candidate_npc = i+1
+                break
+        if candidate_npc < self.nb_mindimensions:
+            candidate_npc = self.nb_mindimensions
+        if candidate_npc > self.nb_maxdimensions:
+            candidate_npc = self.nb_maxdimensions
+        return candidate_npc
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            metadata  = pd.read_csv(inputflow,
+                                       index_col=0,
+                                       parse_dates=['first_at', 'last_at'])
+        # Data preparation
+        if self.metadata_type == "changeset":
+            metadata = metadata.set_index(['chgset', 'uid'])
+        else:
+            metadata = metadata.set_index(['uid'])
+        metadata = utils.drop_features(metadata, '_at')
+        if self.features != '':
+            for pattern in ['elem', 'node', 'way', 'relation']:
+                if pattern != self.features:
+                    metadata = utils.drop_features(metadata, pattern)
+        # Data normalization
+        X = StandardScaler().fit_transform(metadata.values)
+        # Select the most appropriate dimension quantity
+        var_analysis = ul.compute_pca_variance(X)
+        # Run the PCA
+        npc = self.set_nb_dimensions(var_analysis)
+        pca = PCA(n_components=npc)
+        Xpca = pca.fit_transform(X)
+        pca_cols = ['PC' + str(i+1) for i in range(npc)]
+        pca_var = pd.DataFrame(pca.components_, index=pca_cols,
+                               columns=metadata.columns).T
+        if self.metadata_type == "changeset":
+            pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
+                                   index=(metadata.index
+                                          .get_level_values('chgset')))
+        else:
+            pca_ind = pd.DataFrame(Xpca, columns=pca_cols, index=metadata.index)
+        # Save the PCA results into a binary file
+        path = self.output().path
+        pca_var.to_hdf(path, '/features')
+        pca_ind.to_hdf(path, '/individuals')
+
+class MetadataKmeans(luigi.Task):
+    """Luigi task: classify any metadata with a kmeans algorithm; a PCA procedure
+    is a prerequisite for this task
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nbmin_clusters = luigi.parameter.IntParameter(3)
+    nbmax_clusters = luigi.parameter.IntParameter(8)
+    
+    def outputpath(self):
+        return osp.join(self.datarep, "output-extracts", self.dsname,
+                        self.dsname+"-"+self.metadata_type+"-kmeans.h5")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return MetadataPCA(self.datarep, self.dsname, self.metadata_type)
+
+    def set_nb_clusters(self, Xpca):
+        """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
+        optimal number of clusters
+        """
+        scores = []
+        for i in range(1, self.nbmax_clusters + 1):
+            kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
+            kmeans.fit(Xpca)
+            scores.append(kmeans.inertia_)
+        elbow_deriv = ul.elbow_derivation(scores, self.nbmin_clusters)
+        nbc =  1 + elbow_deriv.index(max(elbow_deriv))
+        return nbc
+        
+    def run(self):
+        inputpath = self.input().path
+        pca_ind  = pd.read_hdf(inputpath, 'individuals')
+        kmeans = KMeans(n_clusters=self.set_nb_clusters(pca_ind.values),
+                        n_init=100, max_iter=1000)
+        kmeans_ind = pca_ind.copy()
+        kmeans_ind['Xclust'] = kmeans.fit_predict(pca_ind.values)
+        kmeans_centroids = pd.DataFrame(kmeans.cluster_centers_,
+                                        columns=pca_ind.columns)
+        kmeans_centroids['n_individuals'] = (kmeans_ind
+                                             .groupby('Xclust')
+                                             .count())['PC1']
+        # Save the kmeans results into a binary file
+        path = self.output().path
+        kmeans_ind.to_hdf(path, '/individuals')
+        kmeans_centroids.to_hdf(path, '/centroids')        
+        
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
     """
@@ -269,5 +398,5 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
-        yield OSMChronology(self.datarep, self.dsname,
-                            '2006-01-01', '2017-06-01')
+        yield MetadataKmeans(self.datarep, self.dsname, "changeset", 3, 10)
+        yield MetadataKmeans(self.datarep, self.dsname, "user", 3, 10)
