@@ -282,7 +282,7 @@ class MetadataPCA(luigi.Task):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
 
     def requires(self):
-        if self.metadata_type == "changeset":
+        if self.metadata_type == "chgset":
             return ChangeSetMetadataExtract(self.datarep, self.dsname)
         elif self.metadata_type == "user":
             return UserMetadataExtract(self.datarep, self.dsname)
@@ -307,7 +307,7 @@ class MetadataPCA(luigi.Task):
                                        index_col=0,
                                        parse_dates=['first_at', 'last_at'])
         # Data preparation
-        if self.metadata_type == "changeset":
+        if self.metadata_type == "chgset":
             metadata = metadata.set_index(['chgset', 'uid'])
         else:
             metadata = metadata.set_index(['uid'])
@@ -327,7 +327,7 @@ class MetadataPCA(luigi.Task):
         pca_cols = ['PC' + str(i+1) for i in range(npc)]
         pca_var = pd.DataFrame(pca.components_, index=pca_cols,
                                columns=metadata.columns).T
-        if self.metadata_type == "changeset":
+        if self.metadata_type == "chgset":
             pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
                                    index=(metadata.index
                                           .get_level_values('chgset')))
@@ -401,4 +401,5 @@ class MasterTask(luigi.Task):
         yield OSMChronology(self.datarep, self.dsname,
                             '2006-01-01', '2017-06-01')
         yield MetadataKmeans(self.datarep, self.dsname, "changeset", 3, 10)
+        yield MetadataKmeans(self.datarep, self.dsname, "chgset", 3, 10)
         yield MetadataKmeans(self.datarep, self.dsname, "user", 3, 10)
