@@ -398,5 +398,7 @@ class MasterTask(luigi.Task):
         yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
+        yield OSMChronology(self.datarep, self.dsname,
+                            '2006-01-01', '2017-06-01')
         yield MetadataKmeans(self.datarep, self.dsname, "changeset", 3, 10)
         yield MetadataKmeans(self.datarep, self.dsname, "user", 3, 10)
