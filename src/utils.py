@@ -372,7 +372,7 @@ def extract_chgset_metadata(osm_elements):
     osmelem_del = osm_elements.query("not init and not visible and not available")
     chgset_md = group_nunique(chgset_md, osmelem_del, 'chgset', 'id', '_del')
 
-    chgset_md = drop_features(chgset_md, '_elem_')
+    chgset_md = drop_features(chgset_md, '_elem')
     return chgset_md
 
 def extract_user_metadata(osm_elements, chgset_md):
@@ -503,7 +503,7 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = group_stats(user_md, osmelem_del_wrong, 'uid', 'vmax',
                               'v', '_del_wrong')
 
-    user_md = drop_features(user_md, '_elem_')
+    user_md = drop_features(user_md, '_elem')
     return user_md
 
 def extract_features(data, pattern):
