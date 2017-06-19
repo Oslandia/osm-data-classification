@@ -143,7 +143,7 @@ def group_nunique(metadata, data, grp_feat, res_feat, namesuffix):
 
 def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     """Group-by 'data' by 'grp_feat' and element type features, compute basic
-    statistic features (min, median, max) corresponding to each
+    statistic features (first and ninth deciles) corresponding to each
     grp_feat-elemtype tuples and merge them into metadata table
 
     Parameters
@@ -163,12 +163,12 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
         string that ends the new feature name
 
     """
-    md_ext = (data.groupby(grp_feat)[res_feat].agg({'min': "min",
-                                                    'med': "median",
-                                                    'max': "max"}).reset_index())
-    # md_ext.med = md_ext.med.astype(int)
-    md_ext = md_ext[[grp_feat, 'min', 'med', 'max']]
-    colnames = [nameprefix + op + namesuffix for op in md_ext.columns.values[1:]]
+    md_ext = (data.groupby(grp_feat)[res_feat]
+              .quantile(q=[0.1,0.9])
+              .unstack()
+              .reset_index())
+    colnames = [nameprefix + str(int(100*op)) + namesuffix
+                 for op in md_ext.columns.values[1:]]
     md_ext.columns = [grp_feat, *colnames]
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
