@@ -323,14 +323,14 @@ class MetadataKmeans(luigi.Task):
     
     def outputpath(self):
         return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-"+self.metadata_type+"-kmeans.csv")
+                        self.dsname+"-"+self.metadata_type+"-kmeans.h5")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
         return MetadataPCA(self.datarep, self.dsname, self.metadata_type)
-  
+
     def set_nb_clusters(self, Xpca):
         """Compute kmeans for each cluster number (until nbmax_clusters+1) to find the
         optimal number of clusters
