@@ -87,7 +87,7 @@ def feature_contribution(pca_features):
         best_contributions.append(one_feature_contribution(pca_features[col]))
     return best_contributions
 
-def plot_feature_contribution(feature_contributions, nb_subplot_col=2):
+def plot_feature_contribution(feature_contributions, ylim=0.5, nb_subplot_col=2):
     """Plot the most important feature contributions for each PCA component;
     the chosen format is barplot, with 5 most positive and 5 most
     negative contributors (horizontal barplot with named labels)
@@ -108,13 +108,13 @@ def plot_feature_contribution(feature_contributions, nb_subplot_col=2):
         ax_ = ax[int(i/nb_subplot_col)][i%nb_subplot_col]
         ax_.barh(np.arange(len(data)), data.values, tick_label=data.index)
         ax_.axvline(0, color='k')
-        ax_.set_xlim((-0.4,0.4))
+        ax_.set_xlim((-ylim, ylim))
         ax_.set_title(data.name)
     f.tight_layout()
     f.show()
 
 
-def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
+def plot_feature_contribution_v2(feature_contributions, ylim=0.5, nb_subplot_col=2):
     """Plot the most important feature contributions for each PCA component;
     the chosen format is barplot, with 5 most positive and 5 most
     negative contributors (vertical coloured barplots)
@@ -144,7 +144,7 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
         ax_.bar(np.arange(len(data)), data.values, color=bar_color)
                 # color=bar_color, edgecolor=bar_bordercolor, linewidth=bar_lw)
         ax_.axhline(0, color='k')
-        ax_.set_ylim((-0.5,0.5))
+        ax_.set_ylim((-ylim, ylim))
         ax_.get_xaxis().set_visible(False)
         ax_.set_title(data.name)
         if i == 0:
