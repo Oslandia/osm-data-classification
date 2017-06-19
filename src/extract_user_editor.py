@@ -10,10 +10,7 @@ Such as:
 - num: number of occurrence
 """
 
-
-
 import re
-import string
 import logging
 
 import pandas as pd
@@ -24,7 +21,6 @@ logger = logging.getLogger(__name__)
 
 
 # multiple cases  (where X, Y are digits, 'l' a letter):
-
 #   - name/X.Yl
 #   - name X.Yl
 #   - name X
@@ -64,7 +60,6 @@ def main(fname, output_fname):
 # - number of unique editor used by user (high value => experienced user?)
 
 # two choices
-
 # simple one but count 4 JOSM if JOSM has been used 4 times by a user
 # (df.groupby('fullname')['num']
 #  .count()
@@ -81,9 +76,22 @@ def editor_count(df):
             .count()
             .sort_values(ascending=False))
 
-# some_trouble_name = ['Go Map!! 1.1', 'rosemary v0.3.11', 'Level0 v1',
-#                      'ArcGIS Editor for OpenStreetMap (2.1)', 'OsmAnd~ 2.0.0#9942M',
-#                      'QGIS OSM v0.5', 'OsmAnd+ 1.8.3']
+def get_top_editor(editor_summary):
+    """Get the top editors with extra info such as the ratio and cumsum
+
+    editor_summary: dt
+        result of the 'editor_count' function
+    """
+    data = (editor_summary.to_frame()
+            .reset_index()
+            .rename_axis({"uid": "num"}, axis=1))
+    data['ratio'] = data['num'] / data['num'].sum() * 100.
+    data['cumulative'] = data['ratio'].cumsum()
+    return data
+
+# some_trouble_names = ['Go Map!! 1.1', 'rosemary v0.3.11', 'Level0 v1',
+#                       'ArcGIS Editor for OpenStreetMap (2.1)', 'OsmAnd~ 2.0.0#9942M',
+#                       'QGIS OSM v0.5', 'OsmAnd+ 1.8.3']
 
 # the problem to groupby fullname and sum 'num' is that you can have some rare
 # editor which can carry out a large amount of modifications, i.e. changesets

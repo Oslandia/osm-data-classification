@@ -2,6 +2,14 @@ OSM data quality
 
 ---
 
+# Export Org file to HTML
+
+* In Emacs `M-x org-html-export-to-html`. It can run the Python block examples
+  with a `ipython` kernel
+
+* [From the command line](https://stackoverflow.com/questions/22072773/batch-export-of-org-mode-files-from-the-command-line) you can also do:
+
+  `emacs article_filename.org --batch -f org-html-export-to-html --kill`
 
 # Blog article draft
 

@@ -2,11 +2,10 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like working with Open Source tool
-projects and handling Open (geospatial) Data. In this article series, we will
-play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
-subsequent data. Here comes the first article of this series, dedicated to the
-presentation of our working framework.
+At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with [[https://www.openstreetmap.org/][OpenStreetMap]]
+(/OSM/) and the subsequent data. Here comes the first article of this series,
+dedicated to the presentation of our working framework.
 
 * Python is your friend, Luigi your plumber
 
@@ -16,9 +15,9 @@ manage data sets in a Python framework, however we still misses a methodology
 layer!
 
 In this way, we will use [Luigi](https://luigi.readthedocs.io/en/stable/),
-which is another Python package dedicated to the job pipeline building. As we
+which is another Python package dedicated to job pipeline building. As we
 can read in the Luigi documentation, this tool allows us to manage every tasks
-and organize them compared to each other, by clarifying the dependencies.
+and organize them all together, by clarifying the dependencies.
 
 A quick benchmark about existing Luigi utilizations shows that machine learning
 applications are extremely compatible with this package. That is particularly
@@ -34,22 +33,23 @@ subsequent blog articles.
 ** OSM Data Parsing
 
 The first task of the data analysis is the parsing process. We start from files
-in a typical OpenStreetMap file format, with the *.pbf* extension. After this
-step we obtain classic *.csv* files, considering that we might have in-base
-data as well.
+in a typical OSM file format, with the *.pbf* extension. After this step we
+obtain classic *.csv* files, considering that we might have in-base data as
+well.
 
 Here are some example of Luigi tasks in this way:
 
-- parse the OSM entities (nodes, ways, relations)
-- parse the OSM tags (keys and values)
+- parse the OSM entities (nodes, ways, relations): this will be the topic of
+  the *third article*
+- parse the OSM tags (keys and values), that will be the *fourth article* scope
 - parse the OSM users directly from the contributions
 
 ** OSM Metadata Building
 
 If we focus on the first previous example, the OSM entity parsing, we get the
-history of each OSM elements. These elements are nodes, characterized by
-geographical coordinates *(lat,lon)*, ways, characterized by a set of nodes,
-and relations, characterized a set of members (members being nodes, ways and
+history of each OSM elements. These elements are *nodes*, characterized by
+geographical coordinates /(lat,lon)/, *ways*, characterized by a set of nodes,
+and *relations*, characterized a set of members (members being nodes, ways and
 others relations).
 
 Each of these elements are created (that's quite obvious!), and may be modified
@@ -57,15 +57,17 @@ or even deleted in the OSM API. These modifications are done within *change
 sets* by OSM *contributors*. We then may identify typical Luigi tasks :
 
 - extract the OSM element metadata (date of creation, number of versions...)
-- extract the OSM changeset metadata (timestamps, number of done modifications...)
+- extract the OSM changeset metadata (timestamps, number of done
+  modifications...)
 - extract the OSM user metadata (timestamps, number of opened change sets,
-  number of modifications...)
+  number of modifications...), we propose to develop this question in the
+  *fifth article*
 
 ** OSM Metadata Analysis
 
 A last major part of the analysis concerns the metadata analysis: these data
 are extremely useful in the quality evaluation: we hypothesize that knowing the
-way each user contributes to the API gives an information on its ability to do
+way each user contributes to the API gives an information on his ability to do
 it properly. In the end, knowing that expert users have contributed to an
 element will let us think that this element is of good quality.
 
@@ -75,6 +77,9 @@ as illustrates by the following tasks:
 - prepare the data
 - reduce dimensionality through a Principle Component Analysis
 - classify the users with the help of the k-means algorithm
+
+This set of tasks will be the topic of interest in the *sixth and seventh
+articles*.
 
 * Outline of the project: characterize OSM data quality
 

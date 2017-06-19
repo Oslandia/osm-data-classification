@@ -2,29 +2,28 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
-projects and handling Open (geospatial) Data. In this article series, we will
-play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
-subsequent data. Here comes the second article of this series, dedicated to the
-presentation of OSM data itself.
+At [[http://oslandia.com/][Oslandia]], we like workingg with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with [[https://www.openstreetmap.org/][OpenStreetMap]]
+(/OSM/) and the subsequent data. Here comes the second article of this series,
+dedicated to the presentation of OSM data itself.
 
 * Introduction
 
-As you should know, OpenStreetMap is a project which creates and distributes
-free geographical data for the world. Like Wikipedia, it's a community of people
-who can create and update some content available for everyone. Thus, anyone can
-edit buildings, roads, places or even trees and mailboxes!
+As you should know, [[https://www.openstreetmap.org][OpenStreetMap]] is a project which creates and distributes
+free geographical data for the world. Like Wikipedia, it's a community of
+people who can create and update some content available for everyone. Thus,
+anyone can edit buildings, roads, places or even trees and mailboxes!
 
 Working with community-built data forces to take care of data quality. We have
-to be confident with the data we work this. Is this road geometry accurate
+to be confident with the data we work with. Is this road geometry accurate
 enough? Is this street name missing? This is fundamental for companies and NGO
 who use OSM on a daily basis.
 
-Our main purpose is to answer to this question: *can you assess the quality of
-[[https://www.openstreetmap.org][OpenStreetMap]] data? (and how?)* This post is dedicated to the data parsing,
-from native OpenStreetMap API.
+Our main purpose is to answer to this question: /can you assess the quality of
+OSM data? (and how?)/ This post is dedicated to the data parsing, from native
+OpenStreetMap API.
 
-/pbf/ is the file extension for [[https://developers.google.com/protocol-buffers/][Protocol Buffer]]
+In this article /pbf/ is the file extension for [[https://developers.google.com/protocol-buffers/][Protocol Buffer]].
 
 * What do we mean by "data quality"
 
@@ -70,11 +69,11 @@ Other references focus on OSM contributors. Arsanjani /et al./ (2013)
 classified OSM contributors based on the quality and quantity of their
 contributions in Heidelberg (Germany). Five classes are used:
 "beginner", "regular", "intermediate", "expert", and "professional
-mappers". The authors work with with reference data in addition to OSM
+mappers". The authors work with reference data in addition to OSM
 data, they can assess the positional accuracy of a
 contribution. Moreover, they take into account the completness and the
 semantic accuracy. Then Neis /et al./ (2014) proposed a whole set of
-statistic dedicated to OSM contributors. They provide hand-made
+statistics dedicated to OSM contributors. They provide hand-made
 groups, and characterize contributions regarding dates, hours, user
 localisation and activity.
 
@@ -89,21 +88,21 @@ which lists several tools to supervise the OSM data construction.
 
 Extracting OSM data is a simple but complex task.
 
-+ simple because you just have to download the history dump in =pbf= ([[https://developers.google.com/protocol-buffers/][Protocol
-  Buffer]]) or =osh= formats from [[https://planet.openstreetmap.org/][Planet OSM website]] (=osm= format refers to
-  latest data, whereas =osh= refers to history data).
++ simple because you just have to download the history dump in /.pbf/ ([[https://developers.google.com/protocol-buffers/][Protocol
+  Buffer]]) or /.osh/ formats from [[https://planet.openstreetmap.org/][Planet OSM website]] (/.osm/ format refers to
+  latest data, whereas /.osh/ refers to history data).
 + complex because when you want to extract data, it can be a long and tedious
-  task
+  task.
 
-The PBF (Protocol Buffer) file format is quite big: ~57Go. Note that
-the XML file is compressed with =bzip2=. It can be long (+36
-hours) and take some place (1TB) if you uncompress it (see more on [[https://wiki.openstreetmap.org/wiki/Planet.osm/full#Data_Format][OSM wiki]]).
+For the whole planet, the /.pdf/ file format is quite big: ~57Go. Note that the
+/.xml/ file is compressed with =bzip2=. It can be long (+36 hours) and take
+some place (1TB) if you uncompress it (see more on [[https://wiki.openstreetmap.org/wiki/Planet.osm/full#Data_Format][OSM wiki]]).
 
 The challenge here is to pass from these native format to in-base data
 or /.csv/ files. Several tools exist to accomplish this effort:
 [[https://github.com/openstreetmap/osm2pgsql][osm2pgsql]], [[https://github.com/openstreetmap/osmosis][osmosis]], [[https://github.com/osmcode/osmium-tool][osmium-tool]] or [[https://github.com/osmcode/libosmium][osmium]]. We propose here to use the
 latter, and its dedicated [[http://docs.osmcode.org/pyosmium/v2.11.0/][Python library]]. This Python extension can be
-installed through /apt-get/:
+installed through =apt-get=:
 
 #+BEGIN_SRC bash
 sudo apt-get install python-pyosmium
@@ -117,9 +116,9 @@ pip install pyosmium
 
 * What sort of data are behind the OpenStreetMap API?
 
-[[http://docs.osmcode.org/pyosmium/v2.11.0/][Pyosmium documentation]] is a rich source of information in order to
-understand the /pyosmium/ library functioning. Several features can be
-identified within the OSM data.
+[[http://docs.osmcode.org/pyosmium/v2.11.0/][Pyosmium documentation]] is a rich source of information in order to understand
+the /pyosmium/ library functioning. Several features can be identified within
+the OSM data.
 
 Within the OSM API, a set of OSM seminal entities can be easily identified:
 
@@ -128,25 +127,25 @@ Within the OSM API, a set of OSM seminal entities can be easily identified:
 - relations, characterized by a set of "members", /i.e./ nodes, ways
   or other relations.
 
-In addition to these three element types, a fundamental object is the
-change set. It describes a set of modifications done by a single user,
-during a limited amount of time.
+In addition to these three element types, a fundamental object is the change
+set. It describes a set of modifications done by a single user, during a
+limited amount of time.
 
-Each of these OSM objects are characterized by a set of common
-attributes, that are IDs, timestamps, visible /(is the object still
-visible on the API?)/, user ID, or a list of tags /(a tag being the
-association between a key and a value)/.
+Each of these OSM objects are characterized by a set of common attributes, that
+are IDs, timestamps, visible flags /(is the object still visible on the API?)/,
+user IDs, or lists of tags /(a tag being the association between a key and a
+value)/.
 
-Starting from these OSM elements, we can straightforwardly answer
-typical question as:
+Starting from these OSM elements, we can straightforwardly answer typical
+questions as:
 
 + How many nodes do each user create?
 + How frequent are the mofification for each contributor?
 + How many tags do each OSM element contain?
 + ...
 
-Considering the history of OSM data makes the data set even more
-complete: it allows us to study the temporal evolution of the API.
+Considering the history of OSM data makes the data set even more complete: it
+allows us to study the temporal evolution of the API.
 
 * Conclusion
 
