@@ -144,7 +144,7 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
         ax_.bar(np.arange(len(data)), data.values, color=bar_color)
                 # color=bar_color, edgecolor=bar_bordercolor, linewidth=bar_lw)
         ax_.axhline(0, color='k')
-        ax_.set_ylim((-0.4,0.4))
+        ax_.set_ylim((-0.5,0.5))
         ax_.get_xaxis().set_visible(False)
         ax_.set_title(data.name)
         if i == 0:
@@ -157,18 +157,12 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
                                                green_patch,
                                                purple_patch,
                                                blue_patch])
-        # if i == 1:
-        #     greyborder_patch = mpatches.Patch(edgecolor='grey', facecolor=blue,
-        #                                       label='Node feature', lw=3)
-        #     redborder_patch = mpatches.Patch(edgecolor=red, facecolor=blue,
-        #                                      label='Way feature', lw=3)
-        #     greenborder_patch = mpatches.Patch(edgecolor=green,
-        #                                        facecolor=blue,
-        #                                        label='Relation feature',
-        #                                        lw=3)
-        #     ax_.legend(handles=[greyborder_patch,
-        #                         redborder_patch,
-        #                         greenborder_patch])
+                                        label='Contribution quantity feature')
+            red_patch = mpatches.Patch(color=red, label='Version feature')
+            green_patch = mpatches.Patch(color=green, label='Time feature')
+            first_legend = ax_.legend(handles=[blue_patch,
+                                               red_patch,
+                                               green_patch])
     f.tight_layout()
     f.show()
 
