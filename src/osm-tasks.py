@@ -402,3 +402,6 @@ class MasterTask(luigi.Task):
                             '2006-01-01', '2017-06-01')
         yield MetadataKmeans(self.datarep, self.dsname, "chgset", 3, 10)
         yield MetadataKmeans(self.datarep, self.dsname, "user", 3, 10)
+
+    def complete(self):
+        return False
