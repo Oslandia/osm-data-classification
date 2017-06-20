@@ -337,6 +337,7 @@ class MetadataPCA(luigi.Task):
         path = self.output().path
         pca_var.to_hdf(path, '/features')
         pca_ind.to_hdf(path, '/individuals')
+        var_analysis.to_hdf(path, '/variance')
 
 class MetadataKmeans(luigi.Task):
     """Luigi task: classify any metadata with a kmeans algorithm; a PCA procedure

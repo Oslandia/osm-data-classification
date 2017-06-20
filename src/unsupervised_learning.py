@@ -34,6 +34,30 @@ def compute_pca_variance(X):
                            'cumvar': cumvarexp})[['eig','varexp','cumvar']]
     return varmat
 
+def plot_pca_variance(varmat):
+    """Plot the PCA variance analysis: cumulated sum of explained variance as
+    well as eigenvalues
+
+    Parameters
+    ----------
+    varmat: pd.DataFrame
+        PCA variance analysis results; contains three columns ('eig', 'varexp'
+    and 'cumvar')
+    
+    """
+    f, ax = plt.subplots(2,1)
+    ax[0].bar(range(1,1+len(varmat)), varmat['varexp'].values, alpha=0.25, 
+            align='center', label='individual explained variance', color = 'g')
+    ax[0].step(range(1,1+len(varmat)), varmat['cumvar'].values, where='mid',
+             label='cumulative explained variance')
+    ax[0].axhline(70, color="blue", linestyle="dotted")
+    ax[0].legend(loc='best')
+    ax[1].bar(range(1,1+len(varmat)), varmat['eig'].values, alpha=0.25,
+              align='center', label='eigenvalues', color='r')
+    ax[1].axhline(1, color="red", linestyle="dotted")
+    ax[1].legend(loc="best")
+    f.show()
+
 def elbow_derivation(elbow, nbmin_clusters):
     """Compute a proxy of the elbow function derivative to automatically
     extract the optimal number of cluster; this number must be higher that nbmin_clusters
