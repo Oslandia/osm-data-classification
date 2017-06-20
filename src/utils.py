@@ -202,7 +202,7 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
-    metadata.columns = ['uid', 'first_at', 'last_at']
+    metadata.columns = [init_feat, 'first_at', 'last_at']
     metadata[duration_feat] = metadata.last_at - metadata.first_at
     if timeunit == 'second':
         metadata[duration_feat] = (metadata[duration_feat] /
