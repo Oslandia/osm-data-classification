@@ -10,7 +10,7 @@ from luigi.format import MixedUnicodeBytes, UTF8
 import pandas as pd
 import numpy as np
 
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
@@ -317,7 +317,7 @@ class MetadataPCA(luigi.Task):
                 if pattern != self.features:
                     metadata = utils.drop_features(metadata, pattern)
         # Data normalization
-        X = StandardScaler().fit_transform(metadata.values)
+        X = RobustScaler().fit_transform(metadata.values)
         # Select the most appropriate dimension quantity
         var_analysis = ul.compute_pca_variance(X)
         # Run the PCA
