@@ -375,21 +375,40 @@ def extract_chgset_metadata(osm_elements):
                               '_del_wrong')
 
     # Version-related features
-    chgset_md = group_stats(chgset_md, osmelem_cr, 'chgset', 'vmax',
-                              'v', '_cr')
-    chgset_md = group_stats(chgset_md, osmelem_cr_wrong, 'chgset', 'vmax',
-                              'v', '_cr_wrong')
-    chgset_md = group_stats(chgset_md, osmelem_imp, 'chgset', 'vmax',
-                              'v', '_imp')
-    chgset_md = group_stats(chgset_md, osmelem_imp_wrong, 'chgset', 'vmax',
-                              'v', '_imp_wrong')
-    chgset_md = group_stats(chgset_md, osmelem_del, 'chgset', 'vmax',
-                              'v', '_del')
-    chgset_md = group_stats(chgset_md, osmelem_del_wrong, 'chgset', 'vmax',
-                              'v', '_del_wrong')
+    chgset_md = metadata_version(chgset_md, osmelem_cr, '_cr')
+    chgset_md = metadata_version(chgset_md, osmelem_cr_wrong, '_cr_wrong')
+    chgset_md = metadata_version(chgset_md, osmelem_imp, '_imp')
+    chgset_md = metadata_version(chgset_md, osmelem_imp_wrong, '_imp_wrong')
+    chgset_md = metadata_version(chgset_md, osmelem_del, '_del')
+    chgset_md = metadata_version(chgset_md, osmelem_del_wrong, '_del_wrong')
 
     chgset_md = drop_features(chgset_md, '_elem')
     return chgset_md
+
+def metadata_version(metadata, osmelem, feature_suffix):
+    """Compute the version-related features of metadata and append them into
+    the metadata table
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table to complete
+    osmelem: pd.DataFrame
+        original data used to compute versions; contains a 'elem' feature
+    feature_suffix: str
+        string designing the end of the new feature names
+    """
+    osmelem_nodes = osmelem.query('elem=="node"')
+    osmelem_ways = osmelem.query('elem=="way"')
+    osmelem_relations = osmelem.query('elem=="relation"')
+    metadata = group_stats(metadata, osmelem_nodes, 'chgset', 'vmax',
+                              'v', '_node'+feature_suffix)
+    metadata = group_stats(metadata, osmelem_ways, 'chgset', 'vmax',
+                              'v', '__way'+feature_suffix)
+    metadata = group_stats(metadata, osmelem_relations, 'chgset', 'vmax',
+                              'v', '_relation'+feature_suffix)
+    return metadata
+    
 
 def extract_user_metadata(osm_elements, chgset_md):
     """ Extract user metadata from OSM history data
