@@ -269,7 +269,7 @@ class MetadataPCA(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     metadata_type = luigi.Parameter("user")
     nb_mindimensions = luigi.parameter.IntParameter(3)
-    nb_maxdimensions = luigi.parameter.IntParameter(10)
+    nb_maxdimensions = luigi.parameter.IntParameter(12)
     features = luigi.Parameter('')
 
     def outputpath(self):
