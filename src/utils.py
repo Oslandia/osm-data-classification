@@ -396,20 +396,23 @@ def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
         Metadata table to complete
     osmelem: pd.DataFrame
         original data used to compute versions; contains a 'elem' feature
+    grp_feat: object
+        string that indicates which feature from 'data' must be used to group items
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
     feature_suffix: str
         string designing the end of the new feature names
     """
     osmelem_nodes = osmelem.query('elem=="node"')
     osmelem_ways = osmelem.query('elem=="way"')
     osmelem_relations = osmelem.query('elem=="relation"')
-    metadata = group_stats(metadata, osmelem_nodes, 'chgset', 'vmax',
+    metadata = group_stats(metadata, osmelem_nodes, grp_feat, res_feat,
                               'v', '_node'+feature_suffix)
-    metadata = group_stats(metadata, osmelem_ways, 'chgset', 'vmax',
-                              'v', '__way'+feature_suffix)
-    metadata = group_stats(metadata, osmelem_relations, 'chgset', 'vmax',
+    metadata = group_stats(metadata, osmelem_ways, grp_feat, res_feat,
+                              'v', '_way'+feature_suffix)
+    metadata = group_stats(metadata, osmelem_relations, grp_feat, res_feat,
                               'v', '_relation'+feature_suffix)
-    return metadata
-    
+    return metadata    
 
 def extract_user_metadata(osm_elements, chgset_md):
     """ Extract user metadata from OSM history data
