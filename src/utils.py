@@ -252,20 +252,17 @@ def enrich_osm_elements(osm_elements):
     osm_elements = osm_elements.drop(['vmin'], axis=1)
 
     # Whether or not an element will be corrected in the last version
-    osm_elements['willbe_corr'] = np.logical_and(osm_elements.id
-                                                 .diff(-1)==0,
-                                              osm_elements.uid
-                                                 .diff(-1)!=0)        
-    osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id
-                                                     .diff(-1)==0,
+    osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
+                                              osm_elements.uid.diff(-1)!=0)
+    osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id.diff(-1)==0,
                                                      osm_elements.uid
                                                      .diff(-1)==0)
-
+    
     # Time before the next modification
     osm_elements['nextmodif_in'] = - osm_elements.ts.diff(-1)
     osm_elements.loc[osm_elements.up_to_date,['nextmodif_in']] = pd.NaT
     osm_elements.nextmodif_in = (osm_elements.nextmodif_in
-                                 .astype('timedelta64[h]'))
+                                 .astype('timedelta64[D]'))
 
     # Time before the next modification, if it is done by another user
     osm_elements['nextcorr_in'] = osm_elements.nextmodif_in
@@ -349,7 +346,7 @@ def extract_chgset_metadata(osm_elements):
 
     # Update features
     chgset_md = group_stats(chgset_md, osm_elements, 'chgset', 'nextmodif_in',
-                              't', '_update_inhour')
+                              't', '_update_d')
 
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'chgset'])['version']
