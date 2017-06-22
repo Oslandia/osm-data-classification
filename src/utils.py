@@ -359,7 +359,6 @@ def extract_chgset_metadata(osm_elements):
     
     """
     chgset_md = init_metadata(osm_elements, 'chgset', 'duration_m', 'minute')
-
     # User-related features
     chgset_md = pd.merge(chgset_md,
                          osm_elements[['chgset','uid']].drop_duplicates(),
@@ -369,46 +368,25 @@ def extract_chgset_metadata(osm_elements):
     chgset_md.user_lastchgset_h = (chgset_md.user_lastchgset_h /
                                    timedelta(hours=1))
     chgset_md['user_chgset_rank'] = chgset_md.groupby('uid')['first_at'].rank()
-
     # Update features
     chgset_md = group_stats(chgset_md, osm_elements, 'chgset', 'nextmodif_in',
                               't', '_update_d')
-
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'chgset'])['version']
                       .count()
                       .reset_index())
     chgset_md = group_stats(chgset_md, contrib_byelem, 'chgset', 'version',
                               'n', '_modif_byelem')
-
     # Element-related features
-    osmelem_cr = osm_elements.query("init and available")
-    chgset_md = group_nunique(chgset_md, osmelem_cr, 'chgset', 'id', '_cr')
-    osmelem_cr_wrong = osm_elements.query("init and not available")
-    chgset_md = group_nunique(chgset_md, osmelem_cr_wrong, 'chgset', 'id',
-                                '_cr_wrong')
-    osmelem_imp = osm_elements.query("not init and visible and available")
-    chgset_md = group_nunique(chgset_md, osmelem_imp, 'chgset', 'id', '_imp')
-    osmelem_imp_wrong = osm_elements.query("not init and visible and not available")
-    chgset_md = group_nunique(chgset_md, osmelem_imp_wrong, 'chgset', 'id', '_imp_wrong')
-    osmelem_del = osm_elements.query("not init and not visible and not available")
-    chgset_md = group_nunique(chgset_md, osmelem_del, 'chgset', 'id', '_del')
-    osmelem_del_wrong = osm_elements.query("not init and not visible and available")
-    chgset_md = group_nunique(chgset_md, osmelem_del_wrong, 'chgset', 'id',
-                              '_del_wrong')
-
-    # Version-related features
-    chgset_md = metadata_version(chgset_md, osmelem_cr, '_cr')
-    chgset_md = metadata_version(chgset_md, osmelem_cr_wrong, '_cr_wrong')
-    chgset_md = metadata_version(chgset_md, osmelem_imp, '_imp')
-    chgset_md = metadata_version(chgset_md, osmelem_imp_wrong, '_imp_wrong')
-    chgset_md = metadata_version(chgset_md, osmelem_del, '_del')
-    chgset_md = metadata_version(chgset_md, osmelem_del_wrong, '_del_wrong')
-
-    chgset_md = drop_features(chgset_md, '_elem')
+    chgset_md = extract_element_features(chgset_md, osm_elements,
+                                       'node', 'chgset')
+    chgset_md = extract_element_features(chgset_md, osm_elements,
+                                       'way', 'chgset')
+    chgset_md = extract_element_features(chgset_md, osm_elements,
+                                       'relation', 'chgset')
     return chgset_md
 
-def metadata_version(metadata, osmelem, feature_suffix):
+def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
     """Compute the version-related features of metadata and append them into
     the metadata table
 
@@ -451,7 +429,6 @@ def extract_user_metadata(osm_elements, chgset_md):
     
     """
     user_md = init_metadata(osm_elements, 'uid')
-
     # Change set-related features
     osm_elements = pd.merge(osm_elements, chgset_md[['chgset','Xclust']],
                             on='chgset')
@@ -468,65 +445,171 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = group_stats(user_md, chgset_md, 'uid', 'user_lastchgset_h',
                           't', '_between_chgsets_h')
     user_md = group_stats(user_md, chgset_md, 'uid', 'duration_m',
-                                    'd', '_chgset_insec')
-
-    # Update features
-    user_md = group_stats(user_md, osm_elements, 'uid', 'nextmodif_in',
-                              't', '_update_inhour')
-    osmelem_corr = osm_elements.query("willbe_corr")
-    user_md = group_count(user_md, osmelem_corr, 'uid', 'willbe_corr',
-                              '_corr')
-    osmelem_autocorr = osm_elements.query("willbe_autocorr")
-    user_md = group_count(user_md, osmelem_autocorr, 'uid',
-                              'willbe_autocorr', '_autocorr')
-
+                                    'd', '_chgset_m')
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
                       .reset_index())
     user_md = group_stats(user_md, contrib_byelem, 'uid', 'version',
                               'n', '_modif_byelem')
-
+    # Update features
+    user_md = group_stats(user_md, osm_elements, 'uid', 'nextmodif_in',
+                              't', '_update_d')
     # Modification-related features
-    user_md = group_count(user_md, osm_elements, 'uid', 'id', '_modif')
-    #
-    osmmodif_cr = osm_elements.query("init")        
-    osmmodif_cr_utd = osmmodif_cr.query("up_to_date")
-    user_md = group_count(user_md, osmmodif_cr_utd, 'uid', 'id',
-                              '_modif_crutd')
-    osmmodif_cr_mod = osmmodif_cr.query("not up_to_date and available")
-    user_md = group_count(user_md, osmmodif_cr_mod, 'uid', 'id',
-                              '_modif_crmod')
-    osmmodif_cr_del = osmmodif_cr.query("not up_to_date and not available")
-    user_md = group_count(user_md, osmmodif_cr_del, 'uid', 'id',
-                              '_modif_crdel')
-    #
-    osmmodif_del = osm_elements.query("not init and not visible")
-    osmmodif_del_utd = osmmodif_del.query("not available")
-    user_md = group_count(user_md, osmmodif_del_utd, 'uid', 'id',
-                              '_modif_delutd')
-    osmmodif_del_rebirth = osmmodif_del.query("available")
-    user_md = group_count(user_md, osmmodif_del_rebirth, 'uid', 'id',
-                              '_modif_delrebirth')
-    #
-    osmmodif_imp = osm_elements.query("not init and visible")
-    osmmodif_imp_utd = osmmodif_imp.query("up_to_date")
-    user_md = group_count(user_md, osmmodif_imp_utd, 'uid', 'id',
-                              '_modif_imputd')
-    osmmodif_imp_mod = osmmodif_imp.query("not up_to_date and available")
-    user_md = group_count(user_md, osmmodif_imp_mod, 'uid', 'id',
-                              '_modif_impmod')
-    osmmodif_imp_del = osmmodif_imp.query("not up_to_date and not available")
-    user_md = group_count(user_md, osmmodif_imp_del, 'uid', 'id',
-                              '_modif_impdel')
-    #
-    user_md = group_stats(user_md, osmmodif_del, 'uid', 'version',
-                              'v', '_modif_del')
-    user_md = group_stats(user_md, osmmodif_imp, 'uid', 'version',
-                              'v', '_modif_imp')
-
-    user_md = drop_features(user_md, '_elem')
+    user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
+    user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
+    user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
     return user_md
+
+def extract_modif_features(metadata, data, element_type, grp_feat):
+    """Extract a set of metadata features corresponding to a specific element
+    type; centered on modifications
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    data: pd.DataFrame
+        Original data
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user")
+    
+    """
+    typed_data = data.query('elem==@element_type')
+    metadata = create_count_features(metadata, element_type, typed_data,
+                               grp_feat, 'id', '')
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("init and up_to_date"),
+                               grp_feat, 'id', "_crutd")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("init and not up_to_date and available"),
+                               grp_feat, 'id', "_crmod")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("init and not up_to_date and not available"),
+                               grp_feat, 'id', "_crdel")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and visible and up_to_date"),
+                               grp_feat, 'id', "_imputd")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and visible and not up_to_date and available"),
+                               grp_feat, 'id', "_impmod")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and visible and not up_to_date and not available"),
+                               grp_feat, 'id', "_impdel")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and not visible and not available"),
+                               grp_feat, 'id', "_delutd")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and not visible and available"),
+                               grp_feat, 'id', "_delrebirth")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_corr"),
+                               grp_feat, 'willbe_corr', '_cor')
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_autocorr"),
+                               grp_feat, 'willbe_autocorr', '_autocor')
+    return metadata
+
+def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
+    """Create an additional feature to metadata by counting number of
+    occurrences in data, for a specific element_type
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    data: pd.DataFrame
+        Original data
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user") 
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    feature_suffix: type
+        description
+    
+    """
+    feature_name = 'n_'+ element_type + '_modif' + feature_suffix
+    newfeature = (data.groupby([grp_feat])[res_feat]
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, feature_name]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    return metadata
+
+def extract_element_features(metadata, data, element_type, grp_feat):
+    """Extract a set of metadata features corresponding to a specific element
+    type; centered on unique elements
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    data: pd.DataFrame
+        Original data
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user")
+    
+    """
+    typed_data = data.query('elem==@element_type')
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("init and not deletion and available"),
+                                      grp_feat, 'id', "_cr")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("init and not deletion and not available"),
+                               grp_feat, 'id', "_crwrong")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("improvement and not deletion and available"),
+                               grp_feat, 'id', "_imp")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("improvement and not deletion and not available"),
+                               grp_feat, 'id', "_impwrong")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("improvement and deletion and not available"),
+                               grp_feat, 'id', "_del")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("improvement and deletion and available"),
+                               grp_feat, 'id', "_delwrong")
+    return metadata
+
+def create_unique_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
+    """Create an additional feature to metadata by counting number of unique
+    occurrences in data, for a specific element_type
+    
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    data: pd.DataFrame
+        Original data
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user") 
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    feature_suffix: type
+        description
+    
+    """
+    feature_name = 'n_'+ element_type + feature_suffix
+    newfeature = (data.groupby([grp_feat])[res_feat]
+                  .nunique()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, feature_name]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    return metadata
 
 def extract_features(data, pattern):
     """Extract features from data that respect the given string pattern
