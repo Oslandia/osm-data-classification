@@ -290,7 +290,7 @@ class MetadataPCA(luigi.Task):
     def set_nb_dimensions(self, var_analysis):
         candidate_npc = 0
         for i in range(len(var_analysis)):
-            if var_analysis.iloc[i,0] < 1 or var_analysis.iloc[i,2] > 70:
+            if var_analysis.iloc[i,0] < 1 or var_analysis.iloc[i,2] > 80:
                 candidate_npc = i+1
                 break
         if candidate_npc < self.nb_mindimensions:
