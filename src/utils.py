@@ -615,7 +615,7 @@ def create_unique_features(metadata, element_type, data, grp_feat, res_feat, fea
     metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
     return metadata
 
-def extract_features(data, pattern):
+def extract_features(data, pattern, copy=True):
     """Extract features from data that respect the given string pattern
 
     Parameters
@@ -624,11 +624,17 @@ def extract_features(data, pattern):
     starting dataframe
     pattern: str
     character string that indicates which column has to be kept
+    copy: boolean
+    True if a copy of the data has to be returned, false otherwise
     """
-    return data[[col for col in data.columns
-                 if re.search(pattern, col) is not None]].copy()
+    if copy:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is not None]].copy()
+    else:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is not None]]
 
-def drop_features(data, pattern):
+def drop_features(data, pattern, copy=True):
     """Drop features from data that respect the given string pattern
 
     Parameters
