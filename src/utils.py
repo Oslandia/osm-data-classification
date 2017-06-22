@@ -514,6 +514,7 @@ def extract_modif_features(metadata, data, element_type, grp_feat):
     metadata = create_count_features(metadata, element_type,
                                typed_data.query("willbe_autocorr"),
                                grp_feat, 'willbe_autocorr', '_autocor')
+    normalize_features(metadata, 'n_'+element_type+'_modif')
     return metadata
 
 def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
@@ -636,6 +637,28 @@ def drop_features(data, pattern):
     starting dataframe
     pattern: str
     character string that indicates which column has to be dropped
+    copy: boolean
+    True if a copy of the data has to be returned, false otherwise
     """
-    return data[[col for col in data.columns
-                 if re.search(pattern, col) is None]].copy()
+    if copy:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is None]].copy()
+    else:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is None]]
+
+def normalize_features(metadata, total_column):
+    """Transform values of metadata located in cols columns into percentages of
+    values in total_column column, without attempting to metadata structure
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    total_column: object
+        String designing the reference column
+    
+    """
+    transformed_columns = metadata.columns[metadata.columns.to_series()
+                                           .str.contains(total_column)]
+    metadata[transformed_columns[1:]] = metadata[transformed_columns].apply(lambda x: (x[1:]/x[0]).fillna(0), axis=1)
