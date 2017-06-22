@@ -19,7 +19,7 @@ def updatedelem(data):
     ----------
     data: df
         OSM element timeline
-    
+
     """
     updata = data.groupby(['elem','id'])['version'].max().reset_index()
     return pd.merge(updata, data, on=['id','version'])
@@ -52,14 +52,14 @@ def osm_stats(osm_history, timestamp):
     timestamp: datetime
         date at which OSM elements are evaluated
     """
-    osmdata = datedelems(osm_history, timestamp)    
+    osmdata = datedelems(osm_history, timestamp)
 #    nb_nodes, nb_ways, nb_relations = list(osm_data.elem.value_counts())
     nb_nodes = len(osmdata.query('elem=="node"'))
     nb_ways = len(osmdata.query('elem=="way"'))
     nb_relations = len(osmdata.query('elem=="relation"'))
     nb_users = osmdata.uid.nunique()
     nb_chgsets = osmdata.chgset.nunique()
-    return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]    
+    return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]
 
 def osm_chronology(history, start_date, end_date=dt.datetime.now()):
     """Evaluate the chronological evolution of OSM element numbers
@@ -68,9 +68,9 @@ def osm_chronology(history, start_date, end_date=dt.datetime.now()):
     ----------
     history: df
         OSM element timeline
-    
+
     """
-    timerange = pd.date_range(start_date, end_date, freq="1M").values 
+    timerange = pd.date_range(start_date, end_date, freq="1M").values
     osmstats = [osm_stats(history, str(date)) for date in timerange]
     osmstats = pd.DataFrame(osmstats, index=timerange,
                             columns=['n_nodes', 'n_ways', 'n_relations',
@@ -96,7 +96,7 @@ def group_count(metadata, data, grp_feat, res_feat, namesuffix):
     to the criterion)
     namesuffix: object
         string that ends the new feature name
-    
+
     """
     md_ext = (data.groupby([grp_feat, 'elem'])[res_feat]
               .count()
@@ -197,7 +197,7 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     first_at (datetime) -- first timestamp
     last_at (datetime) -- last timestamp
     activity (int) -- activity (in 'timeunit' format)
-    
+
     """
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
@@ -223,7 +223,7 @@ def enrich_osm_elements(osm_elements):
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    
+
     """
     # Extract information from first and last versions
     osmelem_first_version = (osm_elements
@@ -283,7 +283,7 @@ def enrich_osm_elements(osm_elements):
     osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id.diff(-1)==0,
                                                      osm_elements.uid
                                                      .diff(-1)==0)
-    
+
     # Time before the next modification
     osm_elements['nextmodif_in'] = - osm_elements.ts.diff(-1)
     osm_elements.loc[osm_elements.up_to_date,['nextmodif_in']] = pd.NaT
@@ -303,7 +303,7 @@ def enrich_osm_elements(osm_elements):
                                                    other=pd.NaT))
 
     return osm_elements
-    
+
 def extract_elem_metadata(osm_elements):
     """ Extract element metadata from OSM history data
 
@@ -311,13 +311,13 @@ def extract_elem_metadata(osm_elements):
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    
+
     Return
     ------
     elem_md: pd.DataFrame
         Change set metadata with timestamp information, version-related features
     and number of unique change sets (resp. users)
-    
+
     """
     elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
     elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
@@ -350,13 +350,13 @@ def extract_chgset_metadata(osm_elements):
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    
+
     Return
     ------
     chgset_md: pd.DataFrame
         Change set metadata with timestamp information, user-related features
     and other features describing modification and OSM elements themselves
-    
+
     """
     chgset_md = init_metadata(osm_elements, 'chgset', 'duration_m', 'minute')
     # User-related features
@@ -412,7 +412,7 @@ def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
                               'v', '_way'+feature_suffix)
     metadata = group_stats(metadata, osmelem_relations, grp_feat, res_feat,
                               'v', '_relation'+feature_suffix)
-    return metadata    
+    return metadata
 
 def extract_user_metadata(osm_elements, chgset_md):
     """ Extract user metadata from OSM history data
@@ -423,13 +423,13 @@ def extract_user_metadata(osm_elements, chgset_md):
         OSM history data
     chgset_md: pd.DataFrame
         OSM change set metadata
-    
+
     Return
     ------
     user_md: pd.DataFrame
         User metadata with timestamp information, changeset-related features
     and other features describing modification and OSM elements themselves
-    
+
     """
     user_md = init_metadata(osm_elements, 'uid')
     # Change set-related features
@@ -479,7 +479,7 @@ def extract_modif_features(metadata, data, element_type, grp_feat):
     grp_feat: object
         string designing the grouping feature; it characterizes the metadata
     ("chgset", or "user")
-    
+
     """
     typed_data = data.query('elem==@element_type')
     metadata = create_count_features(metadata, element_type, typed_data,
@@ -530,12 +530,12 @@ def create_count_features(metadata, element_type, data, grp_feat, res_feat, feat
         Original data
     grp_feat: object
         string designing the grouping feature; it characterizes the metadata
-    ("chgset", or "user") 
+    ("chgset", or "user")
     res_feat: object
         string that indicates the measured feature (how many items correspond
     feature_suffix: type
         description
-    
+
     """
     feature_name = 'n_'+ element_type + '_modif' + feature_suffix
     newfeature = (data.groupby([grp_feat])[res_feat]
@@ -598,12 +598,12 @@ def create_unique_features(metadata, element_type, data, grp_feat, res_feat, fea
         Original data
     grp_feat: object
         string designing the grouping feature; it characterizes the metadata
-    ("chgset", or "user") 
+    ("chgset", or "user")
     res_feat: object
         string that indicates the measured feature (how many items correspond
     feature_suffix: type
         description
-    
+
     """
     feature_name = 'n_'+ element_type + feature_suffix
     newfeature = (data.groupby([grp_feat])[res_feat]
