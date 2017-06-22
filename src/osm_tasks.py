@@ -410,11 +410,9 @@ class ChgsetCluster(luigi.Task):
         chgset_kmeans = pd.read_hdf(inputpath, 'individuals')
         with self.input()['metadata'].open('r') as inputflow:
             chgset_md = pd.read_csv(inputflow, index_col=0)
-        print(chgset_md.shape)
         chgset_md = pd.merge(chgset_md,
                              chgset_kmeans.reset_index()[['chgset', 'Xclust']],
                              on='chgset')
-        print(chgset_md.shape)
         with self.output().open('w') as outputflow:
             chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
         
