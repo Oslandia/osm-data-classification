@@ -202,7 +202,7 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
-    metadata.columns = [init_feat, 'first_at', 'last_at']
+    metadata.columns = [*init_feat, 'first_at', 'last_at']
     metadata[duration_feat] = metadata.last_at - metadata.first_at
     if timeunit == 'second':
         metadata[duration_feat] = (metadata[duration_feat] /
@@ -358,7 +358,7 @@ def extract_chgset_metadata(osm_elements):
     and other features describing modification and OSM elements themselves
 
     """
-    chgset_md = init_metadata(osm_elements, 'chgset', 'duration_m', 'minute')
+    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute')
     # User-related features
     chgset_md = pd.merge(chgset_md,
                          osm_elements[['chgset','uid']].drop_duplicates(),
@@ -431,7 +431,7 @@ def extract_user_metadata(osm_elements, chgset_md):
     and other features describing modification and OSM elements themselves
 
     """
-    user_md = init_metadata(osm_elements, 'uid')
+    user_md = init_metadata(osm_elements, ['uid'])
     # Change set-related features
     osm_elements = pd.merge(osm_elements, chgset_md[['chgset','Xclust']],
                             on='chgset')
