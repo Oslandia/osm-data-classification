@@ -257,7 +257,7 @@ def enrich_osm_elements(osm_elements):
     osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
                             'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
                             'first_uid', 'vmax', 'last_uid', 'available',
-                            'deletion']
+                            'open']
 
     # New version-related features
     osm_elements['init'] = osm_elements.version == osm_elements.vmin
@@ -275,7 +275,7 @@ def enrich_osm_elements(osm_elements):
     osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
                             'uid', 'chgset', 'ntags', 'tagkeys',
                             'first_uid', 'vmax', 'last_uid', 'available',
-                            'deletion', 'init', 'up_to_date', 'improvement']
+                            'open', 'init', 'up_to_date', 'created']
 
     # Whether or not an element will be corrected in the last version
     osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
@@ -562,33 +562,36 @@ def extract_element_features(metadata, data, element_type, grp_feat):
     grp_feat: object
         string designing the grouping feature; it characterizes the metadata
     ("chgset", or "user")
-    
+
     """
     typed_data = data.query('elem==@element_type')
     metadata = create_unique_features(metadata, element_type,
-                               typed_data.query("init and not deletion and available"),
+                               typed_data.query("created and open"),
                                       grp_feat, 'id', "_cr")
     metadata = create_unique_features(metadata, element_type,
-                               typed_data.query("init and not deletion and not available"),
+                               typed_data.query("created and open and not available"),
                                grp_feat, 'id', "_crwrong")
+    normalize_features(metadata, 'n_'+element_type+'_cr')
     metadata = create_unique_features(metadata, element_type,
-                               typed_data.query("improvement and not deletion and available"),
+                               typed_data.query("not created and open"),
                                grp_feat, 'id', "_imp")
     metadata = create_unique_features(metadata, element_type,
-                               typed_data.query("improvement and not deletion and not available"),
-                               grp_feat, 'id', "_impwrong")
+                               typed_data.query("not created and open and not available"),
+                               grp_feat, 'id', "_impwrong") 
+    normalize_features(metadata, 'n_'+element_type+'_imp')
     metadata = create_unique_features(metadata, element_type,
-                               typed_data.query("improvement and deletion and not available"),
+                               typed_data.query("not created and not open"),
                                grp_feat, 'id', "_del")
     metadata = create_unique_features(metadata, element_type,
-                               typed_data.query("improvement and deletion and available"),
+                               typed_data.query("not created and not open and available"),
                                grp_feat, 'id', "_delwrong")
+    normalize_features(metadata, 'n_'+element_type+'_del')
     return metadata
 
 def create_unique_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
     """Create an additional feature to metadata by counting number of unique
     occurrences in data, for a specific element_type
-    
+
     Parameters
     ----------
     metadata: pd.DataFrame
