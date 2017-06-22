@@ -245,11 +245,37 @@ def enrich_osm_elements(osm_elements):
     osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
                             'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
                             'first_uid', 'vmax', 'last_uid', 'available']
+    osmelem_last_bychgset = (osm_elements
+                             .groupby(['elem','id','chgset'])['version',
+                                                              'visible']
+                             .last()
+                             .reset_index())
+    osm_elements = pd.merge(osm_elements,
+                            osmelem_last_bychgset[['elem', 'id',
+                                                   'chgset', 'visible']],
+                            on=['elem','id', 'chgset'])
+    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
+                            'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
+                            'first_uid', 'vmax', 'last_uid', 'available',
+                            'deletion']
 
     # New version-related features
     osm_elements['init'] = osm_elements.version == osm_elements.vmin
     osm_elements['up_to_date'] = osm_elements.version == osm_elements.vmax
     osm_elements = osm_elements.drop(['vmin'], axis=1)
+
+    osmelem_first_bychgset = (osm_elements
+                             .groupby(['elem','id','chgset'])['version', 'init']
+                             .first()
+                             .reset_index())
+    osm_elements = pd.merge(osm_elements,
+                            osmelem_first_bychgset[['elem', 'id',
+                                                    'chgset', 'init']],
+                            on=['elem','id','chgset'])
+    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
+                            'uid', 'chgset', 'ntags', 'tagkeys',
+                            'first_uid', 'vmax', 'last_uid', 'available',
+                            'deletion', 'init', 'up_to_date', 'improvement']
 
     # Whether or not an element will be corrected in the last version
     osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
