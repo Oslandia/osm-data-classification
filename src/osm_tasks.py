@@ -260,6 +260,11 @@ class UserMetadataExtract(luigi.Task):
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
+        inputpath = self.input()['chgset_kmeans'].path
+        chgset_kmeans = pd.read_hdf(inputpath, 'individuals')
+        chgset_md = pd.merge(chgset_md,
+                             chgset_kmeans.reset_index()[['chgset', 'Xclust']],
+                             on='chgset')
         user_md = utils.extract_user_metadata(osm_elements, chgset_md)
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
@@ -413,36 +418,6 @@ class MetadataKmeans(luigi.Task):
         path = self.output().path
         kmeans_ind.to_hdf(path, '/individuals')
         kmeans_centroids.to_hdf(path, '/centroids')        
-
-class ChgsetCluster(luigi.Task):
-    """Luigi task:
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-
-    def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-chgset-md.csv")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath())
-
-    def requires(self):
-        return {'metadata': ChangeSetMetadataExtract(self.datarep, self.dsname),
-                'kmeans': MetadataKmeans(self.datarep, self.dsname, "chgset",
-                                         3, 10)}
-
-    def run(self):
-        inputpath = self.input()['kmeans'].path
-        chgset_kmeans = pd.read_hdf(inputpath, 'individuals')
-        with self.input()['metadata'].open('r') as inputflow:
-            chgset_md = pd.read_csv(inputflow, index_col=0)
-        chgset_md = pd.merge(chgset_md,
-                             chgset_kmeans.reset_index()[['chgset', 'Xclust']],
-                             on='chgset')
-        with self.output().open('w') as outputflow:
-            chgset_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
-        
     
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
@@ -451,7 +426,6 @@ class MasterTask(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def requires(self):
-        yield UserMetadataExtract(self.datarep, self.dsname)
         yield ElementMetadataExtract(self.datarep, self.dsname)
         yield OSMTagMetaAnalysis(self.datarep, self.dsname)
         yield OSMChronology(self.datarep, self.dsname,
