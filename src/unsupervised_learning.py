@@ -55,7 +55,9 @@ def elbow_derivation(elbow, nbmin_clusters):
     return elbow_deriv
 
 def one_feature_contribution(component_detail):
-    """Describe and analyze the feature contribution to a component
+    """Describe and analyze the feature contribution to a component; select the
+    10 most important values (in absolute value) among component_detail and
+    sort them in descending order
 
     Parameters
     ----------
