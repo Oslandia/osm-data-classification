@@ -127,44 +127,46 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
     nb_vertical_plots = int(nb_components/nb_subplot_col)
     if nb_components%nb_subplot_col > 0:
         nb_vertical_plots = nb_vertical_plots + 1
-    blue, red, green = sns.color_palette()[:3]
+    blue, red, green, purple = sns.color_palette()[:4]
     f, ax = plt.subplots(nb_vertical_plots, nb_subplot_col, figsize=(16, 12))
     for i in range(nb_components):
         data = feature_contributions[i].sort_values()
         color_indices = split_md_features(data.index.values)
         bar_color = [sns.color_palette()[int(c)] for c in color_indices]
-        edge_indices = color_indices * 10
-        edge_indices[edge_indices > 9] = 0
-        bar_bordercolor = [sns.color_palette()[int(c)] for c in edge_indices]
-        bar_lw = np.repeat(0, len(data.index))
-        bar_lw[color_indices%1!=0] = 5
+        # edge_indices = color_indices * 10
+        # edge_indices[edge_indices > 9] = 0
+        # bar_bordercolor = [sns.color_palette()[int(c)] for c in edge_indices]
+        # bar_lw = np.repeat(0, len(data.index))
+        # bar_lw[color_indices%1!=0] = 5
         ax_ = ax[int(i/nb_subplot_col)][i%nb_subplot_col]
-        ax_.bar(np.arange(len(data)), data.values,
-                color=bar_color, edgecolor=bar_bordercolor, linewidth=bar_lw)
+        ax_.bar(np.arange(len(data)), data.values, color=bar_color)
+                # color=bar_color, edgecolor=bar_bordercolor, linewidth=bar_lw)
         ax_.axhline(0, color='k')
         ax_.set_ylim((-0.4,0.4))
         ax_.get_xaxis().set_visible(False)
         ax_.set_title(data.name)
         if i == 0:
+            red_patch = mpatches.Patch(color=red, label='Node feature')
+            green_patch = mpatches.Patch(color=green, label='Way feature')
+            purple_patch = mpatches.Patch(color=purple, label='Relation feature')
             blue_patch = mpatches.Patch(color=blue,
-                                        label='Contribution quantity feature')
-            red_patch = mpatches.Patch(color=red, label='Version feature')
-            green_patch = mpatches.Patch(color=green, label='Time feature')
-            first_legend = ax_.legend(handles=[blue_patch,
-                                               red_patch,
-                                               green_patch])
-        if i == 1:
-            greyborder_patch = mpatches.Patch(edgecolor='grey', facecolor=blue,
-                                              label='Node feature', lw=3)
-            redborder_patch = mpatches.Patch(edgecolor=red, facecolor=blue,
-                                             label='Way feature', lw=3)
-            greenborder_patch = mpatches.Patch(edgecolor=green,
-                                               facecolor=blue,
-                                               label='Relation feature',
-                                               lw=3)
-            ax_.legend(handles=[greyborder_patch,
-                                redborder_patch,
-                                greenborder_patch])
+                                        label='Other feature')
+            first_legend = ax_.legend(handles=[red_patch,
+                                               green_patch,
+                                               purple_patch,
+                                               blue_patch])
+        # if i == 1:
+        #     greyborder_patch = mpatches.Patch(edgecolor='grey', facecolor=blue,
+        #                                       label='Node feature', lw=3)
+        #     redborder_patch = mpatches.Patch(edgecolor=red, facecolor=blue,
+        #                                      label='Way feature', lw=3)
+        #     greenborder_patch = mpatches.Patch(edgecolor=green,
+        #                                        facecolor=blue,
+        #                                        label='Relation feature',
+        #                                        lw=3)
+        #     ax_.legend(handles=[greyborder_patch,
+        #                         redborder_patch,
+        #                         greenborder_patch])
     f.tight_layout()
     f.show()
 
@@ -180,19 +182,12 @@ def split_md_features(ft_names, element_type_splitting=True):
     element_type_splitting: boolean
         split the quantity features according to the element type if True
     """
-    quantity_indices = [re.search('^n[_m]', col) is not None for col in ft_names]
-    version_indices = [re.search('^v[_m]', col) is not None for col in ft_names]
-    time_indices = [re.search('^((activity)|([dt][_m]))', col) is not None
-                    for col in ft_names]
-    assert(sum(quantity_indices)+sum(version_indices)+sum(time_indices) ==
-           len(ft_names) )
-    synthesis = np.repeat(0.0, len(quantity_indices))
-    synthesis[version_indices] = 1.0
-    synthesis[time_indices] = 2.0
     node_indices = [re.search('_node', col) is not None for col in ft_names]
     way_indices = [re.search('_way', col) is not None for col in ft_names]
-    rel_indices = [re.search('_relation', col) is not None for col in ft_names]
-    synthesis[node_indices] = 0.1
-    synthesis[way_indices] = 0.2
-    synthesis[rel_indices] = 0.3
+    relation_indices = [re.search('_relation', col) is not None
+                    for col in ft_names]
+    synthesis = np.repeat(0, len(ft_names))
+    synthesis[node_indices] = 1
+    synthesis[way_indices] = 2
+    synthesis[relation_indices] = 3
     return synthesis
