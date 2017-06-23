@@ -315,7 +315,8 @@ class MetadataPCA(luigi.Task):
                 if pattern != self.features:
                     metadata = utils.drop_features(metadata, pattern)
         # Data normalization
-        X = RobustScaler().fit_transform(metadata.values)
+        scaler = RobustScaler(quantile_range=(5.0,95.0))
+        X = scaler.fit_transform(metadata.values)
         # Select the most appropriate dimension quantity
         var_analysis = ul.compute_pca_variance(X)
         # Run the PCA
