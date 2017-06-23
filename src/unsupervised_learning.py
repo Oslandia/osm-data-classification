@@ -190,7 +190,21 @@ def plot_feature_contribution_v2(feature_contributions, ylim=0.5, nb_subplot_col
     f.tight_layout()
     f.show()
 
+def plot_feature_contribution_v3(data):
+    """Plot feature contribution by using seaborn heatmap capability
 
+    Parameters
+    ----------
+    data: pd.DataFrame
+        data to plot: contributions to PCA components
+    
+    """
+    f, ax = plt.subplots(figsize=(10,12))
+    sns.heatmap(data, annot=True, fmt='.3f', ax=ax)
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.show()
+    
 def split_md_features(ft_names, element_type_splitting=True):
     """Split the metadata column into several types of features, e.g. quantity,
     version and time-related features, by returning a tuple of integer lists
