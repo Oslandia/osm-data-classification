@@ -479,35 +479,53 @@ def extract_modif_features(metadata, data, element_type, grp_feat):
     metadata = create_count_features(metadata, element_type, typed_data,
                                grp_feat, 'id', '')
     metadata = create_count_features(metadata, element_type,
-                               typed_data.query("init and up_to_date"),
-                               grp_feat, 'id', "_crutd")
+                               typed_data.query("init"),
+                               grp_feat, 'id', "_cr")
     metadata = create_count_features(metadata, element_type,
-                               typed_data.query("init and not up_to_date and available"),
-                               grp_feat, 'id', "_crmod")
+                               typed_data.query("not init and visible"),
+                               grp_feat, 'id', "_imp")
     metadata = create_count_features(metadata, element_type,
-                               typed_data.query("init and not up_to_date and not available"),
-                               grp_feat, 'id', "_crdel")
+                               typed_data.query("not init and not visible"),
+                               grp_feat, 'id', "_del")
     metadata = create_count_features(metadata, element_type,
-                               typed_data.query("not init and visible and up_to_date"),
-                               grp_feat, 'id', "_imputd")
-    metadata = create_count_features(metadata, element_type,
-                               typed_data.query("not init and visible and not up_to_date and available"),
-                               grp_feat, 'id', "_impmod")
-    metadata = create_count_features(metadata, element_type,
-                               typed_data.query("not init and visible and not up_to_date and not available"),
-                               grp_feat, 'id', "_impdel")
-    metadata = create_count_features(metadata, element_type,
-                               typed_data.query("not init and not visible and not available"),
-                               grp_feat, 'id', "_delutd")
-    metadata = create_count_features(metadata, element_type,
-                               typed_data.query("not init and not visible and available"),
-                               grp_feat, 'id', "_delrebirth")
+                               typed_data.query("up_to_date"),
+                               grp_feat, 'id', "_utd")
     metadata = create_count_features(metadata, element_type,
                                typed_data.query("willbe_corr"),
-                               grp_feat, 'willbe_corr', '_cor')
+                               grp_feat, 'id', "_cor")
     metadata = create_count_features(metadata, element_type,
                                typed_data.query("willbe_autocorr"),
-                               grp_feat, 'willbe_autocorr', '_autocor')
+                               grp_feat, 'id', "_autocor")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("init and up_to_date"),
+    #                            grp_feat, 'id', "_crutd")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("init and not up_to_date and available"),
+    #                            grp_feat, 'id', "_crmod")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("init and not up_to_date and not available"),
+    #                            grp_feat, 'id', "_crdel")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("not init and visible and up_to_date"),
+    #                            grp_feat, 'id', "_imputd")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("not init and visible and not up_to_date and available"),
+    #                            grp_feat, 'id', "_impmod")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("not init and visible and not up_to_date and not available"),
+    #                            grp_feat, 'id', "_impdel")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("not init and not visible and not available"),
+    #                            grp_feat, 'id', "_delutd")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("not init and not visible and available"),
+    #                            grp_feat, 'id', "_delrebirth")
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("willbe_corr"),
+    #                            grp_feat, 'willbe_corr', '_cor')
+    # metadata = create_count_features(metadata, element_type,
+    #                            typed_data.query("willbe_autocorr"),
+    #                            grp_feat, 'willbe_autocorr', '_autocor')
     normalize_features(metadata, 'n_'+element_type+'_modif')
     return metadata
 
