@@ -296,7 +296,7 @@ class MetadataPCA(luigi.Task):
         else:
             raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
         
-    def set_nb_dimensions(self, var_analysis):
+    def compute_nb_dimensions(self, var_analysis):
         """Return a number of components that is supposed to be optimal,
         regarding the variance matrix (low eigenvalues, sufficient explained
         variance threshold); if
@@ -381,7 +381,7 @@ class MetadataKmeans(luigi.Task):
         return MetadataPCA(self.datarep, self.dsname,
                            self.metadata_type, self.select_param_mode)
 
-    def set_nb_clusters(self, Xpca):
+    def compute_nb_clusters(self, Xpca):
         """Compute kmeans for each cluster number (until nbmax_clusters+1) to
         find the optimal number of clusters; if
         self.select_param_mode=="manual", the user must enter its preferred
