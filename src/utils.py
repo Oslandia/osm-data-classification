@@ -453,6 +453,8 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
+    logtransform_feature(user_md, 'n_chgset')
+    logtransform_feature(user_md, 'nmean_modif_byelem')
     logtransform_feature(user_md, 'n_node_modif')
     logtransform_feature(user_md, 'n_way_modif')
     logtransform_feature(user_md, 'n_relation_modif')
