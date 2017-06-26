@@ -294,7 +294,7 @@ class MetadataPCA(luigi.Task):
         elif self.metadata_type == "user":
             return UserMetadataExtract(self.datarep, self.dsname)
         else:
-            raise Exception()
+            raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
         
     def set_nb_dimensions(self, var_analysis):
         """Return a number of components that is supposed to be optimal,
