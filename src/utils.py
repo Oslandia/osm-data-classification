@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from datetime import timedelta
 import re
+import math
 
 ### OSM data exploration ######################
 def updatedelem(data):
@@ -19,7 +20,7 @@ def updatedelem(data):
     ----------
     data: df
         OSM element timeline
-    
+
     """
     updata = data.groupby(['elem','id'])['version'].max().reset_index()
     return pd.merge(updata, data, on=['id','version'])
@@ -52,14 +53,14 @@ def osm_stats(osm_history, timestamp):
     timestamp: datetime
         date at which OSM elements are evaluated
     """
-    osmdata = datedelems(osm_history, timestamp)    
+    osmdata = datedelems(osm_history, timestamp)
 #    nb_nodes, nb_ways, nb_relations = list(osm_data.elem.value_counts())
     nb_nodes = len(osmdata.query('elem=="node"'))
     nb_ways = len(osmdata.query('elem=="way"'))
     nb_relations = len(osmdata.query('elem=="relation"'))
     nb_users = osmdata.uid.nunique()
     nb_chgsets = osmdata.chgset.nunique()
-    return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]    
+    return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]
 
 def osm_chronology(history, start_date, end_date=dt.datetime.now()):
     """Evaluate the chronological evolution of OSM element numbers
@@ -68,9 +69,9 @@ def osm_chronology(history, start_date, end_date=dt.datetime.now()):
     ----------
     history: df
         OSM element timeline
-    
+
     """
-    timerange = pd.date_range(start_date, end_date, freq="1M").values 
+    timerange = pd.date_range(start_date, end_date, freq="1M").values
     osmstats = [osm_stats(history, str(date)) for date in timerange]
     osmstats = pd.DataFrame(osmstats, index=timerange,
                             columns=['n_nodes', 'n_ways', 'n_relations',
@@ -96,7 +97,7 @@ def group_count(metadata, data, grp_feat, res_feat, namesuffix):
     to the criterion)
     namesuffix: object
         string that ends the new feature name
-    
+
     """
     md_ext = (data.groupby([grp_feat, 'elem'])[res_feat]
               .count()
@@ -143,7 +144,7 @@ def group_nunique(metadata, data, grp_feat, res_feat, namesuffix):
 
 def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     """Group-by 'data' by 'grp_feat' and element type features, compute basic
-    statistic features (min, median, max) corresponding to each
+    statistic features (first and ninth deciles) corresponding to each
     grp_feat-elemtype tuples and merge them into metadata table
 
     Parameters
@@ -163,12 +164,12 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
         string that ends the new feature name
 
     """
-    md_ext = (data.groupby(grp_feat)[res_feat].agg({'min': "min",
-                                                    'med': "median",
-                                                    'max': "max"}).reset_index())
-    # md_ext.med = md_ext.med.astype(int)
-    md_ext = md_ext[[grp_feat, 'min', 'med', 'max']]
-    colnames = [nameprefix + op + namesuffix for op in md_ext.columns.values[1:]]
+    md_ext = (data.groupby(grp_feat)[res_feat]
+              .quantile(q=[0.1,0.9])
+              .unstack()
+              .reset_index())
+    colnames = [nameprefix + str(int(100*op)) + namesuffix
+                 for op in md_ext.columns.values[1:]]
     md_ext.columns = [grp_feat, *colnames]
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
@@ -197,11 +198,12 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     first_at (datetime) -- first timestamp
     last_at (datetime) -- last timestamp
     activity (int) -- activity (in 'timeunit' format)
-    
+
     """
     metadata = (osm_elements.groupby(init_feat)['ts']
-                .agg({'first_at':"min", 'last_at':"max"})
+                .agg(["min", "max"])
                 .reset_index())
+    metadata.columns = [*init_feat, 'first_at', 'last_at']
     metadata[duration_feat] = metadata.last_at - metadata.first_at
     if timeunit == 'second':
         metadata[duration_feat] = (metadata[duration_feat] /
@@ -222,7 +224,7 @@ def enrich_osm_elements(osm_elements):
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    
+
     """
     # Extract information from first and last versions
     osmelem_first_version = (osm_elements
@@ -244,19 +246,42 @@ def enrich_osm_elements(osm_elements):
     osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
                             'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
                             'first_uid', 'vmax', 'last_uid', 'available']
+    osmelem_last_bychgset = (osm_elements
+                             .groupby(['elem','id','chgset'])['version',
+                                                              'visible']
+                             .last()
+                             .reset_index())
+    osm_elements = pd.merge(osm_elements,
+                            osmelem_last_bychgset[['elem', 'id',
+                                                   'chgset', 'visible']],
+                            on=['elem','id', 'chgset'])
+    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
+                            'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
+                            'first_uid', 'vmax', 'last_uid', 'available',
+                            'open']
 
     # New version-related features
     osm_elements['init'] = osm_elements.version == osm_elements.vmin
     osm_elements['up_to_date'] = osm_elements.version == osm_elements.vmax
     osm_elements = osm_elements.drop(['vmin'], axis=1)
 
+    osmelem_first_bychgset = (osm_elements
+                             .groupby(['elem','id','chgset'])['version', 'init']
+                             .first()
+                             .reset_index())
+    osm_elements = pd.merge(osm_elements,
+                            osmelem_first_bychgset[['elem', 'id',
+                                                    'chgset', 'init']],
+                            on=['elem','id','chgset'])
+    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
+                            'uid', 'chgset', 'ntags', 'tagkeys',
+                            'first_uid', 'vmax', 'last_uid', 'available',
+                            'open', 'init', 'up_to_date', 'created']
+
     # Whether or not an element will be corrected in the last version
-    osm_elements['willbe_corr'] = np.logical_and(osm_elements.id
-                                                 .diff(-1)==0,
-                                              osm_elements.uid
-                                                 .diff(-1)!=0)        
-    osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id
-                                                     .diff(-1)==0,
+    osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
+                                              osm_elements.uid.diff(-1)!=0)
+    osm_elements['willbe_autocorr'] = np.logical_and(osm_elements.id.diff(-1)==0,
                                                      osm_elements.uid
                                                      .diff(-1)==0)
 
@@ -264,7 +289,7 @@ def enrich_osm_elements(osm_elements):
     osm_elements['nextmodif_in'] = - osm_elements.ts.diff(-1)
     osm_elements.loc[osm_elements.up_to_date,['nextmodif_in']] = pd.NaT
     osm_elements.nextmodif_in = (osm_elements.nextmodif_in
-                                 .astype('timedelta64[h]'))
+                                 .astype('timedelta64[D]'))
 
     # Time before the next modification, if it is done by another user
     osm_elements['nextcorr_in'] = osm_elements.nextmodif_in
@@ -279,7 +304,7 @@ def enrich_osm_elements(osm_elements):
                                                    other=pd.NaT))
 
     return osm_elements
-    
+
 def extract_elem_metadata(osm_elements):
     """ Extract element metadata from OSM history data
 
@@ -287,13 +312,13 @@ def extract_elem_metadata(osm_elements):
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    
+
     Return
     ------
     elem_md: pd.DataFrame
         Change set metadata with timestamp information, version-related features
     and number of unique change sets (resp. users)
-    
+
     """
     elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
     elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
@@ -326,16 +351,15 @@ def extract_chgset_metadata(osm_elements):
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    
+
     Return
     ------
     chgset_md: pd.DataFrame
         Change set metadata with timestamp information, user-related features
     and other features describing modification and OSM elements themselves
-    
-    """
-    chgset_md = init_metadata(osm_elements, 'chgset', 'duration_m', 'minute')
 
+    """
+    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute')
     # User-related features
     chgset_md = pd.merge(chgset_md,
                          osm_elements[['chgset','uid']].drop_duplicates(),
@@ -344,35 +368,52 @@ def extract_chgset_metadata(osm_elements):
                                       .diff())
     chgset_md.user_lastchgset_h = (chgset_md.user_lastchgset_h /
                                    timedelta(hours=1))
-
-    # Modification-related features
-    chgset_md = group_count(chgset_md, osm_elements, 'chgset', 'id', '_modif')
-    osmmodif_cr = osm_elements.query("init")        
-    chgset_md = group_count(chgset_md, osmmodif_cr, 'chgset', 'id', '_modif_cr')
-    osmmodif_del = osm_elements.query("not init and not visible")
-    chgset_md = group_count(chgset_md, osmmodif_del, 'chgset', 'id',
-                            '_modif_del')
-    osmmodif_imp = osm_elements.query("not init and visible")
-    chgset_md = group_count(chgset_md, osmmodif_imp, 'chgset', 'id',
-                            '_modif_imp')
-
+    chgset_md['user_chgset_rank'] = chgset_md.groupby('uid')['first_at'].rank()
+    # Update features
+    chgset_md = group_stats(chgset_md, osm_elements, 'chgset', 'nextmodif_in',
+                              't', '_update_d')
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'chgset'])['version']
                       .count()
                       .reset_index())
     chgset_md = group_stats(chgset_md, contrib_byelem, 'chgset', 'version',
-                            'n', '_modif_byelem')
-
+                              'n', '_modif_byelem')
     # Element-related features
-    chgset_md = group_nunique(chgset_md, osm_elements, 'chgset', 'id', '')        
-    osmelem_cr = osm_elements.query("init and available")
-    chgset_md = group_nunique(chgset_md, osmelem_cr, 'chgset', 'id', '_cr')
-    osmelem_imp = osm_elements.query("not init and visible and available")
-    chgset_md = group_nunique(chgset_md, osmelem_imp, 'chgset', 'id', '_imp')
-    osmelem_del = osm_elements.query("not init and not visible and not available")
-    chgset_md = group_nunique(chgset_md, osmelem_del, 'chgset', 'id', '_del')
-
+    chgset_md = extract_element_features(chgset_md, osm_elements,
+                                       'node', 'chgset')
+    chgset_md = extract_element_features(chgset_md, osm_elements,
+                                       'way', 'chgset')
+    chgset_md = extract_element_features(chgset_md, osm_elements,
+                                       'relation', 'chgset')
     return chgset_md
+
+def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
+    """Compute the version-related features of metadata and append them into
+    the metadata table
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table to complete
+    osmelem: pd.DataFrame
+        original data used to compute versions; contains a 'elem' feature
+    grp_feat: object
+        string that indicates which feature from 'data' must be used to group items
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    feature_suffix: str
+        string designing the end of the new feature names
+    """
+    osmelem_nodes = osmelem.query('elem=="node"')
+    osmelem_ways = osmelem.query('elem=="way"')
+    osmelem_relations = osmelem.query('elem=="relation"')
+    metadata = group_stats(metadata, osmelem_nodes, grp_feat, res_feat,
+                              'v', '_node'+feature_suffix)
+    metadata = group_stats(metadata, osmelem_ways, grp_feat, res_feat,
+                              'v', '_way'+feature_suffix)
+    metadata = group_stats(metadata, osmelem_relations, grp_feat, res_feat,
+                              'v', '_relation'+feature_suffix)
+    return metadata
 
 def extract_user_metadata(osm_elements, chgset_md):
     """ Extract user metadata from OSM history data
@@ -383,126 +424,185 @@ def extract_user_metadata(osm_elements, chgset_md):
         OSM history data
     chgset_md: pd.DataFrame
         OSM change set metadata
-    
+
     Return
     ------
     user_md: pd.DataFrame
         User metadata with timestamp information, changeset-related features
     and other features describing modification and OSM elements themselves
-    
+
     """
-    user_md = init_metadata(osm_elements, 'uid')
-
+    user_md = init_metadata(osm_elements, ['uid'])
     # Change set-related features
-    user_md['n_chgset'] = (osm_elements.groupby('uid')['chgset']
-                           .nunique()
+    osm_elements = pd.merge(osm_elements, chgset_md[['chgset','Xclust']],
+                            on='chgset')
+    user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
+                           .count()
                            .reset_index())['chgset']
-    user_md = group_stats(user_md, chgset_md, 'uid', 'user_lastchgset_h',
-                          't', '_between_chgsets_h')
-    user_md = group_stats(user_md, chgset_md, 'uid', 'duration_m',
-                                    'd', '_chgset_insec')
-    user_md = group_stats(user_md, chgset_md, 'uid', 'n_elem_modif',
-                              'n', '_modif_bychgset')
-    user_md = group_stats(user_md, chgset_md, 'uid', 'n_elem',
-                              'n', '_elem_bychgset')
-
-    # Update features
-    user_md = group_stats(user_md, osm_elements, 'uid', 'nextmodif_in',
-                              't', '_update_inhour')
-    osmelem_corr = osm_elements.query("willbe_corr")
-    user_md = group_stats(user_md, osmelem_corr, 'uid', 'nextcorr_in',
-                              't', '_corr_h')
-    user_md = group_count(user_md, osmelem_corr, 'uid', 'willbe_corr',
-                              '_corr')
-    osmelem_autocorr = osm_elements.query("willbe_autocorr")
-    user_md = group_stats(user_md, osmelem_autocorr, 'uid',
-                              'nextauto_in', 't', '_autocorr_h')
-    user_md = group_count(user_md, osmelem_autocorr, 'uid',
-                              'willbe_autocorr', '_autocorr')
-
-    # Modification-related features
-    user_md = group_count(user_md, osm_elements, 'uid', 'id', '_modif')
-    #
-    osmmodif_cr = osm_elements.query("init")        
-    user_md = group_count(user_md, osmmodif_cr, 'uid', 'id',
-                              '_modif_cr')
-    osmmodif_cr_utd = osmmodif_cr.query("up_to_date")
-    user_md = group_count(user_md, osmmodif_cr_utd, 'uid', 'id',
-                              '_modif_crutd')
-    osmmodif_cr_mod = osmmodif_cr.query("not up_to_date and available")
-    user_md = group_count(user_md, osmmodif_cr_mod, 'uid', 'id',
-                              '_modif_crmod')
-    osmmodif_cr_del = osmmodif_cr.query("not up_to_date and not available")
-    user_md = group_count(user_md, osmmodif_cr_del, 'uid', 'id',
-                              '_modif_crdel')
-    #
-    osmmodif_del = osm_elements.query("not init and not visible")
-    user_md = group_count(user_md, osmmodif_del, 'uid', 'id',
-                              '_modif_del')
-    osmmodif_del_utd = osmmodif_del.query("not available")
-    user_md = group_count(user_md, osmmodif_del_utd, 'uid', 'id',
-                              '_modif_delutd')
-    osmmodif_del_rebirth = osmmodif_del.query("available")
-    user_md = group_count(user_md, osmmodif_del_rebirth, 'uid', 'id',
-                              '_modif_delrebirth')
-    user_md = group_stats(user_md, osmmodif_del, 'uid', 'version',
-                              'v', '_modif_del')
-    #
-    osmmodif_imp = osm_elements.query("not init and visible")
-    user_md = group_count(user_md, osmmodif_imp, 'uid', 'id',
-                              '_modif_imp')
-    osmmodif_imp_utd = osmmodif_imp.query("up_to_date")
-    user_md = group_count(user_md, osmmodif_imp_utd, 'uid', 'id',
-                              '_modif_imputd')
-    osmmodif_imp_mod = osmmodif_imp.query("not up_to_date and available")
-    user_md = group_count(user_md, osmmodif_imp_mod, 'uid', 'id',
-                              '_modif_impmod')
-    osmmodif_imp_del = osmmodif_imp.query("not up_to_date and not available")
-    user_md = group_count(user_md, osmmodif_imp_del, 'uid', 'id',
-                              '_modif_impdel')
-    user_md = group_stats(user_md, osmmodif_imp, 'uid', 'version',
-                              'v', '_modif_imp')
-
+    user_md['dmean_chgset_m'] = (chgset_md.groupby('uid')['duration_m']
+                                    .mean()
+                                 .reset_index())['duration_m']
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
                       .reset_index())
-    user_md = group_stats(user_md, contrib_byelem, 'uid', 'version',
-                              'n', '_modif_byelem')
-    user_md = group_count(user_md, contrib_byelem.query("version==1"),
-                              'uid', 'id', '_with_1_contrib')
-
-    # User-related features
-    user_md = group_nunique(user_md, osm_elements, 'uid', 'id', '')
-    osmelem_cr = osm_elements.query("init and available")
-    user_md = group_nunique(user_md, osmelem_cr, 'uid', 'id', '_cr')
-    user_md = group_stats(user_md, osmelem_cr, 'uid', 'vmax',
-                              'v', '_cr')
-    osmelem_cr_wrong = osm_elements.query("init and not available")
-    user_md = group_nunique(user_md, osmelem_cr_wrong, 'uid', 'id',
-                                '_cr_wrong')
-    user_md = group_stats(user_md, osmelem_cr_wrong, 'uid', 'vmax',
-                              'v', '_cr_wrong')
-    osmelem_imp = osm_elements.query("not init and visible and available")
-    user_md = group_nunique(user_md, osmelem_imp, 'uid', 'id', '_imp')
-    user_md = group_stats(user_md, osmelem_imp, 'uid', 'vmax',
-                              'v', '_imp')
-    osmelem_imp_wrong = osm_elements.query("not init and visible and not available")
-    user_md = group_nunique(user_md, osmelem_imp_wrong, 'uid', 'id', '_imp_wrong')
-    user_md = group_stats(user_md, osmelem_imp_wrong, 'uid', 'vmax',
-                              'v', '_imp_wrong')
-    osmelem_del = osm_elements.query("not init and not visible and not available")
-    user_md = group_nunique(user_md, osmelem_del, 'uid', 'id', '_del')
-    user_md = group_stats(user_md, osmelem_del, 'uid', 'vmax',
-                              'v', '_del')
-    osmelem_del_wrong = osm_elements.query("not init and not visible and available")
-    user_md = group_nunique(user_md, osmelem_del_wrong, 'uid', 'id', '_del_wrong')
-    user_md = group_stats(user_md, osmelem_del_wrong, 'uid', 'vmax',
-                              'v', '_del_wrong')
-
+    user_md['nmean_modif_byelem'] = (contrib_byelem.groupby('uid')['version']
+                                    .mean()
+                                     .reset_index())['version']
+    # Modification-related features
+    user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
+    user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
+    user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
+    logtransform_feature(user_md, 'n_chgset')
+    logtransform_feature(user_md, 'nmean_modif_byelem')
+    logtransform_feature(user_md, 'n_node_modif')
+    logtransform_feature(user_md, 'n_way_modif')
+    logtransform_feature(user_md, 'n_relation_modif')
     return user_md
 
-def extract_features(data, pattern):
+def extract_modif_features(metadata, data, element_type, grp_feat):
+    """Extract a set of metadata features corresponding to a specific element
+    type; centered on modifications
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    data: pd.DataFrame
+        Original data
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user")
+
+    """
+    typed_data = data.query('elem==@element_type')
+    metadata = create_count_features(metadata, element_type, typed_data,
+                               grp_feat, 'id', '')
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("init"),
+                               grp_feat, 'id', "_cr")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and visible"),
+                               grp_feat, 'id', "_imp")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and not visible"),
+                               grp_feat, 'id', "_del")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("up_to_date"),
+                               grp_feat, 'id', "_utd")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_corr"),
+                               grp_feat, 'id', "_cor")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_autocorr"),
+                               grp_feat, 'id', "_autocor")
+    normalize_features(metadata, 'n_'+element_type+'_modif')
+    return metadata
+
+def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
+    """Create an additional feature to metadata by counting number of
+    occurrences in data, for a specific element_type
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    data: pd.DataFrame
+        Original data
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user")
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    feature_suffix: type
+        description
+
+    """
+    feature_name = 'n_'+ element_type + '_modif' + feature_suffix
+    newfeature = (data.groupby([grp_feat])[res_feat]
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, feature_name]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    return metadata
+
+def extract_element_features(metadata, data, element_type, grp_feat):
+    """Extract a set of metadata features corresponding to a specific element
+    type; centered on unique elements
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    data: pd.DataFrame
+        Original data
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user")
+
+    """
+    typed_data = data.query('elem==@element_type')
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("created and open"),
+                                      grp_feat, 'id', "_cr")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("created and open and not available"),
+                               grp_feat, 'id', "_crwrong")
+    normalize_features(metadata, 'n_'+element_type+'_cr')
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("not created and open"),
+                               grp_feat, 'id', "_imp")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("not created and open and not available"),
+                               grp_feat, 'id', "_impwrong") 
+    normalize_features(metadata, 'n_'+element_type+'_imp')
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("not created and not open"),
+                               grp_feat, 'id', "_del")
+    metadata = create_unique_features(metadata, element_type,
+                               typed_data.query("not created and not open and available"),
+                               grp_feat, 'id', "_delwrong")
+    normalize_features(metadata, 'n_'+element_type+'_del')
+    return metadata
+
+def create_unique_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
+    """Create an additional feature to metadata by counting number of unique
+    occurrences in data, for a specific element_type
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    element_type: object
+        string designing the element type ("node", "way", or "relation")
+    data: pd.DataFrame
+        Original data
+    grp_feat: object
+        string designing the grouping feature; it characterizes the metadata
+    ("chgset", or "user")
+    res_feat: object
+        string that indicates the measured feature (how many items correspond
+    feature_suffix: type
+        description
+
+    """
+    feature_name = 'n_'+ element_type + feature_suffix
+    newfeature = (data.groupby([grp_feat])[res_feat]
+                  .nunique()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, feature_name]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    return metadata
+
+def extract_features(data, pattern, copy=True):
     """Extract features from data that respect the given string pattern
 
     Parameters
@@ -511,11 +611,17 @@ def extract_features(data, pattern):
     starting dataframe
     pattern: str
     character string that indicates which column has to be kept
+    copy: boolean
+    True if a copy of the data has to be returned, false otherwise
     """
-    return data[[col for col in data.columns
-                 if re.search(pattern, col) is not None]].copy()
+    if copy:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is not None]].copy()
+    else:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is not None]]
 
-def drop_features(data, pattern):
+def drop_features(data, pattern, copy=True):
     """Drop features from data that respect the given string pattern
 
     Parameters
@@ -524,6 +630,42 @@ def drop_features(data, pattern):
     starting dataframe
     pattern: str
     character string that indicates which column has to be dropped
+    copy: boolean
+    True if a copy of the data has to be returned, false otherwise
     """
-    return data[[col for col in data.columns
-                 if re.search(pattern, col) is None]].copy()
+    if copy:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is None]].copy()
+    else:
+        return data[[col for col in data.columns
+                     if re.search(pattern, col) is None]]
+
+def normalize_features(metadata, total_column):
+    """Transform values of metadata located in cols columns into percentages of
+    values in total_column column, without attempting to metadata structure
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table
+    total_column: object
+        String designing the reference column
+    
+    """
+    transformed_columns = metadata.columns[metadata.columns.to_series()
+                                           .str.contains(total_column)]
+    metadata[transformed_columns[1:]] = metadata[transformed_columns].apply(lambda x: (x[1:]/x[0]).fillna(0), axis=1)
+
+def logtransform_feature(metadata, column):
+    """Apply a logarithm transformation to the column within
+    metadata with; to avoid NaN, the applied operation is f:x->log(1+x)
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata
+    column: object
+        string designing the name of the column to transform
+    
+    """
+    metadata[column] = metadata[column].apply(lambda x: math.log(1+x))

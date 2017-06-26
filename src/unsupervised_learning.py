@@ -34,6 +34,30 @@ def compute_pca_variance(X):
                            'cumvar': cumvarexp})[['eig','varexp','cumvar']]
     return varmat
 
+def plot_pca_variance(varmat):
+    """Plot the PCA variance analysis: cumulated sum of explained variance as
+    well as eigenvalues
+
+    Parameters
+    ----------
+    varmat: pd.DataFrame
+        PCA variance analysis results; contains three columns ('eig', 'varexp'
+    and 'cumvar')
+    
+    """
+    f, ax = plt.subplots(2,1)
+    ax[0].bar(range(1,1+len(varmat)), varmat['varexp'].values, alpha=0.25, 
+            align='center', label='individual explained variance', color = 'g')
+    ax[0].step(range(1,1+len(varmat)), varmat['cumvar'].values, where='mid',
+             label='cumulative explained variance')
+    ax[0].axhline(70, color="blue", linestyle="dotted")
+    ax[0].legend(loc='best')
+    ax[1].bar(range(1,1+len(varmat)), varmat['eig'].values, alpha=0.25,
+              align='center', label='eigenvalues', color='r')
+    ax[1].axhline(1, color="red", linestyle="dotted")
+    ax[1].legend(loc="best")
+    f.show()
+
 def elbow_derivation(elbow, nbmin_clusters):
     """Compute a proxy of the elbow function derivative to automatically
     extract the optimal number of cluster; this number must be higher that nbmin_clusters
@@ -87,7 +111,7 @@ def feature_contribution(pca_features):
         best_contributions.append(one_feature_contribution(pca_features[col]))
     return best_contributions
 
-def plot_feature_contribution(feature_contributions, nb_subplot_col=2):
+def plot_feature_contribution(feature_contributions, ylim=0.5, nb_subplot_col=2):
     """Plot the most important feature contributions for each PCA component;
     the chosen format is barplot, with 5 most positive and 5 most
     negative contributors (horizontal barplot with named labels)
@@ -108,13 +132,13 @@ def plot_feature_contribution(feature_contributions, nb_subplot_col=2):
         ax_ = ax[int(i/nb_subplot_col)][i%nb_subplot_col]
         ax_.barh(np.arange(len(data)), data.values, tick_label=data.index)
         ax_.axvline(0, color='k')
-        ax_.set_xlim((-0.4,0.4))
+        ax_.set_xlim((-ylim, ylim))
         ax_.set_title(data.name)
     f.tight_layout()
     f.show()
 
 
-def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
+def plot_feature_contribution_v2(feature_contributions, ylim=0.5, nb_subplot_col=2):
     """Plot the most important feature contributions for each PCA component;
     the chosen format is barplot, with 5 most positive and 5 most
     negative contributors (vertical coloured barplots)
@@ -144,7 +168,7 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
         ax_.bar(np.arange(len(data)), data.values, color=bar_color)
                 # color=bar_color, edgecolor=bar_bordercolor, linewidth=bar_lw)
         ax_.axhline(0, color='k')
-        ax_.set_ylim((-0.4,0.4))
+        ax_.set_ylim((-ylim, ylim))
         ax_.get_xaxis().set_visible(False)
         ax_.set_title(data.name)
         if i == 0:
@@ -157,22 +181,30 @@ def plot_feature_contribution_v2(feature_contributions, nb_subplot_col=2):
                                                green_patch,
                                                purple_patch,
                                                blue_patch])
-        # if i == 1:
-        #     greyborder_patch = mpatches.Patch(edgecolor='grey', facecolor=blue,
-        #                                       label='Node feature', lw=3)
-        #     redborder_patch = mpatches.Patch(edgecolor=red, facecolor=blue,
-        #                                      label='Way feature', lw=3)
-        #     greenborder_patch = mpatches.Patch(edgecolor=green,
-        #                                        facecolor=blue,
-        #                                        label='Relation feature',
-        #                                        lw=3)
-        #     ax_.legend(handles=[greyborder_patch,
-        #                         redborder_patch,
-        #                         greenborder_patch])
+                                        label='Contribution quantity feature')
+            red_patch = mpatches.Patch(color=red, label='Version feature')
+            green_patch = mpatches.Patch(color=green, label='Time feature')
+            first_legend = ax_.legend(handles=[blue_patch,
+                                               red_patch,
+                                               green_patch])
     f.tight_layout()
     f.show()
 
+def plot_feature_contribution_v3(data):
+    """Plot feature contribution by using seaborn heatmap capability
 
+    Parameters
+    ----------
+    data: pd.DataFrame
+        data to plot: contributions to PCA components
+    
+    """
+    f, ax = plt.subplots(figsize=(10,12))
+    sns.heatmap(data, annot=True, fmt='.3f', ax=ax)
+    plt.yticks(rotation=0)
+    plt.tight_layout()
+    plt.show()
+    
 def split_md_features(ft_names, element_type_splitting=True):
     """Split the metadata column into several types of features, e.g. quantity,
     version and time-related features, by returning a tuple of integer lists
