@@ -436,29 +436,15 @@ def extract_user_metadata(osm_elements, chgset_md):
     # Change set-related features
     osm_elements = pd.merge(osm_elements, chgset_md[['chgset','Xclust']],
                             on='chgset')
-    n_chgset_bycluster = (osm_elements.groupby(['uid', 'Xclust'])['chgset']
-                          .nunique()
-                          .unstack()
-                          .reset_index()
-                          .fillna(0))
-    n_chgset_bycluster.columns = ['uid',
-                                  *['n_chgset_c'+str(i)
-                                    for i in range(1+max(chgset_md.Xclust))]]
-    user_md = (pd.merge(user_md, n_chgset_bycluster, on='uid', how="outer")
-               .fillna(0))
-    user_md = group_stats(user_md, chgset_md, 'uid', 'user_lastchgset_h',
-                          't', '_between_chgsets_h')
-    user_md = group_stats(user_md, chgset_md, 'uid', 'duration_m',
-                                    'd', '_chgset_m')
+    user_md['n_chgset'] = chgset_md.groupby('uid')['uid'].count()
+    user_md['dmean_chgset_m'] = (chgset_md.groupby('uid')['duration_m']
+                                    .mean())
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
                       .reset_index())
-    user_md = group_stats(user_md, contrib_byelem, 'uid', 'version',
-                              'n', '_modif_byelem')
-    # Update features
-    user_md = group_stats(user_md, osm_elements, 'uid', 'nextmodif_in',
-                              't', '_update_d')
+    user_md['nmean_modif_byelem'] = (contrib_byelem.groupby('uid')['version']
+                                    .mean())
     # Modification-related features
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
