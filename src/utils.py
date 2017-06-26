@@ -10,6 +10,7 @@ import pandas as pd
 import numpy as np
 from datetime import timedelta
 import re
+import math
 
 ### OSM data exploration ######################
 def updatedelem(data):
@@ -462,6 +463,9 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
+    logtransform_feature(user_md, 'n_node_modif')
+    logtransform_feature(user_md, 'n_way_modif')
+    logtransform_feature(user_md, 'n_relation_modif')
     return user_md
 
 def extract_modif_features(metadata, data, element_type, grp_feat):
@@ -671,3 +675,17 @@ def normalize_features(metadata, total_column):
     transformed_columns = metadata.columns[metadata.columns.to_series()
                                            .str.contains(total_column)]
     metadata[transformed_columns[1:]] = metadata[transformed_columns].apply(lambda x: (x[1:]/x[0]).fillna(0), axis=1)
+
+def logtransform_feature(metadata, column):
+    """Apply a logarithm transformation to the column within
+    metadata with; to avoid NaN, the applied operation is f:x->log(1+x)
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata
+    column: object
+        string designing the name of the column to transform
+    
+    """
+    metadata[column] = metadata[column].apply(lambda x: math.log(1+x))
