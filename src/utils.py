@@ -436,15 +436,19 @@ def extract_user_metadata(osm_elements, chgset_md):
     # Change set-related features
     osm_elements = pd.merge(osm_elements, chgset_md[['chgset','Xclust']],
                             on='chgset')
-    user_md['n_chgset'] = chgset_md.groupby('uid')['uid'].count()
+    user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
+                           .count()
+                           .reset_index())['chgset']
     user_md['dmean_chgset_m'] = (chgset_md.groupby('uid')['duration_m']
-                                    .mean())
+                                    .mean()
+                                 .reset_index())['duration_m']
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
                       .reset_index())
     user_md['nmean_modif_byelem'] = (contrib_byelem.groupby('uid')['version']
-                                    .mean())
+                                    .mean()
+                                     .reset_index())['version']
     # Modification-related features
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
