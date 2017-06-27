@@ -181,12 +181,6 @@ def plot_feature_contribution_v2(feature_contributions, ylim=0.5, nb_subplot_col
                                                green_patch,
                                                purple_patch,
                                                blue_patch])
-                                        label='Contribution quantity feature')
-            red_patch = mpatches.Patch(color=red, label='Version feature')
-            green_patch = mpatches.Patch(color=green, label='Time feature')
-            first_legend = ax_.legend(handles=[blue_patch,
-                                               red_patch,
-                                               green_patch])
     f.tight_layout()
     f.show()
 
