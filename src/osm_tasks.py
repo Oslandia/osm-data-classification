@@ -341,7 +341,7 @@ class MetadataPCA(luigi.Task):
         # Select the most appropriate dimension quantity
         var_analysis = ul.compute_pca_variance(X)
         # Run the PCA
-        npc = self.set_nb_dimensions(var_analysis)
+        npc = self.compute_nb_dimensions(var_analysis)
         pca = PCA(n_components=npc)
         Xpca = pca.fit_transform(X)
         pca_cols = ['PC' + str(i+1) for i in range(npc)]
@@ -405,7 +405,7 @@ class MetadataKmeans(luigi.Task):
     def run(self):
         inputpath = self.input().path
         pca_ind  = pd.read_hdf(inputpath, 'individuals')
-        kmeans = KMeans(n_clusters=self.set_nb_clusters(pca_ind.values),
+        kmeans = KMeans(n_clusters=self.compute_nb_clusters(pca_ind.values),
                         n_init=100, max_iter=1000)
         kmeans_ind = pca_ind.copy()
         kmeans_ind['Xclust'] = kmeans.fit_predict(pca_ind.values)
