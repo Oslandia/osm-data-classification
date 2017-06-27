@@ -322,10 +322,8 @@ def extract_elem_metadata(osm_elements):
     """
     elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
     elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
-                       .max()
-                       .reset_index())['version']
-    elem_md = pd.merge(elem_md, osm_elements[['elem','id','version','visible']],
-                       on=['elem', 'id', 'version'])
+                          .max()
+                          .reset_index())['version']
     elem_md['n_chgset'] = (osm_elements.groupby(['elem', 'id'])['chgset']
                            .nunique()
                            .reset_index())['chgset']
@@ -342,6 +340,10 @@ def extract_elem_metadata(osm_elements):
                              .sum()
                              .reset_index()['willbe_corr']
                              .astype('int'))
+    elem_md = pd.merge(elem_md, osm_elements[['elem', 'id',
+                                              'version', 'visible',
+                                              'ntags', 'tagkeys']],
+                       on=['elem', 'id', 'version'])
     return elem_md
 
 def extract_chgset_metadata(osm_elements):
