@@ -253,7 +253,6 @@ class OSMTagMetaAnalysis(luigi.Task):
         yield OSMTagValue(self.datarep, self.dsname)
         yield OSMTagValueFreq(self.datarep, self.dsname)
 
-
 class OSMElementEnrichment(luigi.Task):
     """ Luigi task: building of new features for OSM element history
     """
@@ -526,7 +525,6 @@ class MasterTask(luigi.Task):
 
     def requires(self):
         yield ElementMetadataExtract(self.datarep, self.dsname)
-        yield OSMTagMetaAnalysis(self.datarep, self.dsname)
         yield OSMChronology(self.datarep, self.dsname,
                             '2006-01-01', '2017-06-01')
         yield MetadataKmeans(self.datarep, self.dsname, "user", "manual", 3, 10)
