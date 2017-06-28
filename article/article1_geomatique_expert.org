@@ -243,17 +243,32 @@ article).
 This operation can be done through a simple Python file (see snippets below).
 
 #+BEGIN_SRC ipython :session osm :exports both
-  import osmium as osm import pandas as pd
+  import osmium as osm
+  import pandas as pd
 
-  class TimelineHandler(osm.SimpleHandler): 
+  class TimelineHandler(osm.SimpleHandler):
       def __init__(self):
           osm.SimpleHandler.__init__(self)
           self.elemtimeline = []
 
-      def node(self, n): 
-          self.elemtimeline.append(["node", n.id, n.version,n.visible, 
-                                    pd.Timestamp(n.timestamp), n.uid, 
-                                    n.changeset, len(n.tags)])
+      def element(self, e, elem_type):
+          self.elemtimeline.append([elem_type,
+                                    e.id,
+                                    e.version,
+                                    e.visible,
+                                    pd.Timestamp(e.timestamp),
+                                    e.uid,
+                                    e.changeset,
+                                    len(e.tags)])
+
+      def node(self, n):
+          self.element(n, "node")
+
+      def way(self, w):
+          self.element(w, "way")
+
+      def relation(self, r):
+          self.element(r, "relation")
 #+END_SRC
 
 #+RESULTS:
@@ -277,25 +292,38 @@ DataFrame, to make further treatments easier.
 
 #+BEGIN_SRC ipython :session osm :exports both
   tlhandler = TimelineHandler()
-  tlhandler.apply_file("../src/data/raw/bordeaux-metropole.osh.pbf") colnames =
-  ['type', 'id', 'version', 'visible', 'ts', 'uid', 'chgset', 'ntags'] elements
-  = pd.DataFrame(tlhandler.elemtimeline, columns=colnames) elements =
-  elements.sort_values(by=['type', 'id', 'ts']) elements.head(10)
+  tlhandler.apply_file("../src/data/raw/bordeaux-metropole.osh.pbf")
+  colnames = ['type', 'id', 'version', 'visible', 'ts', 'uid', 'chgset', 'ntags']
+  elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
+  elements = elements.sort_values(by=['type', 'id', 'ts'])
+  elements.head(10)
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
-   type id version visible ts uid chgset \ 0 node 21457126 2 False 2008-01-17
-16:40:56+00:00 24281 653744 1 node 21457126 3 False 2008-01-17 16:40:56+00:00
-24281 653744 2 node 21457126 4 False 2008-01-17 16:40:56+00:00 24281 653744 3
-node 21457126 5 False 2008-01-17 16:40:57+00:00 24281 653744 4 node 21457126 6
-False 2008-01-17 16:40:57+00:00 24281 653744 5 node 21457126 7 True 2008-01-17
-16:40:57+00:00 24281 653744 6 node 21457126 8 False 2008-01-17 16:41:28+00:00
-24281 653744 7 node 21457126 9 False 2008-01-17 16:41:28+00:00 24281 653744 8
-node 21457126 10 False 2008-01-17 16:41:49+00:00 24281 653744 9 node 21457126
-11 False 2008-01-17 16:41:49+00:00 24281 653744
+   type        id  version  visible                        ts    uid  chgset  \
+0  node  21457126        2    False 2008-01-17 16:40:56+00:00  24281  653744   
+1  node  21457126        3    False 2008-01-17 16:40:56+00:00  24281  653744   
+2  node  21457126        4    False 2008-01-17 16:40:56+00:00  24281  653744   
+3  node  21457126        5    False 2008-01-17 16:40:57+00:00  24281  653744   
+4  node  21457126        6    False 2008-01-17 16:40:57+00:00  24281  653744   
+5  node  21457126        7     True 2008-01-17 16:40:57+00:00  24281  653744   
+6  node  21457126        8    False 2008-01-17 16:41:28+00:00  24281  653744   
+7  node  21457126        9    False 2008-01-17 16:41:28+00:00  24281  653744   
+8  node  21457126       10    False 2008-01-17 16:41:49+00:00  24281  653744   
+9  node  21457126       11    False 2008-01-17 16:41:49+00:00  24281  653744   
 
-   ntags 0 0 1 0 2 0 3 0 4 0 5 1 6 0 7 0 8 0 9 0
+   ntags  
+0      0  
+1      0  
+2      0  
+3      0  
+4      0  
+5      1  
+6      0  
+7      0  
+8      0  
+9      0  
 #+end_example
 
 With the help of pandas library, to save the file into /csv/ format is
@@ -318,11 +346,12 @@ needed is to select the up-to-date OSM objects, /i.e./ those with the last
 existing version, through a =group-by= operation.
 
 #+BEGIN_SRC ipython :session osm :exports both
-  def updatedelem(data): updata =
-      data.groupby(['type','id'])['version'].max().reset_index() return
-      pd.merge(updata, data, on=['id','version']) uptodate_elem =
-      updatedelem(elements) uptodate_elem.head()
+  def updatedelem(data):
+      updata = data.groupby(['type','id'])['version'].max().reset_index()
+      return pd.merge(updata, data, on=['id','version'])
 #+END_SRC
+
+#+RESULTS:
 
 This seem to be a quite useless function: we could have found directly such
 data on GeoFabrik website, isn't it? ... Well, it is not that useless. As an
@@ -331,23 +360,15 @@ called =datedelems= that allows us to get the OSM API picture given a specific
 date:
 
 #+BEGIN_SRC ipython :session osm :exports both
-  def datedelems(history, date): datedelems = (history.query("ts <= @date")
-      .groupby(['type','id'])['version'] .max() .reset_index()) return
-      pd.merge(datedelems, history, on=['type','id','version'])
-
-  oldelem = datedelems(elements, "2008-02-01") oldelem.head()
+  def datedelems(history, date): 
+      datedelems = (history.query("ts <= @date")
+                    .groupby(['type','id'])['version']
+                    .max()
+                    .reset_index())
+      return pd.merge(datedelems, history, on=['type','id','version'])
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-   type id version visible ts uid chgset \ 0 node 21457126 48 False 2008-01-17
-16:42:01+00:00 24281 653744 1 node 21457144 9 False 2008-01-17 16:45:43+00:00
-24281 653744 2 node 21457152 6 True 2008-01-17 16:45:39+00:00 24281 653744 3
-node 21457164 5 False 2008-01-17 16:48:00+00:00 24281 653744 4 node 21457175 4
-False 2008-01-17 16:47:51+00:00 24281 653744
-
-   ntags 0 0 1 0 2 1 3 0 4 0
-#+end_example
 
 We can notice in this function that pandas allows to express queries in a
 SQL-like mode, a very useful practice in order to explore data!
@@ -364,22 +385,17 @@ how many user have contributed, how many change sets have been opened. Further
 statistics may be designed, in the same manner.
 
 #+BEGIN_SRC ipython :session osm :exports both
-  def osm_stats(osm_history, timestamp): osmdata = datedelems(osm_history,
-      timestamp) nb_nodes = len(osmdata.query('type == "node"')) nb_ways =
-      len(osmdata.query('type == "way"')) nb_relations =
-      len(osmdata.query('type == "relation"')) nb_users = osmdata.uid.nunique()
-      nb_chgsets = osmdata.chgset.nunique() return [nb_nodes, nb_ways,
-      nb_relations, nb_users, nb_chgsets]
-
-  osm_stats(elements, "2014-01-01")
+  def osm_stats(osm_history, timestamp): 
+      osmdata = datedelems(osm_history, timestamp)
+      nb_nodes = len(osmdata.query('type == "node"'))
+      nb_ways = len(osmdata.query('type == "way"'))
+      nb_relations = len(osmdata.query('type == "relation"'))
+      nb_users = osmdata.uid.nunique()
+      nb_chgsets = osmdata.chgset.nunique()
+      return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]
 #+END_SRC
 
 #+RESULTS:
-| 2166480 | 0 | 0 | 528 | 9345 |
-
-Here we do not get any way or relation, that seems weird, doesn't it? However,
-do not forget how the parser was configured above ! By tuning it so as to
-consider these OSM element types, this result is modified.
 
 By designing a last function, we can obtain a pandas dataframe that summarizes
 basic statistics at regular timestamps: in this example, we focus on monthly
@@ -387,11 +403,13 @@ evaluations, however everything is possible... A finner analysis is possible,
 by taking advantage of pandas time series capabilities.
 
 #+BEGIN_SRC ipython :session osm :exports both
-  def osm_chronology(history, start_date, end_date): timerange =
-      pd.date_range(start_date, end_date, freq="1M").values osmstats =
-      [osm_stats(history, str(date)) for date in timerange] osmstats =
-      pd.DataFrame(osmstats, index=timerange, columns=['n_nodes', 'n_ways',
-      'n_relations', 'n_users', 'n_chgsets']) return osmstats
+  def osm_chronology(history, start_date, end_date, frequency="1M"):
+      timerange = pd.date_range(start_date, end_date, freq=frequency).values
+      osmstats = [osm_stats(history, str(date)) for date in timerange]
+      osmstats = pd.DataFrame(osmstats, index=timerange,
+                              columns=['n_nodes', 'n_ways', 'n_relations',
+                                       'n_users', 'n_chgsets'])
+      return osmstats
 #+END_SRC
 
 #+RESULTS:
@@ -408,24 +426,23 @@ To illustrate the previous points, we can call the =osm_chronology= procedure
 to Bordeaux-related OSM data. We can study the last 10 years, as an example:
 
 #+BEGIN_SRC ipython :session osm :exports both
-  chrono_data = osm_chronology(elements, "2007-01-01", "2017-01-01")
-#+END_SRC
-
-#+RESULTS:
-
-#+BEGIN_SRC ipython :session osm :exports both
-  pd.concat([chrono_data.iloc[:10,[0,3,4]], chrono_data.iloc[-10:,[0,3,4]]])
+  osm_chronology(elements, "2007-01-01", "2017-01-01", "AS")  
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
-            n_nodes n_users n_chgsets 2007-01-31 24 1 2 2007-02-28 24 1 2
-2007-03-31 45 3 4 2007-04-30 45 3 4 2007-05-31 1744 4 8 2007-06-30 1744 4 8
-2007-07-31 1744 4 8 2007-08-31 3181 6 12 2007-09-30 3186 7 15 2007-10-31 3757 8
-18 2016-03-31 2315763 882 15280 2016-04-30 2318044 900 15468 2016-05-31 2321910
-918 15841 2016-06-30 2325689 931 16153 2016-07-31 2329592 942 16613 2016-08-31
-2334206 955 16835 2016-09-30 2337157 973 17005 2016-10-31 2339526 1004 17462
-2016-11-30 2342109 1014 17637 2016-12-31 2349670 1028 17933
+            n_nodes  n_ways  n_relations  n_users  n_chgsets
+2007-01-01        0       0            0        0          0
+2008-01-01     4083     431            2       15         31
+2009-01-01    76614   12429          129       85        778
+2010-01-01   101978   15515          254      185       2005
+2011-01-01   250197   40896          583      261       4212
+2012-01-01   605777  104406          678      335       5482
+2013-01-01  1761636  321662         1628      468       8353
+2014-01-01  2166480  379577         3136      638      11121
+2015-01-01  2269981  390201         4593      780      14452
+2016-01-01  2302798  394903         5030      981      17379
+2017-01-01  2349684  402942         5309     1203      21435
 #+end_example
 
 The figure below describes the evolution of nodes, ways and relations around
@@ -446,15 +463,14 @@ entities.
 [[./../figs/bordeaux-metropole-chronology-logscale.png]]
 
 As a remark, the number of active contributor plotted here is not really
-representative of the total of OSM contributors: we consider only local data
-here. Active users all around the world are not those who have collaborated for
-this specific region. However the change set and user statistics for
-full-planet dumps exist, if you are interested in going deeper about this
-point!
+representative of the total quantity of OSM contributors: we consider only
+local data here. Active users all around the world are not those who have
+collaborated for this specific region. These statistics are available by
+exploiting the full-planet data set.
 
 ** Opening case study: comparing several french areas
 
-Before concluding this article, here is provided a comparison between OSM node
+Before concluding, here is provided a comparison between OSM node
 amounts in several french areas. We just mention small areas, to keep the
 evaluation short: Upper Normandy, a roughly rural environment with some
 medium-sized cities (Rouen, Le Havre, Evreux...), Corsica, an montainous island
@@ -475,15 +491,7 @@ dense on OSM. This area contains almost 700 nodes per square kilometer (quite
 modest, however we talk about a rural area!). We can notice that they are
 almost the same number of contributors between Normandy and Corsica. On the
 other hand, French Guiana is an extrem example, as expected! There are less
-than 15 nodes and 0.01 contributor per square kilometer. We have identified a
-OSM desert, [[https://www.openstreetmap.org/#map=8/4.072/-52.844 ][welcome to
-the Guiana jungle]] ! (You can act on it: be environment-friendly,
-[[http://wiki.openstreetmap.org/wiki/How_to_contribute][plant some more
-trees]]!)
-
-
-==================
-
+than 15 nodes and 0.01 contributor per square kilometer.
 
 * Conclusion
 
