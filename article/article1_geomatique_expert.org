@@ -1,21 +1,22 @@
-#+TITLE: Extract and exploit OSM data from scratch: a data-oriented analyze (part 1)
+#+TITLE: A data-oriented framework to assess OSM data quality (part 1): data extraction and description
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>, Hugo Mercier <hugo.mercier@oslandia.com>
 
 * Introduction
 
-At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool projects and handling Open
-(geospatial) Data. In this article, we will play with [[https://www.openstreetmap.org/][OpenStreetMap]] (/OSM/) and
-the subsequent data.
+At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool
+projects and handling Open (geospatial) Data. In this article, we will play
+with [[https://www.openstreetmap.org/][OpenStreetMap]] (/OSM/) and the
+subsequent data.
 
 Here comes a first article dedicated to the presentation of our working
-framework, as well as to the presentation of some basic OSM data features: the
-chronological evolution of OSM API and the tag set structure.
+framework, as well as to the presentation of some basic OSM data features
+through the chronological evolution of OSM API.
 
-As the reader should know, [[https://www.openstreetmap.org][OpenStreetMap]] is a project which creates and
-distributes free geographical data for the world. Like Wikipedia, it's a
-community of people who can create and update some content available for
-everyone. Thus, anyone can edit buildings, roads, places or even trees and
-mailboxes!
+As the reader should know, [[https://www.openstreetmap.org][OpenStreetMap]] is
+a project which creates and distributes free geographical data for the
+world. Like Wikipedia, it's a community of people who can create and update
+some content available for everyone. Thus, anyone can edit buildings, roads,
+places or even trees and mailboxes!
 
 Working with community-built data forces to take care of data quality. We have
 to be confident with the data we work with. Is this road geometry accurate
@@ -30,13 +31,11 @@ the purpose of this paper.
 In this first article, we will present what we mean by /data quality/, in the
 context of Geospatial systems. Then we will continue by some methodology
 elements: the Python framework useful to exploit OSM data will be
-introduced. After that a first set of OSM data will be described: the
-chronological evolution of OSM data will be assessed, and a very important
-feature of OSM API, *i.e* the tag set associated to OSM elements, will be
-highlighted.
+introduced. After that a first OSM data set will be described to illustrate the
+parsing process. In a last section the chronological evolution of OSM data will
+be assessed to complete the OSM data description.
 
-* What do we mean by "data quality"
-
+* State of the art
 ** Geospatial data quality components
 
 Van Oort (2006) defines several spatial data quality criteria:
@@ -91,154 +90,9 @@ some of quality attributes mentionned above. See also the Wikipedia notice
 about the [[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]] which lists several tools to supervise the OSM
 data construction.
 
-* A Python framework to exploit OSM Data
-
-In this project, we have used our favourite data handling tool, namely Python
-with its pandas and numpy packages. That is quite sufficient to download and
-manage data sets in a Python framework, however we still misses a methodology
-layer!
-
-** Python is your friend, Luigi your plumber
-
-In this way, we will use [[https://luigi.readthedocs.io/en/stable/][Luigi]], which is another Python package dedicated to
-job pipeline building. As we can read in the Luigi documentation, this tool
-allows us to manage every tasks and organize them all together, by clarifying
-the dependencies.
-
-A quick benchmark about existing Luigi utilizations shows that machine learning
-applications are extremely compatible with this package. That is particularly
-true if we consider Map/Reduce frameworks. Here we will demonstrate that Luigi
-keeps its interest in our case, with a slightly different usage.
-
-** What are the main tasks in our workflow?
-
-We organize the analysis of OSM data quality in three main task categories,
-that we will describe as follows. Some of these tasks will be developped in
-subsequent blog articles.
-
-*** OSM Data Parsing
-
-The first task of the data analysis is the parsing process. We start from files
-in a typical OSM file format, with the *.pbf* extension. After this step we
-obtain classic *.csv* files, considering that we might have in-base data as
-well.
-
-Here are some example of Luigi tasks in this way:
-
-- parse the OSM tags (keys and values)
-- parse the OSM entities (nodes, ways, relations)
-- parse the OSM users directly from the contributions
-
-*** OSM Metadata Building
-
-If we focus on the first previous example, the OSM entity parsing, we get the
-history of each OSM elements. These elements are *nodes*, characterized by
-geographical coordinates /(lat,lon)/, *ways*, characterized by a set of nodes,
-and *relations*, characterized a set of members (members being nodes, ways and
-others relations).
-
-Each of these elements are created (that's quite obvious!), and may be modified
-or even deleted in the OSM API. These modifications are done within *change
-sets* by OSM *contributors*. We then may identify typical Luigi tasks :
-
-- extract the OSM changeset metadata (timestamps, number of done
-  modifications...)
-- extract the OSM user metadata (timestamps, number of opened change sets,
-  number of modifications...)
-- extract the OSM element metadata (date of creation, number of versions...)
-
-*** OSM Metadata Analysis
-
-A last major part of the analysis concerns the metadata analysis: these data
-are extremely useful in the quality evaluation: we hypothesize that knowing the
-way each user contributes to the API gives an information on his ability to do
-it properly. In the end, knowing that expert users have contributed to an
-element will let us think that this element is of good quality.
-
-Here we develop a more machine-learning-focused framework to exploit the data,
-as illustrates by the following tasks:
-
-- prepare the data
-- reduce dimensionality through a Principle Component Analysis
-- classify the users with the help of the k-means algorithm
-
-This set of tasks will be the topic of interest in the *sixth and seventh
-articles*.
-
-** Outline of the project: characterize OSM data quality
-
-To summarize all these points, we have designed a complete framework and made
-it effective by the way of the Luigi package. It can be illustrate by the
-following figure, obtained with the help of the Luigi daemon, which permits to
-explore the task pipeline graphically as well as to explore their
-accomplishment degree while running.
-
-#+CAPTION: Example of Luigi dependency graph
-#+NAME: fig:luigi-dep-graph
-[[./../figs/luigi_dependency_graph_example.png]]
-
-We can identify some of previously mentionned tasks in this graph:
-
-- =OSMHistoryParsing= and =OSMTagParsing= are sources, these tasks provide
-  initial data sets by using =pyosmium= capacities.
-- =OSMElementEnrichment= is an intermediary task in which additional features
-  are merged to OSM history data
-- These additional features are used in every subsequent tasks:
-  =OSMTagMetaAnalysis=, =ElementMetadataExtract=, =ChangeSetMetadataExtract=
-  and =UserMetadataExtract=. The former task ends tag analysis, while the
-  latter ones generate metadata from OSM history.
-- =MasterTask= is an abstract task that yields each final tasks. Its completion
-  equals to the success of the pipelined procedure.
-
-In this example we do not have put other tasks in the pipeline (*e.g.*
-machine-learning procedures to classify users), however they can be integrated
-in the framework with a minimal effort.
-
-
-* OSM data extraction
-
-** From the OSM history dumps to usable data sets
-
-Extracting OSM data is a simple but complex task.
-
-+ simple because you just have to download the history dump in /.pbf/ ([[https://developers.google.com/protocol-buffers/][Protocol
-  Buffer]]) or /.osh/ formats from [[https://planet.openstreetmap.org/][Planet
-  OSM website]] (/.osm/ format refers to latest data, whereas /.osh/ refers to
-  history data).
-+ complex because when you want to extract data, it can be a long and tedious
-  task.
-
-For the whole planet, the /.pdf/ file format is quite big: ~57Go. Note that the
-/.xml/ file is compressed with =bzip2=. It can be long (+36 hours) and take
-some place (1TB) if you uncompress it (see more on
-[[https://wiki.openstreetmap.org/wiki/Planet.osm/full#Data_Format][OSM wiki]]).
-
-The challenge here is to pass from these native format to in-base data or
-/.csv/ files. Several tools exist to accomplish this effort:
-[[https://github.com/openstreetmap/osm2pgsql][osm2pgsql]],
-[[https://github.com/openstreetmap/osmosis][osmosis]],
-[[https://github.com/osmcode/osmium-tool][osmium-tool]] or
-[[https://github.com/osmcode/libosmium][osmium]]. We propose here to use the
-latter, and its dedicated [[http://docs.osmcode.org/pyosmium/v2.11.0/][Python
-library]]. This Python extension can be installed through =apt-get=:
-
-#+BEGIN_SRC bash
-sudo apt-get install python-pyosmium
-#+END_SRC
-
-...or via /pip/:
-
-#+BEGIN_SRC bash
-pip install pyosmium
-#+END_SRC
-
 ** What sort of data are behind the OpenStreetMap API?
 
-[[http://docs.osmcode.org/pyosmium/v2.11.0/][Pyosmium documentation]] is a rich
-source of information in order to understand the /pyosmium/ library
-functioning. Several features can be identified within the OSM data.
-
-Within the OSM API, a set of OSM seminal entities can be easily identified:
+Within the OSM API, a set of seminal entities can be easily identified:
 
 - nodes, characterized by geographical coordinates;
 - ways, characterized by a list of nodes;
@@ -251,8 +105,8 @@ limited amount of time.
 
 Each of these OSM objects are characterized by a set of common attributes, that
 are IDs, timestamps, visible flags /(is the object still visible on the API?)/,
-user IDs, or lists of tags /(a tag being the association between a key and a
-value)/.
+user IDs, or lists of tags (a tag being the association between a key and a
+value).
 
 Starting from these OSM elements, we can straightforwardly answer typical
 questions as:
@@ -265,27 +119,88 @@ questions as:
 Considering the history of OSM data makes the data set even more complete: it
 allows us to study the temporal evolution of the API.
 
+* A Python framework to exploit OSM Data
+
+Our analysis is mainly based on Python capability. It must be recalled here
+that this programming language permits to extract OSM data, to analyze them
+conveniently as well as to organize all the workflow, through its different
+packages.
+
+** From the OSM history dumps to usable data sets
+
+Extracting OSM data is:
+
++ simple because you just have to download the history dump in /.pbf/ ([[https://developers.google.com/protocol-buffers/][Protocol
+  Buffer]]) or /.osh/ formats from [[https://planet.openstreetmap.org/][Planet OSM website]] (/.osm/ format refers to
+  latest data, whereas /.osh/ refers to history data).
++ complex because when you want to extract alternative data, it can be a long
+  and tedious task.
+
+The challenge here is to pass from these native formats to in-base data or
+/.csv/ files. Several tools exist to accomplish this effort, we detail two of
+them here.
+
+When working with /.pbf/ files, we propose here to use the =pyosmium=, a
+dedicated [[http://docs.osmcode.org/pyosmium/v2.11.0/][Python library]]. These files are freely available on [[http://download.geofabrik.de/][Geofabrik]] (/e.g./
+a [[http://download.geofabrik.de/europe.html][continent]], a [[http://download.geofabrik.de/europe/france.html][country]], or even a [[http://download.geofabrik.de/europe/france/aquitaine.html][sub-region]]) in /osm/ or /osh/ version (/i.e./
+up-to-date API or history). For the whole planet, the /.pbf/ file is quite big:
+~57Go. Note that the /.xml/ file is compressed with =bzip2=. It can be long
+(+36 hours) and take some place (1TB) if you uncompress it.
+
+If we want to extract another free area, [[http://osmcode.org/osmium-tool/][osmium-tool]] is a serious option in
+order to create our own /.pbf/ file. It is available as a package in the Debian
+GNU/Linux distribution. The next section show an example of utilization, to get
+OSM data around Bordeaux, France.
+
+** Python is your friend, Luigi your plumber
+
+In addition to =pyosmium= and to classic data-oriented Python packages (/e.g./
+=numpy= and =pandas=), we use [[https://luigi.readthedocs.io/en/stable/][Luigi]], which is dedicated to job pipeline
+building. This tool allows to manage every tasks and organize them all
+together, by clarifying the dependencies.
+
+A quick benchmark about existing Luigi utilizations shows that machine learning
+applications are extremely compatible with this package. That is particularly
+true if we consider Map/Reduce frameworks. Here we will demonstrate that Luigi
+keeps its interest in our case, with a slightly different usage.
+
+Here our workflow can be illustrated by the following figure, obtained with the help
+of the Luigi daemon. It permits to explore the task pipeline graphically as
+well as to explore their accomplishment degree while running.
+
+#+CAPTION: Example of Luigi dependency graph
+#+NAME: fig:luigi-dep-graph
+[[./../figs/luigi_dependency_graph_example.png]]
+
+We can identify some example of tasks in this graph:
+
+- =OSMHistoryParsing= and =OSMTagParsing= are sources, these parsing tasks
+  provide initial data sets by using =pyosmium= capacities.
+- =OSMElementEnrichment= is an intermediary task in which additional features
+  are merged to OSM history data
+- These additional features are used in every metadata building tasks:
+  =OSMTagMetaAnalysis=, =ElementMetadataExtract=, =ChangeSetMetadataExtract=
+  and =UserMetadataExtract=.
+- =MasterTask= is an abstract task that yields each final tasks. Its completion
+  equals to the success of the pipelined procedure.
+
+This example describes a part of our global framework for illustration purpose;
+however this paper will only focus on parsing tasks. Additionnally, other tasks
+could of course be put in the pipeline (*e.g.* machine-learning procedures to
+classify users); they can be integrated in the framework with a minimal
+effort.
+
+* OSM data extraction
+
 ** Build our own OSM data sample
 
-First of all we have to recover a dataset. Two major solutions exist: either we
-dowload a regional area on [[http://download.geofabrik.de/][Geofabrik]] (/e.g./
-a [[http://download.geofabrik.de/europe.html][continent]], a
-[[http://download.geofabrik.de/europe/france.html][country]], or even a
-[[http://download.geofabrik.de/europe/france/aquitaine.html][sub-region]]) in
-/osm/ or /osh/ version (/i.e./ up-to-date API or history), or we extract
-another free area with the help of
-[[http://osmcode.org/osmium-tool/][osmium-tool]]. Even if the former solution
-is easier to implement, the latter one permits to work with alternative data
-sets. We detail this method in subsequent paragraphes.
+We saw in the last section which tool to use if we want to work with specific
+OSM area. Here we provide an insight of the methodology with Bordeaux, a
+medium-sized French city.
 
-*Note*: =osmium-tool= is available as a package in the Debian GNU/Linux
-distribution.
-
-Let us work with Bordeaux, a medium-sized French city. This alternative method
-needs the area geographical coordinates. We recover them by drawing the
-accurate bounding box within the OpenStreetMap
-[[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] export tool. We
-get the following bounding box coordinates: the top-left corner is at
+This alternative method needs the area geographical coordinates. We recover
+them by drawing the accurate bounding box within the OpenStreetMap [[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] export
+tool. We get the following bounding box coordinates: the top-left corner is at
 ={44.9335, -0.7179}= whilst the bottom-right corner is at ={44.7216,
 -0.4134}=. These coordinates seem quite weird (weirdly concise!), however they
 are just hand-made, by successive zooms in the OSM API.
@@ -330,12 +245,15 @@ This operation can be done through a simple Python file (see snippets below).
 #+BEGIN_SRC ipython :session osm :exports both
   import osmium as osm import pandas as pd
 
-  class TimelineHandler(osm.SimpleHandler): def __init__(self):
-      osm.SimpleHandler.__init__(self) self.elemtimeline = []
+  class TimelineHandler(osm.SimpleHandler): 
+      def __init__(self):
+          osm.SimpleHandler.__init__(self)
+          self.elemtimeline = []
 
-      def node(self, n): self.elemtimeline.append(["node", n.id, n.version,
-          n.visible, pd.Timestamp(n.timestamp), n.uid, n.changeset,
-          len(n.tags)])
+      def node(self, n): 
+          self.elemtimeline.append(["node", n.id, n.version,n.visible, 
+                                    pd.Timestamp(n.timestamp), n.uid, 
+                                    n.changeset, len(n.tags)])
 #+END_SRC
 
 #+RESULTS:
@@ -387,9 +305,8 @@ straightforward:
   elements.to_csv("bordeaux-metropole.csv", date_format='%Y-%m-%d %H:%M:%S')
 #+END_SRC
 
-At this point, the OSM data history is available in a /csv/ file format, coming
+At this point, the OSM data history is available in a /.csv/ file format, coming
 with a whole set of attributes that will be useful to describe the data.
-
 
 * OSM API exploration through time
 
@@ -399,7 +316,6 @@ From the OSM data history we can recover the current state of OSM data (or more
 precisely, the API state at the data extraction date). The only step that is
 needed is to select the up-to-date OSM objects, /i.e./ those with the last
 existing version, through a =group-by= operation.
-
 
 #+BEGIN_SRC ipython :session osm :exports both
   def updatedelem(data): updata =
@@ -569,411 +485,8 @@ trees]]!)
 ==================
 
 
-* OSM tag set description
-
-** OSM tag parsing
-
-What kind of tags do we have to characterize OSM objects ? There are tag keys
-on the first hand and tag values on the other hand. It can be interesting to
-describe both sets.
-
-*** Definition of a specified handler
-
-On the model of the previous article parsing process, we can build a small
-class dedicated to tag information parsing. This class is defined as follows:
-
-#+BEGIN_SRC ipython :session osm :exports both                                   
-  import osmium as osm import pandas as pd
-
-  class TagGenomeHandler(osm.SimpleHandler): def __init__(self):
-      osm.SimpleHandler.__init__(self) self.taggenome = []
-      
-      def tag_inventory(self, elem, elem_type): for tag in elem.tags:
-          self.taggenome.append([elem_type, elem.id, elem.version, tag.k,
-          tag.v])
-
-      def node(self, n): self.tag_inventory(n, "node")
-
-      def way(self, w): self.tag_inventory(w, "way")
-
-      def relation(self, r): self.tag_inventory(r, "relation")
-#+END_SRC
-
-We introduce here the differentiation between OSM elements (node, way,
-relation): we see that it is fairly straightforward to parse tags for each
-element types.
-
-In this version of the tag genome, we do not consider every history element
-versions. There are only versions for which elements are tagged. A simple
-merging procedure with the complete history can do the job, if needed (see in
-the next section).
-
-*** Description of the tag genome in some examples
-
-What we call a *tag genome* is actually a catalog of every tag associated with
-OSM objects, at each version. By applying the previous handler class to
-Bordeaux data, and by sampling the obtained genome, we can get exemples of
-tags:
-
-#+BEGIN_SRC ipython :session osm :exports both
-  taghandler = TagGenomeHandler()
-  taghandler.apply_file("../src/data/raw/bordeaux-metropole.osh.pbf") colnames
-  = ['type', 'id', 'version', 'tagkey', 'tagvalue'] tag_genome =
-  pd.DataFrame(taghandler.taggenome, columns=colnames) tag_genome.sample(10)
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-         type id version tagkey \ 1914670 way 193322163 4 name 536325 node
-2750444932 1 source 2142964 way 370351056 1 tram 2097263 way 268460152 1
-barrier 446854 node 2486855235 1 addr:housenumber 1051204 way 100685480 2
-building 1423197 way 154398021 1 building 150017 node 2242157800 1 circumfere
-252197 node 2242216150 1 species 913192 way 77918855 2 source
-
-                                                  tagvalue 1914670 Quai Louis
-XVIII 536325 Communauté Urbaine de Bordeaux - 09/2014 2142964 yes 2097263 hedge
-446854 49 1051204 yes 1423197 yes 150017 0.43 252197 Acer pseudoplatanus 913192
-cadastre-dgi-fr source : Direction Générale de...
-#+end_example
-
-This sample shows that various kinds of tags exist; they characterize either
-roads, buildings and so on... If we consider a specific node, for instance the
-node characterized by ID n°21457126:
-
-#+BEGIN_SRC ipython :session osm :exports both
-  tag_genome.query("id == 21457144")
-#+END_SRC
-
-#+RESULTS:
-:    type        id  version      tagkey       tagvalue
-: 1  node  21457144        8  created_by  Potlatch 0.6b
-
-We can see that there is only one version for which the element is tagged by
-only one single tag. This tag gives information on the editing tool used by the
-contributor. By enriching the tag genome with full OSM history, we can verify
-that the node is untagged in previous (and next) versions:
-
-#+BEGIN_SRC ipython :session osm :exports both
-  osm_history =
-  pd.read_csv("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-elements.csv")
-  enhanced_tag_genome = pd.merge(osm_history[['elem', 'id', 'version']],
-  tag_genome, how='left', left_on=['elem', 'id', 'version'], right_on=['type',
-  'id', 'version']) enhanced_tag_genome.query("id==21457144")
-#+END_SRC
-
-#+RESULTS:
-:     elem        id  version  type      tagkey       tagvalue
-: 47  node  21457144        2   NaN         NaN            NaN
-: 48  node  21457144        3   NaN         NaN            NaN
-: 49  node  21457144        4   NaN         NaN            NaN
-: 50  node  21457144        5   NaN         NaN            NaN
-: 51  node  21457144        6   NaN         NaN            NaN
-: 52  node  21457144        7   NaN         NaN            NaN
-: 53  node  21457144        8  node  created_by  Potlatch 0.6b
-: 54  node  21457144        9   NaN         NaN            NaN
-
-** Analyse of the global tag genome
-
-To go further and understand how OSM objects are tagged, we can provide a short
-statistical description of the tag genome, for the area of Bordeaux.
-
-By focusing on simple tag description, we can identify some interesting points:
-
-- the number of tag keys is larger for nodes and ways, and smaller for
-  relations:
-
-#+BEGIN_SRC ipython :session osm :exports both
-  tag_genome.groupby('type')['tagkey'].nunique()
-#+END_SRC
-
-#+RESULTS:
-: type
-: node        647
-: relation    320
-: way         545
-: Name: tagkey, dtype: int64
-
-- the most frequent keys are `source`, `building` and `highway`, they are
-  not uniformly distributed with respect to the three OSM types:
-
-#+BEGIN_SRC ipython :session osm :exports both
-        tagkeycount = (tag_genome.groupby(['tagkey','type'])['type'] .count()
-                       .unstack() .fillna(0)) tagkeycount['total'] =
-                       tagkeycount.apply(sum, axis=1) tagkeycount =
-                       tagkeycount.sort_values('total', ascending=False)
-                       tagkeycount.head()
-#+END_SRC
-
-#+RESULTS:
-: type          node  relation       way     total
-: tagkey                                          
-: source    152101.0    5613.0  461284.0  618998.0
-: building    2958.0     287.0  446139.0  449384.0
-: highway    23727.0      14.0  115576.0  139317.0
-: wall           0.0      22.0  124438.0  124460.0
-: name       18512.0   18341.0   67794.0  104647.0
-
-- complex elements such as relations tend to be more tagged than ways, which
-  tend to be more tagged than nodes, if we consider the number of tags divided
-  by the number of elements:
-
-#+BEGIN_SRC ipython :session osm :exports both
-  tag_genome.groupby(['type'])['version'].count() /
-  osm_history.groupby(['elem'])['version'].count()
-#+END_SRC
-
-#+RESULTS:
-: type
-: node        0.229626
-: relation    6.810917
-: way         2.437369
-: Name: version, dtype: float64
-
-** Analyse the tag key/value frequency
-
-What is the temporal evolution of object tags, and more specifically in terms
-of object version? By designing some functions focusing on OSM element
-versions, we can have a crucial overview of this aspect.
- 
-*** Tag key frequency
-
-First we build a small function which investigates on the number of unique
-elements that are associated with given tag keys.
-
-#+BEGIN_SRC ipython :session osm :exports both
-def tagkey_analysis(genome, pivot_var=['type']): return
-    (genome.groupby(['tagkey', *pivot_var])['id'] .nunique() .unstack()
-    .fillna(0)) tagkey_overview = tagkey_analysis(enhanced_tag_genome, ['type',
-    'version']) tagkey_overview.sort_values(1, ascending=False).iloc[:5,:5]
-#+END_SRC
-#+RESULTS:
-: version                       1        2        3       4       5
-: tagkey           type                                            
-: source           way   355974.0  85095.0  13056.0  2861.0  1315.0
-: building         way   350504.0  81612.0  10592.0  1948.0   671.0
-: source           node  122482.0  16281.0  10392.0  1541.0   627.0
-: wall             way   103435.0  19001.0   1754.0   179.0    47.0
-: addr:housenumber node   86566.0   2882.0   1249.0   742.0   402.0
-
-The previous result show that almost 356k ways of version 1 are tagged with the
-key `source`. This information could be even more interesting if we compare it
-with the total number of first-versionned ways.
-
-#+BEGIN_SRC ipython :session osm :exports both
-def total_elem(genome, pivot_var=['type', 'version']): return
-    genome.groupby(pivot_var)['id'].nunique().unstack().fillna(0)
-    total_elem(enhanced_tag_genome).iloc[:,:5]
-#+END_SRC
-#+RESULTS:
-: version          1         2        3        4       5
-: type                                                  
-: node      151184.0   28366.0  15524.0   4292.0  2281.0
-: relation    5307.0    2546.0   1125.0    654.0   504.0
-: way       402413.0  109575.0  29578.0  14599.0  9964.0
-
-This last table is a fundamental basis to understand the tag popularity. To
-recall our previous example, we see that there is more than 402k ways with
-version equal to 1, that means that the tag key `source` appears in around 88%
-of such cases.
-
-Such a result can be generalized for all tuples *(tag keys, element type)*,
-with subsequent Python procedure:
-
-#+BEGIN_SRC ipython :session osm :exports both
-def tag_frequency(genome, pivot_var=['type', 'version']): total_uniqelem =
-    total_elem(genome, pivot_var) tagcount = tagkey_analysis(genome, pivot_var)
-    # Prepare data: group tag counts by element types
-    tagcount_groups = tagcount.groupby(level='type')
-    # For each type, compute the proportion of element tagged with each tag
-    tag_freq = [] for key, group in tagcount_groups: tag_freq.append( group /
-    total_uniqelem.loc[key])
-    # Regroup in one single dataframe and return
-    tag_freq = pd.concat(tag_freq) return 100*tag_freq.round(4)
-#+END_SRC
-
-#+RESULTS:
-
-#+BEGIN_SRC ipython :session osm :exports both
-tag_frequency(enhanced_tag_genome, ['type','version']).sort_values(1,
-ascending=False).head(20)[[1,3,5,10,15]]
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-version 1 3 5 10 15 tagkey type type relation 97.32 97.07 97.42 98.57 99.00
-source way 88.46 44.14 13.20 7.27 5.65 building way 87.10 35.81 6.73 1.31 0.22
-source node 81.02 66.94 27.49 9.52 1.27 name relation 70.40 88.00 89.88 91.07
-91.04 addr:housenumber node 57.26 8.05 17.62 0.28 0.00 source relation 51.86
-36.62 19.64 10.71 9.45 ref:FR:FANTOIR relation 48.82 32.00 9.72 2.50 1.49 wall
-way 25.70 5.93 0.47 0.00 0.00 natural node 18.53 40.05 0.26 0.00 0.00
-start_date node 17.32 39.99 0.75 0.56 0.00 ref:FR:bordeaux:tree node 17.31
-40.02 0.26 0.00 0.00 circumfere node 17.31 40.02 0.26 0.00 0.00 height node
-17.31 39.96 0.26 0.00 0.00 species node 16.93 40.02 0.26 0.00 0.00 restriction
-relation 11.31 3.64 1.19 0.00 0.00 note:import-bati way 11.05 0.18 0.01 0.00
-0.00 highway way 7.97 49.69 78.75 82.28 80.22 node 7.30 15.45 37.88 43.14 37.97
-public_transport relation 5.18 4.71 2.18 0.71 0.00
-#+end_example
-
-As a result, we can see some seminal points in this tag genome, that are
-fundamental insights of how OSM contributors build the API objects.
-
-For instance, `source` tags are intensively used in the first version of
-objects, but the coverage decreases when the objects are updated. The same
-scheme is applied for ways tagged as `building`. At the opposite, it is common
-to add the `name` tag after a few updates. The `highway` tag (for ways, no
-surprise) follows the same increasing trend versions after versions.
-
-*** Tag value frequency
-
-As previously with tag keys, we can measure the popularity of tag values. As a
-remark, it wouldn't be so smart to mix up every tag keys and to compare tag
-values as various as those associated e.g. with building or parcs. Then we will
-only study a single reference tag key. For instance, we can focus on road data,
-and evaluate how many `highway` tags are available on the API.
-
-We get similar Python procedures, that take into account tag values with a
-given tag key.
-
-#+BEGIN_SRC ipython :session osm :exports both
-def tagvalue_analysis(genome, key, pivot_var=['type']): return
-    (genome.query("tagkey==@key") .groupby(['tagvalue', *pivot_var])['id']
-    .nunique() .unstack() .fillna(0)) tagvalue_overview =
-    tagvalue_analysis(tag_genome, 'highway', ['type', 'version'])
-    tagvalue_overview.sort_values(1, ascending=False).iloc[:5,:7]
-#+END_SRC
-#+RESULTS:
-: version                 1       2       3       4       5       6       7
-: tagvalue    type                                                         
-: residential way   10971.0  9458.0  7201.0  5286.0  3795.0  2725.0  1999.0
-: service     way    7069.0  2777.0  1409.0   778.0   449.0   292.0   195.0
-: crossing    node   6338.0  2583.0  1022.0   434.0   205.0   107.0    59.0
-: footway     way    3797.0  1841.0   782.0   417.0   245.0   146.0    89.0
-: bus_stop    node   2742.0  2182.0   447.0   179.0    71.0    37.0    11.0
-
-Here we see that the most frequent `highway` tag value is `residential`.
-
-These figures will be compared to the total number of elements that correspond
-to each element type and version:
-
-#+BEGIN_SRC ipython :session osm :exports both
-def tot_values(genome, key, pivot_var=['type', 'version']): return
-    (genome.query("tagkey==@key") .groupby(pivot_var)['id'] .nunique()
-    .unstack() .fillna(0)) tot_values(tag_genome, 'highway')[[1,2,3,4,5,10,15]]
-#+END_SRC
-#+RESULTS:
-: version        1        2        3        4       5       10     15
-: type                                                               
-: node      11038.0   6055.0   2398.0   1319.0   864.0   154.0   30.0
-: relation      7.0      3.0      1.0      0.0     0.0     0.0    0.0
-: way       32080.0  21065.0  14697.0  10632.0  7847.0  2140.0  738.0
-
-That's not so surprising: a large majority of highway elements are nodes or
-ways. The proportion of each tag values is computed with the following
-procedure:
-
-#+BEGIN_SRC ipython :session osm :exports both
-def tagvalue_frequency(genome, key, pivot_var=['type', 'version']):
-    total_uniqelem = tot_values(genome, key, pivot_var) tagcount =
-    tagvalue_analysis(genome, key, pivot_var=['type','version'])
-    tagcount_groups = tagcount.groupby(level='type') tag_freq = [] for key,
-    group in tagcount_groups: tag_freq.append( group / total_uniqelem.loc[key])
-    tag_freq = pd.concat(tag_freq) return (100*tag_freq).round(4) tagvalue_freq
-    = tagvalue_frequency(tag_genome, 'highway',
-    ['type','version']).swaplevel().sort_values(1, ascending=False)
-#+END_SRC
-
-#+RESULTS:
-
-Contrary to the tag key analysis, we can't expect a 100% frequency for each tag
-value, as there can be only one tag value associated with each key (as a
-reminder here, we consider `highway` as the key). For a sake of clarity, we can
-distinguish each element type to present the result:
-
-- The less used type: the relation
-#+BEGIN_SRC ipython :session osm :exports both
-tagvalue_freq.loc['relation', [1,3,5,10,15]]
-#+END_SRC
-
-#+RESULTS:
-: version            1      3   5   10  15
-: tagvalue                                
-: pedestrian    57.1429  100.0 NaN NaN NaN
-: raceway       14.2857    0.0 NaN NaN NaN
-: service       14.2857    0.0 NaN NaN NaN
-: unclassified  14.2857    0.0 NaN NaN NaN
-: motorway       0.0000    0.0 NaN NaN NaN
-
-There are only 7 first-versionned relations that are highway-focused, 4 of them
-are tagged with the value `pedestrian`. Only one of these relations has a third
-version. There is no highway-related relation with a higher number of version.
-
-- the intermediary type: the node
-#+BEGIN_SRC ipython :session osm :exports both
-tagvalue_freq.loc['node', [1,3,5,10,15]].head(10)
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-version 1 3 5 10 15 tagvalue crossing 57.4198 42.6188 23.7269 9.7403 6.6667
-bus_stop 24.8415 18.6405 8.2176 0.6494 0.0000 street_lamp 5.3180 0.0000 0.0000
-0.0000 0.0000 traffic_signals 5.1912 25.6047 54.6296 68.8312 63.3333
-turning_circle 2.9353 6.3803 2.1991 0.0000 3.3333 give_way 2.0112 0.2085 0.1157
-0.0000 0.0000 stop 0.8607 0.2919 0.0000 0.0000 0.0000 mini_roundabout 0.5164
-2.1268 0.9259 0.0000 0.0000 motorway_junction 0.3533 3.3778 8.9120 20.1299
-26.6667 speed_camera 0.1721 0.1251 0.1157 0.0000 0.0000
-#+end_example
-
-When OSM contributors tag a new node as highway-related, in most cases the
-chosen value is `crossing`. We have also a large amount of `bus_stop`. The
-nodes tagged as `traffic_signals` or `motorway_junction` tend to reach higher
-versions.
-
-We don't say here that both values are the final labels of most nodes (the
-previous table do not consider cumulated number of elements, for different
-version, but pictures of each version taken separately)! However an
-interpretation is still possible: we can consider that contributor unanimity
-takes more time for such nodes...
-
-- the most natural type: the way
-#+BEGIN_SRC ipython :session osm :exports both
-tagvalue_freq.loc['way', [1,3,5,10,15]].head(10)
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-version 1 3 5 10 15 tagvalue residential 34.1989 48.9964 48.3624 36.3084
-26.6938 service 22.0355 9.5870 5.7219 2.9907 1.7615 footway 11.8360 5.3208
-3.1222 1.3551 0.2710 unclassified 6.0661 7.8179 7.6207 5.9346 4.3360 tertiary
-4.9314 7.4913 10.6665 18.0374 25.0678 path 4.1397 1.8099 1.3126 0.2336 0.0000
-cycleway 3.8996 3.3068 3.1350 2.8037 2.4390 secondary 3.4819 4.9806 6.7669
-11.2150 15.0407 primary 1.8267 2.8033 3.4663 5.6075 9.0786 track 1.3217 0.5511
-0.2804 0.0467 0.1355
-#+end_example
-
-As for relations and nodes, the repartition of tag values for each way version
-gives some information on the manner OSM contributors enrich the API. A third
-of newly created highway-related ways are tagged as `residential`. The
-proportion of such ways remains relatively high versions after versions: they
-are intensively updated by contributors!
-
-As a last remark, we can compare the tag value distribution with the [global
-highway tag distribution](https://taginfo.openstreetmap.org/keys/highway): the
-Bordeaux area seems to be represented with a larger quantity of `footway`,
-`secondary` and `tertiary` highways, but with a smaller amount of `track`
-tags. Sufficient to say this area is urban, without any prior knowledge of the
-sub-region...?
-
-
 * Conclusion
 
-The rich analysis proposed in this article have shown that dig into the OSM tag
-set is a demanding but fascinating task. A lot of insights are available to
-whom is able to let the data do the talking. In such an exercise, we have
-proposed some tracks, however there is still so much more to do!
-
-In the next article, we will close this parenthesis and come back to our first
-objective: the OSM data quality. We will consider the metadata extraction, as a
-first step towards the quality measurement.
 
 * References
 
