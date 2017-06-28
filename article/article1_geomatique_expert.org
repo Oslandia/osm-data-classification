@@ -91,35 +91,32 @@ some of quality attributes mentionned above. See also the Wikipedia notice
 about the [[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]] which lists several tools to supervise the OSM
 data construction.
 
-
-
-
-=================
-
-* Python is your friend, Luigi your plumber
+* A Python framework to exploit OSM Data
 
 In this project, we have used our favourite data handling tool, namely Python
 with its pandas and numpy packages. That is quite sufficient to download and
 manage data sets in a Python framework, however we still misses a methodology
 layer!
 
-In this way, we will use [Luigi](https://luigi.readthedocs.io/en/stable/),
-which is another Python package dedicated to job pipeline building. As we can
-read in the Luigi documentation, this tool allows us to manage every tasks and
-organize them all together, by clarifying the dependencies.
+** Python is your friend, Luigi your plumber
+
+In this way, we will use [[https://luigi.readthedocs.io/en/stable/][Luigi]], which is another Python package dedicated to
+job pipeline building. As we can read in the Luigi documentation, this tool
+allows us to manage every tasks and organize them all together, by clarifying
+the dependencies.
 
 A quick benchmark about existing Luigi utilizations shows that machine learning
 applications are extremely compatible with this package. That is particularly
 true if we consider Map/Reduce frameworks. Here we will demonstrate that Luigi
 keeps its interest in our case, with a slightly different usage.
 
-* What are the main tasks in our workflow?
+** What are the main tasks in our workflow?
 
 We organize the analysis of OSM data quality in three main task categories,
 that we will describe as follows. Some of these tasks will be developped in
 subsequent blog articles.
 
-** OSM Data Parsing
+*** OSM Data Parsing
 
 The first task of the data analysis is the parsing process. We start from files
 in a typical OSM file format, with the *.pbf* extension. After this step we
@@ -128,12 +125,11 @@ well.
 
 Here are some example of Luigi tasks in this way:
 
-- parse the OSM entities (nodes, ways, relations): this will be the topic of
-  the *third article*
-- parse the OSM tags (keys and values), that will be the *fourth article* scope
+- parse the OSM tags (keys and values)
+- parse the OSM entities (nodes, ways, relations)
 - parse the OSM users directly from the contributions
 
-** OSM Metadata Building
+*** OSM Metadata Building
 
 If we focus on the first previous example, the OSM entity parsing, we get the
 history of each OSM elements. These elements are *nodes*, characterized by
@@ -145,14 +141,13 @@ Each of these elements are created (that's quite obvious!), and may be modified
 or even deleted in the OSM API. These modifications are done within *change
 sets* by OSM *contributors*. We then may identify typical Luigi tasks :
 
-- extract the OSM element metadata (date of creation, number of versions...)
 - extract the OSM changeset metadata (timestamps, number of done
   modifications...)
 - extract the OSM user metadata (timestamps, number of opened change sets,
-  number of modifications...), we propose to develop this question in the
-  *fifth article*
+  number of modifications...)
+- extract the OSM element metadata (date of creation, number of versions...)
 
-** OSM Metadata Analysis
+*** OSM Metadata Analysis
 
 A last major part of the analysis concerns the metadata analysis: these data
 are extremely useful in the quality evaluation: we hypothesize that knowing the
@@ -170,7 +165,7 @@ as illustrates by the following tasks:
 This set of tasks will be the topic of interest in the *sixth and seventh
 articles*.
 
-* Outline of the project: characterize OSM data quality
+** Outline of the project: characterize OSM data quality
 
 To summarize all these points, we have designed a complete framework and made
 it effective by the way of the Luigi package. It can be illustrate by the
@@ -196,23 +191,13 @@ We can identify some of previously mentionned tasks in this graph:
   equals to the success of the pipelined procedure.
 
 In this example we do not have put other tasks in the pipeline (*e.g.*
-machine-learning-related procedures), however they can be integrated in the
-framework with a minimal effort.
-
-* Conclusion
-
-Here we have described how we plan to analyze the OSM data and how to assess
-its quality. Even if other choices exist (we still have choice!) we use Python
-and its powerful available package set. Amongst these packages Luigi has a
-clear interest.
-
-We will see in the next articles how to do the analysis concretely and
-step-by-step, until characterizing OSM data quality.
-
-==================
+machine-learning procedures to classify users), however they can be integrated
+in the framework with a minimal effort.
 
 
-* From the OSM history dumps to usable data sets
+* OSM data extraction
+
+** From the OSM history dumps to usable data sets
 
 Extracting OSM data is a simple but complex task.
 
@@ -247,7 +232,7 @@ sudo apt-get install python-pyosmium
 pip install pyosmium
 #+END_SRC
 
-* What sort of data are behind the OpenStreetMap API?
+** What sort of data are behind the OpenStreetMap API?
 
 [[http://docs.osmcode.org/pyosmium/v2.11.0/][Pyosmium documentation]] is a rich
 source of information in order to understand the /pyosmium/ library
@@ -279,39 +264,6 @@ questions as:
 
 Considering the history of OSM data makes the data set even more complete: it
 allows us to study the temporal evolution of the API.
-
-* Conclusion
-
-The OSM data features are full of information. After extracting them, we plan
-to use them in order to characterize the OSM data quality, as described
-above. It will be the aim of next articles.
-
-* References
-
-- Arsanjani, J, Barron, C, Bakillah, M, Helbich, M. 2013. Assessing
-  the quality of OpenStreetMap contributors together with their
-  contributions. /Proceedings of the AGILE./ p14-17.
-- Haklay, M. 2010. How good is volunteered geographical information? A
-  comparative study of OpenStreetMap and Ordnance Survey datasets. /Environment
-  and planning B: Planning and design./ 37(4), p.682-703.
-- Helbich, M, Amelunxen, C, Neis, P, Zipf, A. 2012. Comparative
-  spatial analysis of positional accuracy of OpenStreetMap and proprietary
-  geodata. /Proceedings of GI Forum./ p.24-33.
-- ISO. 2013. Geographic information: data
-  quality. /ISO19157:2013./ Geneva, Switzerland: ISO.
-- Koukoletsos, T, Haklay, M, Ellul, C. 2011. An automated method to
-  assess data completeness and positional accuracy of
-  OpenStreetMap. /GeoComputation./ 3, p.236-241.
-- Neis, P, Zipf, A. 2012. Analyzing the contributor activity of a
-  volunteered geographic information project: the case of OpenStreetMap. /ISPRS
-  International Journal of Geo-Information, Molecular Diversity Preservation./
-  1, p.146-165.
-- Van Oort, P. 2006. Spatial data quality: from description to
-  application. /PhD report./ Wageningen Universiteit.
-
-==================
-
-* How to get the data
 
 ** Build our own OSM data sample
 
@@ -438,7 +390,8 @@ straightforward:
 At this point, the OSM data history is available in a /csv/ file format, coming
 with a whole set of attributes that will be useful to describe the data.
 
-* How do the OSM API evolve through time?
+
+* OSM API exploration through time
 
 ** A simple procedure to build dated OSM histories
 
@@ -612,21 +565,19 @@ the Guiana jungle]] ! (You can act on it: be environment-friendly,
 [[http://wiki.openstreetmap.org/wiki/How_to_contribute][plant some more
 trees]]!)
 
-* Conclusion
-
-After this third article dedicated to OSM data analysis, we hope you will be OK
-with OSM data parsing. In next article, we will focus to another parsing task:
-the tag set exploration.
 
 ==================
 
-* OSM tag parsing
+
+* OSM tag set description
+
+** OSM tag parsing
 
 What kind of tags do we have to characterize OSM objects ? There are tag keys
 on the first hand and tag values on the other hand. It can be interesting to
 describe both sets.
 
-** Definition of a specified handler
+*** Definition of a specified handler
 
 On the model of the previous article parsing process, we can build a small
 class dedicated to tag information parsing. This class is defined as follows:
@@ -657,7 +608,7 @@ versions. There are only versions for which elements are tagged. A simple
 merging procedure with the complete history can do the job, if needed (see in
 the next section).
 
-** Description of the tag genome in some examples
+*** Description of the tag genome in some examples
 
 What we call a *tag genome* is actually a catalog of every tag associated with
 OSM objects, at each version. By applying the previous handler class to
@@ -721,7 +672,7 @@ that the node is untagged in previous (and next) versions:
 : 53  node  21457144        8  node  created_by  Potlatch 0.6b
 : 54  node  21457144        9   NaN         NaN            NaN
 
-* Analyse of the global tag genome
+** Analyse of the global tag genome
 
 To go further and understand how OSM objects are tagged, we can provide a short
 statistical description of the tag genome, for the area of Bordeaux.
@@ -778,13 +729,13 @@ By focusing on simple tag description, we can identify some interesting points:
 : way         2.437369
 : Name: version, dtype: float64
 
-* Analyse the tag key/value frequency
+** Analyse the tag key/value frequency
 
 What is the temporal evolution of object tags, and more specifically in terms
 of object version? By designing some functions focusing on OSM element
 versions, we can have a crucial overview of this aspect.
  
-** Tag key frequency
+*** Tag key frequency
 
 First we build a small function which investigates on the number of unique
 elements that are associated with given tag keys.
@@ -872,7 +823,7 @@ scheme is applied for ways tagged as `building`. At the opposite, it is common
 to add the `name` tag after a few updates. The `highway` tag (for ways, no
 surprise) follows the same increasing trend versions after versions.
 
-** Tag value frequency
+*** Tag value frequency
 
 As previously with tag keys, we can measure the popularity of tag values. As a
 remark, it wouldn't be so smart to mix up every tag keys and to compare tag
@@ -1012,6 +963,7 @@ Bordeaux area seems to be represented with a larger quantity of `footway`,
 tags. Sufficient to say this area is urban, without any prior knowledge of the
 sub-region...?
 
+
 * Conclusion
 
 The rich analysis proposed in this article have shown that dig into the OSM tag
@@ -1022,3 +974,26 @@ proposed some tracks, however there is still so much more to do!
 In the next article, we will close this parenthesis and come back to our first
 objective: the OSM data quality. We will consider the metadata extraction, as a
 first step towards the quality measurement.
+
+* References
+
+- Arsanjani, J, Barron, C, Bakillah, M, Helbich, M. 2013. Assessing
+  the quality of OpenStreetMap contributors together with their
+  contributions. /Proceedings of the AGILE./ p14-17.
+- Haklay, M. 2010. How good is volunteered geographical information? A
+  comparative study of OpenStreetMap and Ordnance Survey datasets. /Environment
+  and planning B: Planning and design./ 37(4), p.682-703.
+- Helbich, M, Amelunxen, C, Neis, P, Zipf, A. 2012. Comparative
+  spatial analysis of positional accuracy of OpenStreetMap and proprietary
+  geodata. /Proceedings of GI Forum./ p.24-33.
+- ISO. 2013. Geographic information: data
+  quality. /ISO19157:2013./ Geneva, Switzerland: ISO.
+- Koukoletsos, T, Haklay, M, Ellul, C. 2011. An automated method to
+  assess data completeness and positional accuracy of
+  OpenStreetMap. /GeoComputation./ 3, p.236-241.
+- Neis, P, Zipf, A. 2012. Analyzing the contributor activity of a
+  volunteered geographic information project: the case of OpenStreetMap. /ISPRS
+  International Journal of Geo-Information, Molecular Diversity Preservation./
+  1, p.146-165.
+- Van Oort, P. 2006. Spatial data quality: from description to
+  application. /PhD report./ Wageningen Universiteit.
