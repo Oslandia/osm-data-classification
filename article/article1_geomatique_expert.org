@@ -12,8 +12,8 @@ framework, as well as to the presentation of some basic OSM data features
 through the chronological evolution of the API.
 
 As the reader should know, OSM is a project which creates and distributes free
-geographical data for the world. Like Wikipedia, it's a community of people who
-can create and update some content available for everyone. Thus, anyone can
+geographical data around the world. Like Wikipedia, it's a community of people
+who can create and update some content available for everyone. Thus, anyone can
 edit buildings, roads, places or even trees and mailboxes!
 
 Working with community-built data forces to take care of data quality. We have
@@ -27,8 +27,8 @@ methodological aspects and a first overview of OSM data must be proposed. It is
 the purpose of this paper.
 
 In this first article, we will present what we mean by /data quality/, in the
-context of Geospatial systems. Then we will continue by some methodology
-elements: the Python framework useful to exploit OSM data will be
+context of geospatial systems. Then we will continue by some methodology
+elements: the Python framework that is useful to exploit OSM data will be
 introduced. After that a first OSM data set will be described to illustrate the
 parsing process. In a last section the chronological evolution of OSM data will
 be assessed to complete the OSM data description.
@@ -36,7 +36,7 @@ be assessed to complete the OSM data description.
 * State of the art
 ** Geospatial data quality components
 
-Van Oort (2006) defines several spatial data quality criteria:
+Van Oort (2006) defined several spatial data quality criteria:
 
 - lineage
 - positional accuracy
@@ -55,9 +55,10 @@ studies focus on positional accuracy. For instance, Haklay (2010), Koukoletsos
 /et al./ (2011) or Helbich /et al./ (2012) compared OSM data with Ordnance
 Survey data, an alternative data source considered as a ground truth.
 
-There are two differences with our approach: we don't have any geospatial data
+There are two differences with our approach: we do not have any geospatial data
 reference to cope with the positional accuracy. Moreover the authors decided to
-take a snapshot of the OSM data instead of using OSM history data.
+take a snapshot of the OSM data at a given date instead of using OSM history
+data.
 
 ** OSM contributors and data quality
 
@@ -66,8 +67,8 @@ suppose that the quality of a contribution depends on the user who made it.
 
 Let us begin by an example: if the user is experienced, the contribution should
 be good. And when we do not have reference data to measure the data accuracy,
-we can suppose that if the road was created a few years ago with many updates,
-it should be complete and accurate enough.
+we can suppose that a road created a few years ago with many updates, it should
+be complete and accurate enough.
 
 Other references follow this point of view. Arsanjani /et al./ (2013)
 classified OSM contributors based on the quality and quantity of their
@@ -80,12 +81,12 @@ whole set of statistics dedicated to OSM contributors. They provide hand-made
 groups, and characterize contributions regarding dates, hours, user
 localisation and activity.
 
-Additional references can be mentionned to overcome the OSM data qualiy
+Additional references can be mentionned to overcome the OSM data quality
 issue. The ISO/TC 211 working group published a set of norms for geographical
-information standardization. For instance, the norm ISO19157:2013 (2013) cites
-some of quality attributes mentionned above. See also the Wikipedia notice
-about the [[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]] which lists several tools to supervise the OSM
-data construction.
+information standardization. For instance, the norm ISO19157:2013 (2013) cited
+some of quality attributes mentionned above. See also the Wiki notice about the
+[[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]] which lists several tools to supervise the OSM data
+construction.
 
 ** What sort of data are behind the OpenStreetMap API?
 
@@ -118,18 +119,19 @@ allows us to study the temporal evolution of the API.
 
 * A Python framework to exploit OSM Data
 
-Our analysis is mainly based on Python capability. It must be recalled here
-that this programming language permits to extract OSM data, to analyze them
-conveniently as well as to organize all the workflow, through its different
-packages.
+Our analysis is mainly based on Python 3.5 (see here for [[https://www.python.org/][Python website]]). It
+must be recalled here that this programming language permits to extract OSM
+data, to analyze them conveniently as well as to organize all the workflow,
+through its different packages.
 
 ** From the OSM history dumps to usable data sets
 
 Extracting OSM data is:
 
 + simple because you just have to download the history dump in /.pbf/ (Protocol
-  Buffer) format, based on /.xml/. The corresponding files have two possible extensions: /.osm/
-  refers to up-to-date data, whereas /.osh/ refers to history data.
+  Buffer) format, based on /.xml/. The corresponding files have two possible
+  extensions: /.osm/ refers to up-to-date data, whereas /.osh/ refers to
+  history data.
 + complex because when you want to extract alternative data, it can be a long
   and tedious task.
 
@@ -137,22 +139,22 @@ The challenge here is to pass from these native formats to in-base data or
 /.csv/ files. Several tools exist to accomplish this effort, two of them are
 detailed here.
 
-When working with /.pbf/ files, =pyosmium=, a dedicated Python library, is a
-really useful tool. These files are freely available on [[http://download.geofabrik.de/][Geofabrik]] (/e.g./ a
-continent, a country, or even a sub-region) in /osm/ or /osh/ versions. The
-whole planet dump is the biggest file, its size reaches around 60Go.
-
-If we want to extract another free area, =osmium-tool= is a serious option in
-order to create our own /.pbf/ file. It is available as a package in the Debian
+If we want to extract a free area, =osmium-tool= is a pre-requisite in order to
+create our own /.pbf/ file. It is available as a package in the Debian
 GNU/Linux distribution. The next section show an example of utilization, to get
 OSM data around Bordeaux, France.
 
+Continents, countries, or even sub-regions are freely available on [[http://download.geofabrik.de/][Geofabrik
+website]] in /osm/ or /osh/ versions. The whole planet dump is the biggest file,
+its size reaches around 60Go. When working with /.pbf/ files, =pyosmium=, a
+dedicated Python library, is a really useful tool.
+
 ** Python is your friend, Luigi your plumber
 
-In addition to =pyosmium= and to classic data-oriented Python packages (/e.g./
-=numpy= and =pandas=), we use =Luigi=, which is dedicated to job pipeline
-building. This tool allows to manage every tasks and organize them all
-together, by clarifying the dependencies.
+In addition to =pyosmium= and to classic data-oriented Python package =pandas=,
+we use =Luigi=, which is dedicated to job pipeline building. This tool allows
+to manage every tasks and organize them all together, by clarifying the
+dependencies.
 
 A quick benchmark about existing Luigi use cases shows that machine learning
 applications are extremely compatible with this package. That is particularly
@@ -181,7 +183,7 @@ We can identify some example of tasks in this graph:
 
 This example describes a part of our global framework for illustration purpose;
 however this paper will only focus on parsing tasks. Additionnally, other tasks
-could of course be put in the pipeline (*e.g.* machine-learning procedures to
+could of course be put in the pipeline (*e.g.* machine learning procedures to
 classify users); they can be integrated in the framework with a minimal
 effort.
 
@@ -194,11 +196,11 @@ a medium-sized French city.
 ** Build our own OSM data sample
 
 This method needs the area geographical coordinates. We recover them by drawing
-the accurate bounding box within the OpenStreetMap [[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] export tool. We get the
-following bounding box coordinates: the top-left corner is at ={44.9335,
--0.7179}= whilst the bottom-right corner is at ={44.7216, -0.4134}=. These
-coordinates seem unnecessarily precise, however they are just hand-made, by
-successive zooms in the API.
+the accurate bounding box within the OpenStreetMap API export tool. We get the
+following bounding box coordinates: the top-left corner is at
+={44.9335,-0.7179}= whilst the bottom-right corner is at ={44.7216,
+-0.4134}=. These coordinates seem unnecessarily precise, however they are just
+hand-made, by successive zooms in the API.
 
 #+CAPTION: Hand-made bounding box on Bordeaux city (France)
 #+NAME: fig:osm-bb-example
@@ -230,8 +232,9 @@ osmium extract --with-history --config=region.json latest-planet.osh.pbf
 #+CAPTION: Osmium extraction
 
 Where =latest-planet.osh.pbf= is the input file (downloaded from Geofabrik
-website, we still need some original data!). The =--with-history= flag here is
-important to study the temporal evolution of some OSM entities, the number of
+website, we still need some original data!) and =region.json= the name of the
+previous JSON configuration file. The =--with-history= flag here is important
+to study the temporal evolution of some OSM entities, the number of
 contributions, and check some specific OSM entities such as nodes, ways or
 relations and get their history.
 
@@ -239,9 +242,9 @@ relations and get their history.
 
 At this point, we have a /.pbf/ file that contains every OSM element versions
 through time. We still have to write them into a /.csv/ file. That is the role
-of =pyosmium=, evoked previously.
+of =pyosmium=, previously evoked.
 
-This operation can be done through a simple Python file (see snippets below).
+This operation can be done through a simple Python module (see snippets below).
 
 #+NAME: Timeline_handler
 #+BEGIN_SRC ipython :session osm :exports both
@@ -284,7 +287,7 @@ and the number of associated tags. These attributes are also available for ways
 and relations, letting the chance to put a little more abstraction in this
 class definition.
 
-An instance of this class can be created so as to save OSM nodes within the
+An instance of this class can be created so as to save OSM elements within the
 Bordeaux metropole area (see below). We pass the input file name to the
 =apply_file= procedure, that scans the input file and fills the handler list
 accordingly. After that we just have to transform the list into a pandas
@@ -351,7 +354,7 @@ precisely, the API state at the data extraction date). The only needed step is
 to select the up-to-date OSM objects, /i.e./ those with the last existing
 version, through a simple /groupby/ operation (by the way, it is equivalent to
 download the corresponding /.osm/ file). As an extension, we propose a simple
-but seminal procedure called =datedelems= that allows us to get the OSM API
+but seminal procedure called =datedelems= that allows to get the OSM API
 picture given a specific date:
 
 #+NAME: datedelems
@@ -390,8 +393,8 @@ change sets have been opened:
 #+CAPTION: Function /osm_stats/: provide dated statistics of an OSM area
 
 We can obtain a dataframe that summarizes these statistics at regular
-timestamps: monthly evaluations, or even finner analysis, by taking advantage
-of pandas time series capabilities.
+timestamps: monthly evaluations, or even a finner analysis, by taking advantage
+of pandas time series features.
 
 #+NAME: osm_chrono
 #+BEGIN_SRC ipython :session osm :exports both
@@ -448,7 +451,7 @@ between fall of 2010 and spring of 2013, with a clear peak at the beginning
 of 2012. This evolution is highly pronounced for nodes or even ways, whilst the
 change set amount and the contributor quantity increased regularly. This may
 denote the differences in terms of user behaviors: some of them create only a
-few objects, while some others contributes with a large amount of created
+few objects, while some others contribute with a large amount of created
 entities.
 
 #+CAPTION: Amount of OSM objects in the area of Bordeaux (France)
@@ -456,19 +459,19 @@ entities.
 #+attr_html: :width 800px
 [[./../figs/bordeaux-metropole-chronology-logscale.png]]
 
-As a remark, the number of contributors plotted here is not really
-representative of the total quantity of OSM contributors: we consider only
-local data here. Active users all around the world are not those who have
-collaborated for this specific region. These statistics are available by
-exploiting the full-planet data set.
+As a remark, the plotted number of contributors is not really representative of
+the total quantity of OSM contributors: we consider only local data
+here. Active users all around the world are not those who have collaborated for
+this specific region. These statistics can be available by exploiting the
+full-planet data set.
 
 ** Opening case study: comparing several french areas
 
-Before concluding, here is provided a comparison between OSM node
-amounts in several french areas. We just mention small areas, to keep the
-evaluation short: Upper Normandy, a roughly rural environment with some
-medium-sized cities (Rouen, Le Havre, Evreux...), Corsica, an montainous island
-near to mainland France and French Guiana, an overseas area mainly composed of
+Before concluding, here is provided a comparison between OSM node amounts in
+several french areas. We just mention small areas, to keep the evaluation
+short: Upper Normandy, a roughly rural environment with some medium-sized
+cities (Rouen, Le Havre, Evreux...), Corsica, a montainous island near to
+mainland France and French Guiana, an overseas area mainly composed of
 jungle. The figure below shows the difference between these areas in terms of
 OSM nodes and active contributors. To keep the comparison as faithful as
 possible, we have divided these amounts by each surface area: respectively
@@ -540,3 +543,8 @@ have, how users contribute, how elements evolve time after time?
   1, p.146-165.
 - Van Oort, P. 2006. Spatial data quality: from description to
   application. /PhD report./ Wageningen Universiteit.
+- Websites:
+  + GeoFabrik downloading tool: Available at http://download.geofabrik.de/
+  + Python Software Foundation. Python Language Reference, version 3.5. Available at http://www.python.org
+  + OpenStreetMap API: Available at http://www.openstreetmap.org
+  + OpenStreetMap Quality Insurance: Available at http://wiki.openstreetmap.org/wiki/Quality_assurance
