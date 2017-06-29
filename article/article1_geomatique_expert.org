@@ -3,28 +3,26 @@
 
 * Introduction
 
-At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool
-projects and handling Open (geospatial) Data. In this article, we will play
-with [[https://www.openstreetmap.org/][OpenStreetMap]] (/OSM/) and the
-subsequent data.
+At Oslandia, we like working with Open Source tool projects and handling Open
+(geospatial) Data. In this article, we will play with [[https://www.openstreetmap.org/][OpenStreetMap]] (/OSM/) and
+the subsequent data.
 
 Here comes a first article dedicated to the presentation of our working
 framework, as well as to the presentation of some basic OSM data features
-through the chronological evolution of OSM API.
+through the chronological evolution of the API.
 
-As the reader should know, [[https://www.openstreetmap.org][OpenStreetMap]] is
-a project which creates and distributes free geographical data for the
-world. Like Wikipedia, it's a community of people who can create and update
-some content available for everyone. Thus, anyone can edit buildings, roads,
-places or even trees and mailboxes!
+As the reader should know, OSM is a project which creates and distributes free
+geographical data for the world. Like Wikipedia, it's a community of people who
+can create and update some content available for everyone. Thus, anyone can
+edit buildings, roads, places or even trees and mailboxes!
 
 Working with community-built data forces to take care of data quality. We have
 to be confident with the data we work with. Is this road geometry accurate
 enough? Is this street name missing? This is fundamental for companies and NGO
 who use OSM on a daily basis.
 
-One curcial purpose is to answer to this question: /can you assess the quality
-of OSM data? (and how?)/ Before giving elements to solve this point, a bunch of
+One crucial purpose is to answer this question: /can you assess the quality of
+OSM data? (and how?)/ Before giving elements to solve this point, a bunch of
 methodological aspects and a first overview of OSM data must be proposed. It is
 the purpose of this paper.
 
@@ -63,14 +61,13 @@ take a snapshot of the OSM data instead of using OSM history data.
 
 ** OSM contributors and data quality
 
-OSM is a community, as Wikipedia, where everyone can create, edit and delete
-entities. You can suppose that the quality of a contribution depends on the
-user who made it.
+OSM is a community where everyone can create, edit and delete entities. We can
+suppose that the quality of a contribution depends on the user who made it.
 
-Let's begin by an example: if the user is experienced, you can suppose that the
-contribution should be good. And when you don't have reference data to measure
-the data accuracy, you can suppose that if the road was created a few years ago
-with 20 updates, it should be complete and accurate enough.
+Let us begin by an example: if the user is experienced, the contribution should
+be good. And when we do not have reference data to measure the data accuracy,
+we can suppose that if the road was created a few years ago with many updates,
+it should be complete and accurate enough.
 
 Other references follow this point of view. Arsanjani /et al./ (2013)
 classified OSM contributors based on the quality and quantity of their
@@ -84,7 +81,7 @@ groups, and characterize contributions regarding dates, hours, user
 localisation and activity.
 
 Additional references can be mentionned to overcome the OSM data qualiy
-issue. The [[https://www.iso.org/committee/54904.html][ISO/TC 211 working group]] published a set of norms for geographical
+issue. The ISO/TC 211 working group published a set of norms for geographical
 information standardization. For instance, the norm ISO19157:2013 (2013) cites
 some of quality attributes mentionned above. See also the Wikipedia notice
 about the [[http://wiki.openstreetmap.org/wiki/Quality_assurance][OSM quality assurance]] which lists several tools to supervise the OSM
@@ -109,11 +106,11 @@ user IDs, or lists of tags (a tag being the association between a key and a
 value).
 
 Starting from these OSM elements, we can straightforwardly answer typical
-questions as:
+questions:
 
-+ How many nodes do each user create?
-+ How frequent are the mofification for each contributor?
-+ How many tags do each OSM element contain?
++ How many nodes does each user create?
++ How frequent are the mofifications for each contributor?
++ How many tags does each OSM element contain?
 + ...
 
 Considering the history of OSM data makes the data set even more complete: it
@@ -130,24 +127,22 @@ packages.
 
 Extracting OSM data is:
 
-+ simple because you just have to download the history dump in /.pbf/ ([[https://developers.google.com/protocol-buffers/][Protocol
-  Buffer]]) or /.osh/ formats from [[https://planet.openstreetmap.org/][Planet OSM website]] (/.osm/ format refers to
-  latest data, whereas /.osh/ refers to history data).
++ simple because you just have to download the history dump in /.pbf/ (Protocol
+  Buffer) format, based on /.xml/. The corresponding files have two possible extensions: /.osm/
+  refers to up-to-date data, whereas /.osh/ refers to history data.
 + complex because when you want to extract alternative data, it can be a long
   and tedious task.
 
 The challenge here is to pass from these native formats to in-base data or
-/.csv/ files. Several tools exist to accomplish this effort, we detail two of
-them here.
+/.csv/ files. Several tools exist to accomplish this effort, two of them are
+detailed here.
 
-When working with /.pbf/ files, we propose here to use the =pyosmium=, a
-dedicated [[http://docs.osmcode.org/pyosmium/v2.11.0/][Python library]]. These files are freely available on [[http://download.geofabrik.de/][Geofabrik]] (/e.g./
-a [[http://download.geofabrik.de/europe.html][continent]], a [[http://download.geofabrik.de/europe/france.html][country]], or even a [[http://download.geofabrik.de/europe/france/aquitaine.html][sub-region]]) in /osm/ or /osh/ version (/i.e./
-up-to-date API or history). For the whole planet, the /.pbf/ file is quite big:
-~57Go. Note that the /.xml/ file is compressed with =bzip2=. It can be long
-(+36 hours) and take some place (1TB) if you uncompress it.
+When working with /.pbf/ files, =pyosmium=, a dedicated Python library, is a
+really useful tool. These files are freely available on [[http://download.geofabrik.de/][Geofabrik]] (/e.g./ a
+continent, a country, or even a sub-region) in /osm/ or /osh/ versions. The
+whole planet dump is the biggest file, its size reaches around 60Go.
 
-If we want to extract another free area, [[http://osmcode.org/osmium-tool/][osmium-tool]] is a serious option in
+If we want to extract another free area, =osmium-tool= is a serious option in
 order to create our own /.pbf/ file. It is available as a package in the Debian
 GNU/Linux distribution. The next section show an example of utilization, to get
 OSM data around Bordeaux, France.
@@ -155,16 +150,16 @@ OSM data around Bordeaux, France.
 ** Python is your friend, Luigi your plumber
 
 In addition to =pyosmium= and to classic data-oriented Python packages (/e.g./
-=numpy= and =pandas=), we use [[https://luigi.readthedocs.io/en/stable/][Luigi]], which is dedicated to job pipeline
+=numpy= and =pandas=), we use =Luigi=, which is dedicated to job pipeline
 building. This tool allows to manage every tasks and organize them all
 together, by clarifying the dependencies.
 
-A quick benchmark about existing Luigi utilizations shows that machine learning
+A quick benchmark about existing Luigi use cases shows that machine learning
 applications are extremely compatible with this package. That is particularly
-true if we consider Map/Reduce frameworks. Here we will demonstrate that Luigi
+true if we consider Map/Reduce frameworks. Here we can demonstrate that Luigi
 keeps its interest in our case, with a slightly different usage.
 
-Here our workflow can be illustrated by the following figure, obtained with the help
+Our workflow can be illustrated by the following figure, obtained with the help
 of the Luigi daemon. It permits to explore the task pipeline graphically as
 well as to explore their accomplishment degree while running.
 
@@ -175,10 +170,10 @@ well as to explore their accomplishment degree while running.
 We can identify some example of tasks in this graph:
 
 - =OSMHistoryParsing= and =OSMTagParsing= are sources, these parsing tasks
-  provide initial data sets by using =pyosmium= capacities.
-- =OSMElementEnrichment= is an intermediary task in which additional features
+  provide initial data sets by using =pyosmium= features.
+- =OSMElementEnrichment= is an intermediary task in which additional variables
   are merged to OSM history data
-- These additional features are used in every metadata building tasks:
+- These additional variables are used in every metadata building tasks:
   =OSMTagMetaAnalysis=, =ElementMetadataExtract=, =ChangeSetMetadataExtract=
   and =UserMetadataExtract=.
 - =MasterTask= is an abstract task that yields each final tasks. Its completion
@@ -192,18 +187,18 @@ effort.
 
 * OSM data extraction
 
+We saw in the last section that =osmium-tool= is needed for working with
+specific OSM area. Here we provide an insight of the methodology with Bordeaux,
+a medium-sized French city.
+
 ** Build our own OSM data sample
 
-We saw in the last section which tool to use if we want to work with specific
-OSM area. Here we provide an insight of the methodology with Bordeaux, a
-medium-sized French city.
-
-This alternative method needs the area geographical coordinates. We recover
-them by drawing the accurate bounding box within the OpenStreetMap [[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] export
-tool. We get the following bounding box coordinates: the top-left corner is at
-={44.9335, -0.7179}= whilst the bottom-right corner is at ={44.7216,
--0.4134}=. These coordinates seem quite weird (weirdly concise!), however they
-are just hand-made, by successive zooms in the OSM API.
+This method needs the area geographical coordinates. We recover them by drawing
+the accurate bounding box within the OpenStreetMap [[https://www.openstreetmap.org/#map=10/45.0000/0.0000][API]] export tool. We get the
+following bounding box coordinates: the top-left corner is at ={44.9335,
+-0.7179}= whilst the bottom-right corner is at ={44.7216, -0.4134}=. These
+coordinates seem unnecessarily precise, however they are just hand-made, by
+successive zooms in the API.
 
 #+CAPTION: Hand-made bounding box on Bordeaux city (France)
 #+NAME: fig:osm-bb-example
@@ -214,14 +209,17 @@ They are integrated in the following JSON configuration file, as well as the
 output file name:
 
 #+BEGIN_SRC js
-{ "extracts": [ { "output": "bordeaux-metropole.osh.pbf", "output_format":
-  "osh.pbf", "description": "extract OSM history for Bordeaux (France)",
-  "bbox": {"left": -0.7179, "right": -0.4134, "top": 44.9335, "bottom":
-  44.7216} } ], "directory": "/path/to/outputdir/" }
+{ "extracts": [ { 
+              "output": "bordeaux-metropole.osh.pbf",
+              "output_format": "osh.pbf",
+              "description": "extract OSM history for Bordeaux (France)",
+              "bbox": {"left": -0.7179, "right": -0.4134, "top": 44.9335, "bottom": 44.7216} } ],
+              "directory": "/path/to/outputdir/"
+}
 #+END_SRC
 
-This JSON file is used by osmium to build a standard /pbf/ file in the
-following shell command:
+A standard /.pbf/ file is build with this JSON configuration from the following
+shell command:
 
 #+BEGIN_SRC shell
 osmium extract --with-history --config=region.json latest-planet.osh.pbf
@@ -229,16 +227,15 @@ osmium extract --with-history --config=region.json latest-planet.osh.pbf
 
 Where =latest-planet.osh.pbf= is the input file (downloaded from Geofabrik
 website, we still need some original data!). The =--with-history= flag here is
-important as well. We want to study the temporal evolution of some OSM
-entities, the number of contributions, and check some specific OSM entities
-such as nodes, ways or relations and get their history.
+important to study the temporal evolution of some OSM entities, the number of
+contributions, and check some specific OSM entities such as nodes, ways or
+relations and get their history.
 
 ** Extract OSM data history
 
-At this point, we have a /pbf/ file that contains every OSM element versions
-through time. We still have to write them into a /csv/ file. Here we use
-[[http://docs.osmcode.org/pyosmium/latest/index.html][pyosmium]] (see previous
-article).
+At this point, we have a /.pbf/ file that contains every OSM element versions
+through time. We still have to write them into a /.csv/ file. That is the role
+of =pyosmium=, evoked previously.
 
 This operation can be done through a simple Python file (see snippets below).
 
@@ -273,16 +270,15 @@ This operation can be done through a simple Python file (see snippets below).
 
 #+RESULTS:
 
-First we have to import the useful libraries, that are pandas (to handle
-dataframes and /csv/ files) and pyosmium. Then, we define a small OSM data
-handler, that saves every nodes into the =elemtimeline= attribute (/i.e./ a
-list). This example is limited to nodes for a sake of concision, however this
-class is easily extensible to other OSM objects. We can observe that several
-node attributes are recorded: the element type ("node" for nodes, of course!),
-ID, version in the history, if it is currently visible on the API, timestamp
-(when the version has been set), user ID, change set ID and the number of
-associated tags. These attributes are also available for ways and relations,
-letting the chance to put a little more abstraction in this class definition!
+First we have to import the useful libraries, that are =pandas= (to handle
+dataframes and /.csv/ files) and =pyosmium=. Then, we define a small OSM data
+handler, that saves every nodes, ways and relations into the =elemtimeline=
+attribute (/i.e./ a list). We can observe that several attributes are recorded:
+the element type, ID, version in the history, if it is currently visible on the
+API, timestamp (when the current version has been set), user ID, change set ID
+and the number of associated tags. These attributes are also available for ways
+and relations, letting the chance to put a little more abstraction in this
+class definition.
 
 An instance of this class can be created so as to save OSM nodes within the
 Bordeaux metropole area (see below). We pass the input file name to the
@@ -326,38 +322,28 @@ DataFrame, to make further treatments easier.
 9      0  
 #+end_example
 
-With the help of pandas library, to save the file into /csv/ format is
-straightforward:
+The only thing to do here is to save the file into a /.csv/ file format:
 
 #+BEGIN_SRC ipython :session osm :exports both
   elements.to_csv("bordeaux-metropole.csv", date_format='%Y-%m-%d %H:%M:%S')
 #+END_SRC
 
-At this point, the OSM data history is available in a /.csv/ file format, coming
-with a whole set of attributes that will be useful to describe the data.
+At this point, the OSM data history is available in a /.csv/ format, coming
+with a whole set of attributes that will be useful to describe the data. It
+will give an opportunity to study the temporal evolution of the OSM API, as
+developed in the next section.
 
 * OSM API exploration through time
 
-** A simple procedure to build dated OSM histories
+** A simple procedure to build dated OSM states
 
 From the OSM data history we can recover the current state of OSM data (or more
-precisely, the API state at the data extraction date). The only step that is
-needed is to select the up-to-date OSM objects, /i.e./ those with the last
-existing version, through a =group-by= operation.
-
-#+BEGIN_SRC ipython :session osm :exports both
-  def updatedelem(data):
-      updata = data.groupby(['type','id'])['version'].max().reset_index()
-      return pd.merge(updata, data, on=['id','version'])
-#+END_SRC
-
-#+RESULTS:
-
-This seem to be a quite useless function: we could have found directly such
-data on GeoFabrik website, isn't it? ... Well, it is not that useless. As an
-extension of this first procedure, we propose a simple but seminal procedure
-called =datedelems= that allows us to get the OSM API picture given a specific
-date:
+precisely, the API state at the data extraction date). The only needed step is
+to select the up-to-date OSM objects, /i.e./ those with the last existing
+version, through a simple /groupby/ operation (by the way, it is equivalent to
+download the corresponding /.osm/ file). As an extension, we propose a simple
+but seminal procedure called =datedelems= that allows us to get the OSM API
+picture given a specific date:
 
 #+BEGIN_SRC ipython :session osm :exports both
   def datedelems(history, date): 
@@ -370,19 +356,16 @@ date:
 
 #+RESULTS:
 
-We can notice in this function that pandas allows to express queries in a
-SQL-like mode, a very useful practice in order to explore data!
-
 As a corollary we can build some time series aiming to describe the evolution
-of the API in terms of OSM objects (nodes, ways, relations) or users.
+of the API in terms of OSM objects (nodes, ways, relations) or users. What if
+we consider the API state month after month? What is the temporal evolution of
+node, way, or relation quantities?
 
 ** How to get the OSM API evolution?
 
-What if we consider OSM API state month after month? What is the temporal
-evolution of node, way, or relation amounts? The following procedure helps us
-to describe the OSM API at a given date: how many node/way/relation there are,
-how many user have contributed, how many change sets have been opened. Further
-statistics may be designed, in the same manner.
+The following procedure helps us to describe the OSM API at a given date: how
+many node/way/relation there are, how many users have contributed, how many
+change sets have been opened:
 
 #+BEGIN_SRC ipython :session osm :exports both
   def osm_stats(osm_history, timestamp): 
@@ -397,10 +380,9 @@ statistics may be designed, in the same manner.
 
 #+RESULTS:
 
-By designing a last function, we can obtain a pandas dataframe that summarizes
-basic statistics at regular timestamps: in this example, we focus on monthly
-evaluations, however everything is possible... A finner analysis is possible,
-by taking advantage of pandas time series capabilities.
+We can obtain a dataframe that summarizes these statistics at regular
+timestamps: monthly evaluations, or even finner analysis, by taking advantage
+of pandas time series capabilities.
 
 #+BEGIN_SRC ipython :session osm :exports both
   def osm_chronology(history, start_date, end_date, frequency="1M"):
@@ -462,7 +444,7 @@ entities.
 #+attr_html: :width 800px
 [[./../figs/bordeaux-metropole-chronology-logscale.png]]
 
-As a remark, the number of active contributor plotted here is not really
+As a remark, the number of contributors plotted here is not really
 representative of the total quantity of OSM contributors: we consider only
 local data here. Active users all around the world are not those who have
 collaborated for this specific region. These statistics are available by
@@ -495,6 +477,34 @@ than 15 nodes and 0.01 contributor per square kilometer.
 
 * Conclusion
 
+In this paper a first overview of OpenStreetMap data has been provided. On the
+first sight exploiting these data is not so evident; however it appears simpler
+with the convenient toolbox.
+
+If the final target is to consider geospatial data quality, OSM data sets are a
+very illustrative example: they are built collaboratively, by whoever who wants
+to contribute. As a consequence, these data sets may be far from being
+"perfect", even if this last notion is hard to define without any shared
+reference data set.
+
+Here a complete workflow has been described for getting OSM data, and loading
+it into a Python environment. To do such operation a specific package has been
+used: =pyosmium=. This tool, amongst others, allows to parse OSM data, and
+handle it as =pandas= DataFrames so as to serialize it into classic /.csv/
+files. Moreover a pipeline organizer completes this workflow, /i.e./
+=Luigi=. Once the data are in the workspace, it becomes easier to provide some
+insights about OSM API. As a first example, a small data set has been extracted
+in the area of Bordeaux, France. Then a chronological study has showed how the
+API evolves through time in terms of numbers of elements and active
+contributors.
+
+This first article gives the opportunity to describe some generic features
+about OSM data, however the analysis has been bounded to seminal
+contributions. This introduction appears as a pre-requisite before going
+further. As a perspective a richer analysis focused on OSM data quality is
+clearly targetted. One research question still emerges: what can we conclude
+about data quality by exploiting OSM metadata, /i.e./ which impact change sets
+have, how users contribute, how elements evolve time after time?
 
 * References
 
