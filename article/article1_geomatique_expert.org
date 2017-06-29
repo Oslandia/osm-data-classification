@@ -208,6 +208,7 @@ successive zooms in the API.
 They are integrated in the following JSON configuration file, as well as the
 output file name:
 
+#+NAME: json_config
 #+BEGIN_SRC js
 { "extracts": [ { 
               "output": "bordeaux-metropole.osh.pbf",
@@ -217,13 +218,16 @@ output file name:
               "directory": "/path/to/outputdir/"
 }
 #+END_SRC
+#+CAPTION: JSON Configuration for osmium extraction
 
 A standard /.pbf/ file is build with this JSON configuration from the following
 shell command:
 
+#+NAME: osmium_extraction
 #+BEGIN_SRC shell
 osmium extract --with-history --config=region.json latest-planet.osh.pbf
 #+END_SRC
+#+CAPTION: Osmium extraction
 
 Where =latest-planet.osh.pbf= is the input file (downloaded from Geofabrik
 website, we still need some original data!). The =--with-history= flag here is
@@ -239,6 +243,7 @@ of =pyosmium=, evoked previously.
 
 This operation can be done through a simple Python file (see snippets below).
 
+#+NAME: Timeline_handler
 #+BEGIN_SRC ipython :session osm :exports both
   import osmium as osm
   import pandas as pd
@@ -267,8 +272,7 @@ This operation can be done through a simple Python file (see snippets below).
       def relation(self, r):
           self.element(r, "relation")
 #+END_SRC
-
-#+RESULTS:
+#+CAPTION: Class /TimelineHandler/: recover OSM objects from a /.pbf/ file
 
 First we have to import the useful libraries, that are =pandas= (to handle
 dataframes and /.csv/ files) and =pyosmium=. Then, we define a small OSM data
@@ -286,6 +290,7 @@ Bordeaux metropole area (see below). We pass the input file name to the
 accordingly. After that we just have to transform the list into a pandas
 DataFrame, to make further treatments easier.
 
+#+NAME: Timeline_handler_call
 #+BEGIN_SRC ipython :session osm :exports both
   tlhandler = TimelineHandler()
   tlhandler.apply_file("../src/data/raw/bordeaux-metropole.osh.pbf")
@@ -294,7 +299,9 @@ DataFrame, to make further treatments easier.
   elements = elements.sort_values(by=['type', 'id', 'ts'])
   elements.head(10)
 #+END_SRC
+#+CAPTION: Instanciation of /TimelineHandler/ with Bordeaux data
 
+#+CAPTION: First records of Bordeaux OSM data history
 #+RESULTS:
 #+begin_example
    type        id  version  visible                        ts    uid  chgset  \
@@ -324,9 +331,11 @@ DataFrame, to make further treatments easier.
 
 The only thing to do here is to save the file into a /.csv/ file format:
 
+#+NAME: csv_recording
 #+BEGIN_SRC ipython :session osm :exports both
   elements.to_csv("bordeaux-metropole.csv", date_format='%Y-%m-%d %H:%M:%S')
 #+END_SRC
+#+CAPTION: Bordeaux OSM data history disk saving
 
 At this point, the OSM data history is available in a /.csv/ format, coming
 with a whole set of attributes that will be useful to describe the data. It
@@ -345,6 +354,7 @@ download the corresponding /.osm/ file). As an extension, we propose a simple
 but seminal procedure called =datedelems= that allows us to get the OSM API
 picture given a specific date:
 
+#+NAME: datedelems
 #+BEGIN_SRC ipython :session osm :exports both
   def datedelems(history, date): 
       datedelems = (history.query("ts <= @date")
@@ -353,8 +363,7 @@ picture given a specific date:
                     .reset_index())
       return pd.merge(datedelems, history, on=['type','id','version'])
 #+END_SRC
-
-#+RESULTS:
+#+CAPTION: Function /datedelems/: return the OSM API state at a specific date
 
 As a corollary we can build some time series aiming to describe the evolution
 of the API in terms of OSM objects (nodes, ways, relations) or users. What if
@@ -367,6 +376,7 @@ The following procedure helps us to describe the OSM API at a given date: how
 many node/way/relation there are, how many users have contributed, how many
 change sets have been opened:
 
+#+NAME: osm_stats
 #+BEGIN_SRC ipython :session osm :exports both
   def osm_stats(osm_history, timestamp): 
       osmdata = datedelems(osm_history, timestamp)
@@ -377,13 +387,13 @@ change sets have been opened:
       nb_chgsets = osmdata.chgset.nunique()
       return [nb_nodes, nb_ways, nb_relations, nb_users, nb_chgsets]
 #+END_SRC
-
-#+RESULTS:
+#+CAPTION: Function /osm_stats/: provide dated statistics of an OSM area
 
 We can obtain a dataframe that summarizes these statistics at regular
 timestamps: monthly evaluations, or even finner analysis, by taking advantage
 of pandas time series capabilities.
 
+#+NAME: osm_chrono
 #+BEGIN_SRC ipython :session osm :exports both
   def osm_chronology(history, start_date, end_date, frequency="1M"):
       timerange = pd.date_range(start_date, end_date, freq=frequency).values
@@ -393,8 +403,7 @@ of pandas time series capabilities.
                                        'n_users', 'n_chgsets'])
       return osmstats
 #+END_SRC
-
-#+RESULTS:
+#+CAPTION: Function /osm_chronology/: extract the history of an OSM area
 
 These developments open further possibilities. Areas are comparable through
 their history. A basic hypothesis could be: some areas have been built faster
@@ -407,10 +416,13 @@ issue!
 To illustrate the previous points, we can call the =osm_chronology= procedure
 to Bordeaux-related OSM data. We can study the last 10 years, as an example:
 
+#+NAME: osm_chrono_call
 #+BEGIN_SRC ipython :session osm :exports both
   osm_chronology(elements, "2007-01-01", "2017-01-01", "AS")  
 #+END_SRC
+#+CAPTION: Call of /osm_chronology/
 
+#+CAPTION: Temporal evolution of OSM objects around Bordeaux, France
 #+RESULTS:
 #+begin_example
             n_nodes  n_ways  n_relations  n_users  n_chgsets
