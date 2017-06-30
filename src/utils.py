@@ -445,8 +445,6 @@ def extract_user_metadata(osm_elements, chgset_md):
     """
     user_md = init_metadata(osm_elements, ['uid'])
     # Change set-related features
-    osm_elements = pd.merge(osm_elements, chgset_md[['chgset','Xclust']],
-                            on='chgset')
     user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
                            .count()
                            .reset_index())['chgset']
