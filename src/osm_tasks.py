@@ -323,8 +323,7 @@ class MetadataPCA(luigi.Task):
     def run(self):
         with self.input().open('r') as inputflow:
             metadata  = pd.read_csv(inputflow,
-                                       index_col=0,
-                                       parse_dates=['first_at', 'last_at'])
+                                       index_col=0)
         # Data preparation
         if self.metadata_type == "chgset":
             metadata = metadata.set_index(['chgset', 'uid'])
