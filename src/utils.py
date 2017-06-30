@@ -12,6 +12,8 @@ from datetime import timedelta
 import re
 import math
 
+import statsmodels.api as sm
+
 ### OSM data exploration ######################
 def updatedelem(data):
     """Return an updated version of OSM elements
@@ -469,6 +471,30 @@ def extract_user_metadata(osm_elements, chgset_md):
     logtransform_feature(user_md, 'n_relation_modif')
     return user_md
 
+def ecdf_transform(metadata, feature):
+    """ Apply an ECDF transform on feature within metadata; transform the column
+    data into ECDF values
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata in which the transformation takes place
+    feature: object
+        string designing the transformed column
+
+    Return
+    ------
+    New metadata, with a new renamed feature containing ecdf version of
+    original data
+    
+    """
+    ecdf = sm.distributions.ECDF(metadata[feature])
+    metadata[feature] = ecdf(metadata[feature])
+    new_feature_name = 'u_' + feature.split('_', 1)[1]
+    print(feature, new_feature_name)
+    return metadata.rename(columns={feature: new_feature_name})
+
+    
 def extract_modif_features(metadata, data, element_type, grp_feat):
     """Extract a set of metadata features corresponding to a specific element
     type; centered on modifications
