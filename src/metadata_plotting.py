@@ -30,6 +30,8 @@ def md_scatter(metadata_x, metadata_y):
     f.tight_layout()
     plt.show()
 
+
+    
 def md_scatter_set(metadata, features, nb_subplot_col=2):
     """Draw 2D scatter plots from metadata features
 
@@ -61,7 +63,7 @@ def md_scatter_set(metadata, features, nb_subplot_col=2):
     f.tight_layout()
     f.show()
 
-def md_hist(metadata_x, bins=np.linspace(0,1,51)):
+def md_hist(metadata_x, bins=np.linspace(0,1,21)):
     """Draw an histogram of the metadata_x feature
 
     Parameters
