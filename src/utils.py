@@ -464,11 +464,13 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
-    logtransform_feature(user_md, 'n_chgset')
-    logtransform_feature(user_md, 'nmean_modif_byelem')
-    logtransform_feature(user_md, 'n_node_modif')
-    logtransform_feature(user_md, 'n_way_modif')
-    logtransform_feature(user_md, 'n_relation_modif')
+    user_md = ecdf_transform(user_md, 'n_chgset')
+    user_md = ecdf_transform(user_md, 'dmean_chgset_m')
+    user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
+    user_md = ecdf_transform(user_md, 'n_node_modif')
+    user_md = ecdf_transform(user_md, 'n_way_modif')
+    user_md = ecdf_transform(user_md, 'n_relation_modif')
+    user_md = user_md.set_index('uid')
     return user_md
 
 def ecdf_transform(metadata, feature):
