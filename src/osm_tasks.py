@@ -327,8 +327,6 @@ class MetadataPCA(luigi.Task):
         # Data preparation
         if self.metadata_type == "chgset":
             metadata = metadata.set_index(['chgset', 'uid'])
-        else:
-            metadata = metadata.set_index(['uid'])
         metadata = utils.drop_features(metadata, '_at')
         if self.features != '':
             for pattern in ['elem', 'node', 'way', 'relation']:

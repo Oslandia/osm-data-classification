@@ -353,6 +353,7 @@ def extract_elem_metadata(osm_elements):
                                               'version', 'visible',
                                               'ntags', 'tagkeys']],
                        on=['elem', 'id', 'version'])
+    elem_md = elem_md.set_index(['elem', 'id'])
     return elem_md
 
 def extract_chgset_metadata(osm_elements):
@@ -396,6 +397,7 @@ def extract_chgset_metadata(osm_elements):
                                        'way', 'chgset')
     chgset_md = extract_element_features(chgset_md, osm_elements,
                                        'relation', 'chgset')
+    chset_md = chgset_md.set_index('chgset')
     return chgset_md
 
 def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
