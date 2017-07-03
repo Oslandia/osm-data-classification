@@ -492,9 +492,7 @@ def ecdf_transform(metadata, feature):
     ecdf = sm.distributions.ECDF(metadata[feature])
     metadata[feature] = ecdf(metadata[feature])
     new_feature_name = 'u_' + feature.split('_', 1)[1]
-    print(feature, new_feature_name)
     return metadata.rename(columns={feature: new_feature_name})
-
     
 def extract_modif_features(metadata, data, element_type, grp_feat):
     """Extract a set of metadata features corresponding to a specific element
