@@ -12,6 +12,8 @@ from datetime import timedelta
 import re
 import math
 
+import statsmodels.api as sm
+
 ### OSM data exploration ######################
 def updatedelem(data):
     """Return an updated version of OSM elements
@@ -200,6 +202,7 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     activity (int) -- activity (in 'timeunit' format)
 
     """
+    timehorizon = (osm_elements.ts.max() - osm_elements.ts.min())
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
@@ -208,14 +211,20 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     if timeunit == 'second':
         metadata[duration_feat] = (metadata[duration_feat] /
                                    timedelta(seconds=1))
+        timehorizon = timehorizon / pd.Timedelta('1s')
     if timeunit == 'minute':
         metadata[duration_feat] = (metadata[duration_feat] /
                                    timedelta(minutes=1))
+        timehorizon = timehorizon / pd.Timedelta('1m')
     if timeunit == 'hour':
         metadata[duration_feat] = metadata[duration_feat] / timedelta(hours=1)
+        timehorizon = timehorizon / pd.Timedelta('1h')
     if timeunit == 'day':
         metadata[duration_feat] = metadata[duration_feat] / timedelta(days=1)
-    return metadata.sort_values(by=['first_at'])
+        timehorizon = timehorizon / pd.Timedelta('1D')
+    metadata[duration_feat] = metadata[duration_feat] / timehorizon
+    metadata = metadata.sort_values(by=['first_at'])
+    return drop_features(metadata, '_at')
 
 def enrich_osm_elements(osm_elements):
     """Enrich OSM history data by computing additional features
@@ -344,6 +353,7 @@ def extract_elem_metadata(osm_elements):
                                               'version', 'visible',
                                               'ntags', 'tagkeys']],
                        on=['elem', 'id', 'version'])
+    elem_md = elem_md.set_index(['elem', 'id'])
     return elem_md
 
 def extract_chgset_metadata(osm_elements):
@@ -387,6 +397,7 @@ def extract_chgset_metadata(osm_elements):
                                        'way', 'chgset')
     chgset_md = extract_element_features(chgset_md, osm_elements,
                                        'relation', 'chgset')
+    chset_md = chgset_md.set_index('chgset')
     return chgset_md
 
 def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
@@ -436,14 +447,12 @@ def extract_user_metadata(osm_elements, chgset_md):
     """
     user_md = init_metadata(osm_elements, ['uid'])
     # Change set-related features
-    osm_elements = pd.merge(osm_elements, chgset_md[['chgset','Xclust']],
-                            on='chgset')
     user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
                            .count()
                            .reset_index())['chgset']
-    user_md['dmean_chgset_m'] = (chgset_md.groupby('uid')['duration_m']
-                                    .mean()
-                                 .reset_index())['duration_m']
+    user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration_m']
+                               .mean()
+                               .reset_index())['duration_m'] / (24*60)
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
@@ -455,13 +464,38 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
-    logtransform_feature(user_md, 'n_chgset')
-    logtransform_feature(user_md, 'nmean_modif_byelem')
-    logtransform_feature(user_md, 'n_node_modif')
-    logtransform_feature(user_md, 'n_way_modif')
-    logtransform_feature(user_md, 'n_relation_modif')
+    user_md = ecdf_transform(user_md, 'n_chgset')
+    user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
+    user_md = ecdf_transform(user_md, 'n_node_modif')
+    user_md = ecdf_transform(user_md, 'n_way_modif')
+    user_md = ecdf_transform(user_md, 'n_relation_modif')
+    user_md = user_md.set_index('uid')
     return user_md
 
+def ecdf_transform(metadata, feature):
+    """ Apply an ECDF transform on feature within metadata; transform the column
+    data into ECDF values
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata in which the transformation takes place
+    feature: object
+        string designing the transformed column
+
+    Return
+    ------
+    New metadata, with a new renamed feature containing ecdf version of
+    original data
+    
+    """
+    ecdf = sm.distributions.ECDF(metadata[feature])
+    metadata[feature] = ecdf(metadata[feature])
+    new_feature_name = 'u_' + feature.split('_', 1)[1]
+    print(feature, new_feature_name)
+    return metadata.rename(columns={feature: new_feature_name})
+
+    
 def extract_modif_features(metadata, data, element_type, grp_feat):
     """Extract a set of metadata features corresponding to a specific element
     type; centered on modifications

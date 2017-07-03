@@ -421,20 +421,17 @@ class MetadataPCA(luigi.Task):
     def run(self):
         with self.input().open('r') as inputflow:
             metadata  = pd.read_csv(inputflow,
-                                       index_col=0,
-                                       parse_dates=['first_at', 'last_at'])
+                                       index_col=0)
         # Data preparation
         if self.metadata_type == "chgset":
             metadata = metadata.set_index(['chgset', 'uid'])
-        else:
-            metadata = metadata.set_index(['uid'])
         metadata = utils.drop_features(metadata, '_at')
         if self.features != '':
             for pattern in ['elem', 'node', 'way', 'relation']:
                 if pattern != self.features:
                     metadata = utils.drop_features(metadata, pattern)
         # Data normalization
-        scaler = RobustScaler(quantile_range=(0.0,95.0))
+        scaler = RobustScaler(quantile_range=(0.0,100.0)) # = Min scaler
         X = scaler.fit_transform(metadata.values)
         # Select the most appropriate dimension quantity
         var_analysis = ul.compute_pca_variance(X)
