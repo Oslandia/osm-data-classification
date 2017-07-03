@@ -236,6 +236,10 @@ def split_md_features(ft_names, element_type_splitting=True):
     synthesis[relation_indices] = 3
     return synthesis
 
+SUBPLOT_LAYERS = pd.DataFrame({'x':[0,0,0,1,1,2],
+                               'y':[1,2,3,2,3,3],
+                               'nb_comp':[2,3,4,3,4,4]})
+
 def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1, explained=None):
     """ Draw a correlation circle form PCA results
 
@@ -273,6 +277,7 @@ def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1
         nb_vertical_plots = 2
         nb_horiz_plots = 3
     f, ax = plt.subplots(nb_vertical_plots, nb_horiz_plots, figsize=(6*nb_horiz_plots, 6*nb_vertical_plots))
+    subplot_layers = SUBPLOT_LAYERS.query('nb_comp <= @nb_comp')
     for i in range(nb_plots):
         if nb_comp == 2:
             ax_ = ax
@@ -280,6 +285,7 @@ def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1
             ax_ = ax[i%nb_horiz_plots]
         elif nb_comp == 4:
             ax_ = ax[int(i/nb_horiz_plots)][i%nb_horiz_plots]
+        x_comp, y_comp = subplot_layers.iloc[i][['x', 'y']]
         # Circle structure
         circle = plt.Circle((0, 0), radius=1, color='grey', fill=False)
         ax_.add_artist(circle)
