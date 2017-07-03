@@ -45,16 +45,14 @@ def md_scatter_set(metadata, pattern, nb_subplot_col=2):
     """
     md_scatter = utils.extract_features(metadata, pattern)
     nb_components = len(md_scatter.columns)
-    nb_vertical_plots = int(nb_components/nb_subplot_col)
-    if nb_components%nb_subplot_col > 0:
-        nb_vertical_plots = nb_vertical_plots + 1
-    f, ax = plt.subplots(nb_vertical_plots, nb_subplot_col, figsize=(16, 12))
+    f, ax = plt.subplots(len(md_scatter.columns), len(md_scatter.columns),
+                         figsize=(16, 12))
     for column in md_scatter:
         i = np.where(md_scatter.columns == column)[0][0]
         for column2 in md_scatter:
             if column != column2:
                 j = np.where(md_scatter.columns == column2)[0][0]
-                ax_ = ax[int(i/nb_subplot_col)][i%nb_subplot_col]
+                ax_ = ax[i][j]
                 ax_.plot(md_scatter[column], md_scatter[column2], 'o')
                 ax_.set_xlabel(column)
                 ax_.set_ylabel(column2)
