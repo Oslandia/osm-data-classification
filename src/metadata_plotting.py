@@ -124,3 +124,20 @@ def md_multiplot(metadata, pattern):
     """
     plotted_metadata = utils.extract_features(metadata, pattern)
     sns.pairplot(plotted_metadata)
+    
+def md_corplot(metadata, pattern):
+    """ Draw a correlation plot of metadata features; consider only features
+    that correspond to pattern
+    """
+    md_corplot = utils.extract_features(metadata, pattern)
+    f, ax = plt.subplots(figsize=(12,10))
+    sns.heatmap(md_corplot.astype(float).corr(),
+                vmax=1,
+                square=True,
+                annot=True,
+                annot_kws={'size':10},
+                fmt='.2f')
+    plt.xticks(rotation=90)
+    plt.yticks(rotation=0)
+    f.tight_layout()
+    f.show()
