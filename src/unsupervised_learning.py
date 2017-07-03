@@ -5,6 +5,7 @@
 Some utility functions designed for machine learning algorithm exploitation
 """
 
+import math
 import re
 import pandas as pd
 import numpy as np
@@ -234,3 +235,57 @@ def split_md_features(ft_names, element_type_splitting=True):
     synthesis[way_indices] = 2
     synthesis[relation_indices] = 3
     return synthesis
+
+def correlation_circle(pcavar, pcaind=None, pattern='', comp_id=[0,1], threshold=0.1, explained=None):
+    """ Draw a correlation circle form PCA results
+
+    Parameters
+    ----------
+    pcavar: pandas.DataFrame
+       feature contributions to each component (n_features, n_components)
+    scores: pandas.DataFrame
+       contribution of each individuals to each component (n_observation,
+    n_features)
+    pattern: str
+       character string that indicates which feature has to be kept
+    comp_id: integer
+       id of components that have to be plotted in the circle
+    threshold: float
+       indicates a lower bound of feature contribution norms, to avoid
+    unreadable arrow draws; between 0 and 1
+    explained: list
+       vector of variance proportion explained by each PCA component
+    """
+    loadings = pcavar.loc[pcavar.index.str.contains(pattern)]
+    # Circle structure
+    circle = plt.Circle((0, 0), radius=1, color='grey', fill=False)
+    fsize = min(plt.rcParams['figure.figsize'])
+    fig, ax = plt.subplots(figsize=(fsize, fsize))
+    ax.add_artist(circle)
+    x_comp, y_comp = comp_id
+    # Plot rescaled individuals contributions on circle
+    if pcaind is not None:
+        scalex = 1.0 / np.ptp(pcaind.iloc[:, x_comp])
+        scaley = 1.0 / np.ptp(pcaind.iloc[:, y_comp])
+        score_x = pcaind.copy().iloc[:, x_comp] * scalex
+        score_y = pcaind.copy().iloc[:, y_comp] * scaley
+        plt.scatter(score_x, score_y, marker='.')
+    # Draw arrows to materialize feature contributions
+    for name, feature in loadings.iterrows():
+        x, y = feature.iloc[x_comp], feature.iloc[y_comp]
+        if math.sqrt(x ** 2 + y ** 2) < threshold:
+            continue
+        arrows = plt.arrow(0, 0, x, y, width=0.01, color='r', alpha=0.5)
+        plt.annotate(name, xy=(x,y), xytext=(x+0.02,y+0.02), color='r', alpha=1)
+    # Graphical statements: make the circle sexier
+    xl = 'PC' + str(x_comp+1)
+    yl = 'PC' + str(y_comp+1)
+    xl = xl if explained is None else xl + ' ({:.2f}%)'.format(100. * explained[x_comp])
+    yl = yl if explained is None else yl + ' ({:.2f}%)'.format(100. * explained[y_comp])
+    plt.xlabel(xl)
+    plt.ylabel(yl)
+    plt.xlim((-1.1, 1.1))
+    plt.ylim((-1.1, 1.1))
+    plt.legend(["Individuals"], loc=0)
+    plt.tight_layout()
+    plt.show()
