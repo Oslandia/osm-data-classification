@@ -30,20 +30,20 @@ def md_scatter(metadata_x, metadata_y):
     plt.tight_layout()
     plt.show()
    
-def md_scatter_set(metadata, features, nb_subplot_col=2):
+def md_scatter_set(metadata, pattern, nb_subplot_col=2):
     """Draw 2D scatter plots from metadata features
 
     Parameters
     ----------
     metadata: pd.DataFrame
         metadata to plot
-    features: list of object
-        names of the features that have to be plotted
+    pattern: object
+        string designing the names of the features that have to be plotted
     nb_subplot_col: integer
         number of plots that must be draw horizontally
     
     """
-    md_scatter = metadata[features]
+    md_scatter = utils.extract_features(metadata, pattern)
     nb_components = len(md_scatter.columns)
     nb_vertical_plots = int(nb_components/nb_subplot_col)
     if nb_components%nb_subplot_col > 0:
