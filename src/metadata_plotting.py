@@ -112,15 +112,17 @@ def md_hist_set(metadata, pattern, bins=np.linspace(0,1,51), nb_subplot_col=2):
     f.tight_layout()
     f.show()
 
-def md_multiplot(metadata, features):
-    """Draw a generic plot of metadata features with 1D histogram and 2D scatter plots
+def md_multiplot(metadata, pattern):
+    """Draw a generic plot of metadata features with 1D histogram and 2D
+    scatter plots; use regex to identify features to plot
 
     Parameters
     ----------
     metadata: pd.DataFrame
         metadata that has to be plotted
-    features: list of objects
-        list of feature names that has to be plotted
+    pattern: object
+        string designing the feature names that has to be plotted
     
     """
-    sns.pairplot(metadata[features])
+    plotted_metadata = utils.extract_features(metadata, pattern)
+    sns.pairplot(plotted_metadata)
