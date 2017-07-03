@@ -126,7 +126,7 @@ def feature_contribution(pca_features):
         best_contributions.append(one_feature_contribution(pca_features[col]))
     return best_contributions
 
-def plot_feature_contribution(feature_contributions, ylim=0.5, nb_subplot_col=2):
+def plot_feature_contribution_v3(feature_contributions, ylim=0.5, nb_subplot_col=2):
     """Plot the most important feature contributions for each PCA component;
     the chosen format is barplot, with 5 most positive and 5 most
     negative contributors (horizontal barplot with named labels)
@@ -199,7 +199,7 @@ def plot_feature_contribution_v2(feature_contributions, ylim=0.5, nb_subplot_col
     f.tight_layout()
     f.show()
 
-def plot_feature_contribution_v3(data):
+def plot_feature_contribution(data):
     """Plot feature contribution by using seaborn heatmap capability
 
     Parameters
