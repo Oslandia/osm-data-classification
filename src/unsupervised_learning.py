@@ -265,7 +265,6 @@ def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1
     if nb_comp > 4:
         raise ValueError("Two many components: can't plot them properly!")
     loadings = pcavar.loc[pcavar.index.str.contains(pattern)]
-    x_comp, y_comp = [0, 1]
     nb_plots = int(nb_comp*(nb_comp-1)/2)
     if nb_comp == 2:
         nb_vertical_plots = 1
