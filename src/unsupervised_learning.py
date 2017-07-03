@@ -314,3 +314,72 @@ def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1
     plt.legend(["Individuals"], loc=0)
     plt.tight_layout()
     plt.show()
+
+def contrib_barplot(data, best=10):
+    """Highlight best PCA contributors (either features or individuals), by
+    considering the contribution sum of squares, in the chosen PCA
+
+    Parameters
+    ----------
+    data: pandas.DataFrame
+        data to plot
+    best: integer
+        number of contributors (features or individuals) to highlight, default
+    to 10
+    
+    """
+    contribs = data.apply(lambda x: sum(x**2), axis=1).sort_values().tail(best)
+    plt.barh(np.arange(best), contribs.values, tick_label=contribs.index)
+    plt.tight_layout()
+    plt.show()
+
+def plot_individual_contribution(data, best=10, nb_comp=2, explained=None):
+    """Plot individual contributions to PCA components
+    
+    Parameters
+    ----------
+    data: pandas.DataFrame
+        data to plot
+    best: integer
+        number of contributors (features or individuals) to highlight, default
+    to 10
+    comp: list of two integers
+        components onto which individuals have to be plotted
+    
+    """
+    if nb_comp < 2:
+        raise ValueError("Invalid number of PCA components, choose a number between 2 and 4!")
+    if nb_comp > 4:
+        raise ValueError("Two many components: can't plot them properly!")
+    nb_plots = int(nb_comp*(nb_comp-1)/2)
+    if nb_comp == 2:
+        nb_vertical_plots = 1
+        nb_horiz_plots = 1
+    elif nb_comp == 3:
+        nb_vertical_plots = 1
+        nb_horiz_plots = 3
+    elif nb_comp == 4:
+        nb_vertical_plots = 2
+        nb_horiz_plots = 3
+    f, ax = plt.subplots(nb_vertical_plots, nb_horiz_plots, figsize=(6*nb_horiz_plots, 6*nb_vertical_plots))
+    subplot_layers = SUBPLOT_LAYERS.query('nb_comp <= @nb_comp')
+    for i in range(nb_plots):
+        if nb_comp == 2:
+            ax_ = ax
+        elif nb_comp == 3:
+            ax_ = ax[i%nb_horiz_plots]
+        elif nb_comp == 4:
+            ax_ = ax[int(i/nb_horiz_plots)][i%nb_horiz_plots]
+        comp = subplot_layers.iloc[i][['x', 'y']]
+        ax_.plot(data.iloc[:,comp[0]], data.iloc[:,comp[1]], '.', markersize=10)
+        contribs = data.apply(lambda x: sum(x**2), axis=1).sort_values().tail(best)
+        best_ind = data.loc[contribs.index]
+        ax_.plot(best_ind.iloc[:,comp[0]], best_ind.iloc[:,comp[1]], 'r*', markersize=10)
+        xl = 'PC' + str(comp[0]+1)
+        yl = 'PC' + str(comp[1]+1)
+        xl = xl if explained is None else xl + ' ({:.2f}%)'.format(explained[comp[0]])
+        yl = yl if explained is None else yl + ' ({:.2f}%)'.format(explained[comp[1]])
+        ax_.set_xlabel(xl)
+        ax_.set_ylabel(yl)
+    plt.tight_layout()
+    plt.show()
