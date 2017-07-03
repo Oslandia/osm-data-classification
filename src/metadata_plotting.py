@@ -27,11 +27,9 @@ def md_scatter(metadata_x, metadata_y):
     plt.plot(metadata_x, metadata_y, 'o')
     plt.xlabel(metadata_x.name)
     plt.ylabel(metadata_y.name)
-    f.tight_layout()
+    plt.tight_layout()
     plt.show()
-
-
-    
+   
 def md_scatter_set(metadata, features, nb_subplot_col=2):
     """Draw 2D scatter plots from metadata features
 
@@ -78,7 +76,7 @@ def md_hist(metadata_x, bins=np.linspace(0,1,21)):
     plt.hist(metadata_x, bins=bins, normed=1)
     plt.xlabel("Histogram of "+metadata_x.name)
     plt.ylabel("Frequency (%)")
-    f.tight_layout()
+    plt.tight_layout()
     plt.show()
 
 def md_hist_set(metadata, pattern, bins=np.linspace(0,1,51), nb_subplot_col=2):
