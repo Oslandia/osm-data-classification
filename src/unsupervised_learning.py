@@ -236,7 +236,7 @@ def split_md_features(ft_names, element_type_splitting=True):
     synthesis[relation_indices] = 3
     return synthesis
 
-def correlation_circle(pcavar, pcaind=None, pattern='', comp_id=[0,1], threshold=0.1, explained=None):
+def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1, explained=None):
     """ Draw a correlation circle form PCA results
 
     Parameters
@@ -248,44 +248,64 @@ def correlation_circle(pcavar, pcaind=None, pattern='', comp_id=[0,1], threshold
     n_features)
     pattern: str
        character string that indicates which feature has to be kept
-    comp_id: integer
-       id of components that have to be plotted in the circle
+    nb_comp: integer
+       number of components that have to be plotted in the circle
     threshold: float
        indicates a lower bound of feature contribution norms, to avoid
     unreadable arrow draws; between 0 and 1
     explained: list
        vector of variance proportion explained by each PCA component
     """
+    if nb_comp < 2:
+        raise ValueError("Invalid number of PCA components, choose a number between 2 and 4!")
+    if nb_comp > 4:
+        raise ValueError("Two many components: can't plot them properly!")
     loadings = pcavar.loc[pcavar.index.str.contains(pattern)]
-    # Circle structure
-    circle = plt.Circle((0, 0), radius=1, color='grey', fill=False)
-    fsize = min(plt.rcParams['figure.figsize'])
-    fig, ax = plt.subplots(figsize=(fsize, fsize))
-    ax.add_artist(circle)
-    x_comp, y_comp = comp_id
-    # Plot rescaled individuals contributions on circle
-    if pcaind is not None:
-        scalex = 1.0 / np.ptp(pcaind.iloc[:, x_comp])
-        scaley = 1.0 / np.ptp(pcaind.iloc[:, y_comp])
-        score_x = pcaind.copy().iloc[:, x_comp] * scalex
-        score_y = pcaind.copy().iloc[:, y_comp] * scaley
-        plt.scatter(score_x, score_y, marker='.')
-    # Draw arrows to materialize feature contributions
-    for name, feature in loadings.iterrows():
-        x, y = feature.iloc[x_comp], feature.iloc[y_comp]
-        if math.sqrt(x ** 2 + y ** 2) < threshold:
-            continue
-        arrows = plt.arrow(0, 0, x, y, width=0.01, color='r', alpha=0.5)
-        plt.annotate(name, xy=(x,y), xytext=(x+0.02,y+0.02), color='r', alpha=1)
-    # Graphical statements: make the circle sexier
-    xl = 'PC' + str(x_comp+1)
-    yl = 'PC' + str(y_comp+1)
-    xl = xl if explained is None else xl + ' ({:.2f}%)'.format(100. * explained[x_comp])
-    yl = yl if explained is None else yl + ' ({:.2f}%)'.format(100. * explained[y_comp])
-    plt.xlabel(xl)
-    plt.ylabel(yl)
-    plt.xlim((-1.1, 1.1))
-    plt.ylim((-1.1, 1.1))
+    x_comp, y_comp = [0, 1]
+    nb_plots = int(nb_comp*(nb_comp-1)/2)
+    if nb_comp == 2:
+        nb_vertical_plots = 1
+        nb_horiz_plots = 1
+    elif nb_comp == 3:
+        nb_vertical_plots = 1
+        nb_horiz_plots = 3
+    elif nb_comp == 4:
+        nb_vertical_plots = 2
+        nb_horiz_plots = 3
+    f, ax = plt.subplots(nb_vertical_plots, nb_horiz_plots, figsize=(6*nb_horiz_plots, 6*nb_vertical_plots))
+    for i in range(nb_plots):
+        if nb_comp == 2:
+            ax_ = ax
+        elif nb_comp == 3:
+            ax_ = ax[i%nb_horiz_plots]
+        elif nb_comp == 4:
+            ax_ = ax[int(i/nb_horiz_plots)][i%nb_horiz_plots]
+        # Circle structure
+        circle = plt.Circle((0, 0), radius=1, color='grey', fill=False)
+        ax_.add_artist(circle)
+        # Plot rescaled individuals contributions on circle
+        if pcaind is not None:
+            scalex = 1.0 / np.ptp(pcaind.iloc[:, x_comp])
+            scaley = 1.0 / np.ptp(pcaind.iloc[:, y_comp])
+            score_x = pcaind.copy().iloc[:, x_comp] * scalex
+            score_y = pcaind.copy().iloc[:, y_comp] * scaley
+            ax_.scatter(score_x, score_y, marker='.')
+        # Draw arrows to materialize feature contributions
+        for name, feature in loadings.iterrows():
+            x, y = feature.iloc[x_comp], feature.iloc[y_comp]
+            if math.sqrt(x ** 2 + y ** 2) < threshold:
+                continue
+            arrows = ax_.arrow(0, 0, x, y, width=0.01, color='r', alpha=0.5)
+            ax_.annotate(name, xy=(x,y), xytext=(x+0.02,y+0.02), color='r', alpha=1)
+        # Graphical statements: make the circle sexier
+        xl = 'PC' + str(x_comp+1)
+        yl = 'PC' + str(y_comp+1)
+        xl = xl if explained is None else xl + ' ({:.2f}%)'.format(100. * explained[x_comp])
+        yl = yl if explained is None else yl + ' ({:.2f}%)'.format(100. * explained[y_comp])
+        ax_.set_xlabel(xl)
+        ax_.set_ylabel(yl)
+        ax_.set_xlim((-1.1, 1.1))
+        ax_.set_ylim((-1.1, 1.1))
     plt.legend(["Individuals"], loc=0)
     plt.tight_layout()
     plt.show()
