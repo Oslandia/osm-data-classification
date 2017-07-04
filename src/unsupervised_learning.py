@@ -333,7 +333,8 @@ def contrib_barplot(data, best=10):
     plt.tight_layout()
     plt.show()
 
-def plot_individual_contribution(data, nb_comp=2, explained=None, best=None, cluster=None):
+def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
+                                 cluster=None, cluster_centers=None):
     """Plot individual contributions to PCA components
     
     Parameters
@@ -380,10 +381,19 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None, clu
                                             2:'Cluster_2'}, inplace=True)
             for name, group in data.groupby('Xclust'):
                 ax_.plot(group[x_column], group[y_column], marker='.',
-                         linestyle='', ms=12, label=name)
+                         linestyle='', ms=10, label=name)
                 if i == 0:
                     ax_.legend(loc=0)
             # TODO: Plot cluster centroids
+            if cluster_centers is not None:
+                ax_.plot(cluster_centers[[x_column]],
+                         cluster_centers[[y_column]],
+                         'kD', markersize=10)
+                for i, point in cluster_centers.iterrows():
+                    ax_.text(point[x_column]-0.2, point[y_column]-0.2,
+                             ('C'+str(i)+' (n='
+                              +str(int(point['n_individuals']))+')'),
+                             weight='bold', fontsize=14)
         else:
             ax_.plot(data.iloc[:,comp[0]],
                      data.iloc[:,comp[1]],
