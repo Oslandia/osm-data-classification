@@ -117,7 +117,7 @@ class OSMChronology(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSM_data_preparation.OSMHistoryParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMHistoryParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -145,7 +145,7 @@ class OSMTagCount(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSM_data_preparation.OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -172,7 +172,7 @@ class OSMTagKeyCount(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSM_data_preparation.OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -204,9 +204,9 @@ class OSMTagFreq(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return {'history': OSM_data_preparation.OSMHistoryParsing(self.datarep,
+        return {'history': data_preparation_tasks.OSMHistoryParsing(self.datarep,
                                                                   self.dsname),
-                'taggenome': OSM_data_preparation.OSMTagParsing(self.datarep,
+                'taggenome': data_preparation_tasks.OSMTagParsing(self.datarep,
                                                                 self.dsname)}
 
     def run(self):
@@ -237,7 +237,7 @@ class OSMTagValue(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSM_data_preparation.OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -262,7 +262,7 @@ class OSMTagValueFreq(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSM_data_preparation.OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -289,7 +289,7 @@ class ElementMetadataExtract(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSM_data_preparation.OSMElementEnrichment(self.datarep,
+        return data_preparation_tasks.OSMElementEnrichment(self.datarep,
                                                          self.dsname)
 
     def run(self):
@@ -316,7 +316,7 @@ class ChangeSetMetadataExtract(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSM_data_preparation.OSMElementEnrichment(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -343,7 +343,7 @@ class UserMetadataExtract(luigi.Task):
 
     def requires(self):
         return {'chgsets': ChangeSetMetadataExtract(self.datarep, self.dsname),
-                'enrichhist': OSM_data_preparation.OSMElementEnrichment(self.datarep, self.dsname),
+                'enrichhist': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
                 'chgset_kmeans': MetadataKmeans(self.datarep, self.dsname,
                                                 "chgset", "manual", 3, 10)}
 

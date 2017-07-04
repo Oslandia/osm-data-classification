@@ -17,11 +17,11 @@ class OSMTagMetaAnalysis(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     
     def requires(self):
-        yield OSMTagCount(self.datarep, self.dsname)
-        yield OSMTagKeyCount(self.datarep, self.dsname)
-        yield OSMTagFreq(self.datarep, self.dsname)
-        yield OSMTagValue(self.datarep, self.dsname)
-        yield OSMTagValueFreq(self.datarep, self.dsname)
+        yield analysis_tasks.OSMTagCount(self.datarep, self.dsname)
+        yield analysis_tasks.OSMTagKeyCount(self.datarep, self.dsname)
+        yield analysis_tasks.OSMTagFreq(self.datarep, self.dsname)
+        yield analysis_tasks.OSMTagValue(self.datarep, self.dsname)
+        yield analysis_tasks.OSMTagValueFreq(self.datarep, self.dsname)
 
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
@@ -30,10 +30,11 @@ class MasterTask(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def requires(self):
-        yield ElementMetadataExtract(self.datarep, self.dsname)
-        yield OSMChronology(self.datarep, self.dsname,
+        yield analysis_tasks.ElementMetadataExtract(self.datarep, self.dsname)
+        yield analysis_tasks.OSMChronology(self.datarep, self.dsname,
                             '2006-01-01', '2017-06-01')
-        yield MetadataKmeans(self.datarep, self.dsname, "user", "manual", 3, 10)
+        yield analysis_tasks.MetadataKmeans(self.datarep, self.dsname,
+                                            "user", "manual", 3, 10)
 
     def complete(self):
         return False
