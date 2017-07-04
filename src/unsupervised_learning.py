@@ -372,26 +372,35 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None, clu
         elif nb_comp == 4:
             ax_ = ax[int(i/nb_horiz_plots)][i%nb_horiz_plots]
         comp = subplot_layers.iloc[i][['x', 'y']]
-        ax_.plot(data.iloc[:,comp[0]],
-                 data.iloc[:,comp[1]],
-                 '.', markersize=10)
-        if best is not None:
-            contribs = (data.apply(lambda x: sum(x**2), axis=1)
-                        .sort_values()
-                        .tail(best))
-            best_ind = data.loc[contribs.index]
-            ax_.plot(best_ind.iloc[:,comp[0]],
-                     best_ind.iloc[:,comp[1]],
-                     'r*', markersize=10)
+        x_column = 'PC'+str(1+comp[0])
+        y_column = 'PC'+str(1+comp[1])
         if cluster is not None:
-            pt_color = [sns.color_palette()[int(c)] for c in cluster]
-        xl = 'PC' + str(comp[0]+1)
-        yl = 'PC' + str(comp[1]+1)
-        xl = (xl if explained is None
-              else xl + ' ({:.2f}%)'.format(explained[comp[0]]))
-        yl = (yl if explained is None
-              else yl + ' ({:.2f}%)'.format(explained[comp[1]]))
-        ax_.set_xlabel(xl)
-        ax_.set_ylabel(yl)
+            data.Xclust.replace(to_replace={0:'Cluster_0',
+                                            1:'Cluster_1',
+                                            2:'Cluster_2'}, inplace=True)
+            for name, group in data.groupby('Xclust'):
+                ax_.plot(group[x_column], group[y_column], marker='.',
+                         linestyle='', ms=12, label=name)
+                if i == 0:
+                    ax_.legend(loc=0)
+            # TODO: Plot cluster centroids
+        else:
+            ax_.plot(data.iloc[:,comp[0]],
+                     data.iloc[:,comp[1]],
+                     '.', markersize=10)
+            if best is not None:
+                contribs = (data.apply(lambda x: sum(x**2), axis=1)
+                            .sort_values()
+                            .tail(best))
+                best_ind = data.loc[contribs.index]
+                ax_.plot(best_ind.iloc[:,comp[0]],
+                         best_ind.iloc[:,comp[1]],
+                         'r*', markersize=10)
+        x_column = (x_column if explained is None
+              else x_column + ' ({:.2f}%)'.format(explained[comp[0]]))
+        y_column = (y_column if explained is None
+              else y_column + ' ({:.2f}%)'.format(explained[comp[1]]))
+        ax_.set_xlabel(x_column)
+        ax_.set_ylabel(y_column)
     plt.tight_layout()
     plt.show()
