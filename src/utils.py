@@ -223,7 +223,8 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     if timeunit == 'day':
         metadata[duration_feat] = metadata[duration_feat] / timedelta(days=1)
         timehorizon = timehorizon / pd.Timedelta('1D')
-    metadata[duration_feat] = metadata[duration_feat] / timehorizon
+    if init_feat is not chgset:
+        metadata[duration_feat] = metadata[duration_feat] / timehorizon
     metadata = metadata.sort_values(by=['first_at'])
     if drop_ts:
         return drop_features(metadata, '_at')

@@ -12,7 +12,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 import osmparsing
-import tagmetanalyse
 import utils
 
 class OSMTagParsing(luigi.Task):
