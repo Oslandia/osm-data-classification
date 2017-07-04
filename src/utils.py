@@ -204,27 +204,15 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
 
     """
     timehorizon = (osm_elements.ts.max() - osm_elements.ts.min())
+    if init_feat == ['chgset']: # by change set definition, time horizon=24h
+        print("TEST CHANGE SET")
+        timehorizon = pd.Timedelta('24h')
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
     metadata.columns = [*init_feat, 'first_at', 'last_at']
     metadata[duration_feat] = metadata.last_at - metadata.first_at
-    if timeunit == 'second':
-        metadata[duration_feat] = (metadata[duration_feat] /
-                                   timedelta(seconds=1))
-        timehorizon = timehorizon / pd.Timedelta('1s')
-    if timeunit == 'minute':
-        metadata[duration_feat] = (metadata[duration_feat] /
-                                   timedelta(minutes=1))
-        timehorizon = timehorizon / pd.Timedelta('1m')
-    if timeunit == 'hour':
-        metadata[duration_feat] = metadata[duration_feat] / timedelta(hours=1)
-        timehorizon = timehorizon / pd.Timedelta('1h')
-    if timeunit == 'day':
-        metadata[duration_feat] = metadata[duration_feat] / timedelta(days=1)
-        timehorizon = timehorizon / pd.Timedelta('1D')
-    if init_feat is not chgset:
-        metadata[duration_feat] = metadata[duration_feat] / timehorizon
+    metadata[duration_feat] = metadata[duration_feat] / timehorizon
     metadata = metadata.sort_values(by=['first_at'])
     if drop_ts:
         return drop_features(metadata, '_at')
@@ -455,7 +443,7 @@ def extract_user_metadata(osm_elements, chgset_md):
                            .reset_index())['chgset']
     user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration_m']
                                .mean()
-                               .reset_index())['duration_m'] / (24*60)
+                               .reset_index())['duration_m']
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
