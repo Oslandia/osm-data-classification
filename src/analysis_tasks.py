@@ -21,7 +21,6 @@ import utils
 
 OUTPUT_DIR = 'output-extracts'
 
-
 ### OSM Editor analysis ####################################            
 class TopMostUsedEditors(luigi.Task):
     """Compute the most used editor. Transform the editor name such as JOSM/1.2.3
@@ -110,7 +109,7 @@ class OSMChronology(luigi.Task):
     end_date = luigi.Parameter('2017-01-01')
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-chronology.csv")
 
     def output(self):
@@ -138,7 +137,7 @@ class OSMTagCount(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagcount.csv")
 
     def output(self):
@@ -165,7 +164,7 @@ class OSMTagKeyCount(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagkeycount.csv")
 
     def output(self):
@@ -197,7 +196,7 @@ class OSMTagFreq(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagfreq.csv")
 
     def output(self):
@@ -230,7 +229,7 @@ class OSMTagValue(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagvalue.csv")
 
     def output(self):
@@ -255,7 +254,7 @@ class OSMTagValueFreq(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagvalue-freq.csv")
 
     def output(self):
@@ -309,7 +308,7 @@ class ChangeSetMetadataExtract(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-chgset-md.csv")
 
     def output(self):
@@ -335,7 +334,7 @@ class UserMetadataExtract(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-user-md.csv")
 
     def output(self):
@@ -377,7 +376,7 @@ class MetadataPCA(luigi.Task):
     features = luigi.Parameter('')
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-"+self.metadata_type+"-pca.h5")
 
     def output(self):
@@ -463,7 +462,7 @@ class MetadataKmeans(luigi.Task):
     nbmax_clusters = luigi.parameter.IntParameter(8)
     
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-"+self.metadata_type+"-kmeans.h5")
 
     def output(self):
