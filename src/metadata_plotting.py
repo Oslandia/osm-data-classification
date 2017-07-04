@@ -128,6 +128,14 @@ def md_multiplot(metadata, pattern):
 def md_corplot(metadata, pattern):
     """ Draw a correlation plot of metadata features; consider only features
     that correspond to pattern
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        metadata that has to be plotted
+    pattern: object
+        string designing the feature names that has to be plotted
+    
     """
     md_corplot = utils.extract_features(metadata, pattern)
     f, ax = plt.subplots(figsize=(12,10))

@@ -384,7 +384,6 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
                          linestyle='', ms=10, label=name)
                 if i == 0:
                     ax_.legend(loc=0)
-            # TODO: Plot cluster centroids
             if cluster_centers is not None:
                 ax_.plot(cluster_centers[[x_column]],
                          cluster_centers[[y_column]],
