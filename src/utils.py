@@ -176,7 +176,7 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
 def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
-                  timeunit='day'):
+                  timeunit='day', drop_ts=True):
     """ This function produces an init metadata table based on 'init_feature'
     in table 'osm_elements'. The intialization consider timestamp measurements
     (generated for each metadata tables, i.e. elements, change sets and users).
@@ -200,6 +200,7 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     first_at (datetime) -- first timestamp
     last_at (datetime) -- last timestamp
     activity (int) -- activity (in 'timeunit' format)
+    drop_ts (boolean) -- if true, drop timestamp features
 
     """
     timehorizon = (osm_elements.ts.max() - osm_elements.ts.min())
@@ -224,7 +225,10 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
         timehorizon = timehorizon / pd.Timedelta('1D')
     metadata[duration_feat] = metadata[duration_feat] / timehorizon
     metadata = metadata.sort_values(by=['first_at'])
-    return drop_features(metadata, '_at')
+    if drop_ts:
+        return drop_features(metadata, '_at')
+    else:
+        return metadata
 
 def enrich_osm_elements(osm_elements):
     """Enrich OSM history data by computing additional features
@@ -368,7 +372,8 @@ def extract_chgset_metadata(osm_elements):
     and other features describing modification and OSM elements themselves
 
     """
-    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute')
+    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute',
+                              drop_ts=False)
     # User-related features
     chgset_md = pd.merge(chgset_md,
                          osm_elements[['chgset','uid']].drop_duplicates(),
