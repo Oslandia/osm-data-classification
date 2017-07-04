@@ -212,7 +212,7 @@ output file name:
 
 #+NAME: json_config
 #+BEGIN_SRC js
-{ "extracts": [ { 
+{ "extracts": [ {
               "output": "bordeaux-metropole.osh.pbf",
               "output_format": "osh.pbf",
               "description": "extract OSM history for Bordeaux (France)",
@@ -247,7 +247,7 @@ of =pyosmium=, previously evoked.
 This operation can be done through a simple Python module (see snippets below).
 
 #+NAME: Timeline_handler
-#+BEGIN_SRC ipython :session osm :exports both
+#+BEGIN_SRC python
   import osmium as osm
   import pandas as pd
 
@@ -294,7 +294,7 @@ accordingly. After that we just have to transform the list into a pandas
 DataFrame, to make further treatments easier.
 
 #+NAME: Timeline_handler_call
-#+BEGIN_SRC ipython :session osm :exports both
+#+BEGIN_SRC python
   tlhandler = TimelineHandler()
   tlhandler.apply_file("../src/data/raw/bordeaux-metropole.osh.pbf")
   colnames = ['type', 'id', 'version', 'visible', 'ts', 'uid', 'chgset', 'ntags']
@@ -307,35 +307,23 @@ DataFrame, to make further treatments easier.
 #+CAPTION: First records of Bordeaux OSM data history
 #+RESULTS:
 #+begin_example
-   type        id  version  visible                        ts    uid  chgset  \
-0  node  21457126        2    False 2008-01-17 16:40:56+00:00  24281  653744   
-1  node  21457126        3    False 2008-01-17 16:40:56+00:00  24281  653744   
-2  node  21457126        4    False 2008-01-17 16:40:56+00:00  24281  653744   
-3  node  21457126        5    False 2008-01-17 16:40:57+00:00  24281  653744   
-4  node  21457126        6    False 2008-01-17 16:40:57+00:00  24281  653744   
-5  node  21457126        7     True 2008-01-17 16:40:57+00:00  24281  653744   
-6  node  21457126        8    False 2008-01-17 16:41:28+00:00  24281  653744   
-7  node  21457126        9    False 2008-01-17 16:41:28+00:00  24281  653744   
-8  node  21457126       10    False 2008-01-17 16:41:49+00:00  24281  653744   
-9  node  21457126       11    False 2008-01-17 16:41:49+00:00  24281  653744   
-
-   ntags  
-0      0  
-1      0  
-2      0  
-3      0  
-4      0  
-5      1  
-6      0  
-7      0  
-8      0  
-9      0  
+   type        id  version  visible                        ts    uid  chgset ntags
+0  node  21457126        2    False 2008-01-17 16:40:56+00:00  24281  653744     0
+1  node  21457126        3    False 2008-01-17 16:40:56+00:00  24281  653744     0
+2  node  21457126        4    False 2008-01-17 16:40:56+00:00  24281  653744     0
+3  node  21457126        5    False 2008-01-17 16:40:57+00:00  24281  653744     0
+4  node  21457126        6    False 2008-01-17 16:40:57+00:00  24281  653744     0
+5  node  21457126        7     True 2008-01-17 16:40:57+00:00  24281  653744     1
+6  node  21457126        8    False 2008-01-17 16:41:28+00:00  24281  653744     0
+7  node  21457126        9    False 2008-01-17 16:41:28+00:00  24281  653744     0
+8  node  21457126       10    False 2008-01-17 16:41:49+00:00  24281  653744     0
+9  node  21457126       11    False 2008-01-17 16:41:49+00:00  24281  653744     0
 #+end_example
 
 The only thing to do here is to save the file into a /.csv/ file format:
 
 #+NAME: csv_recording
-#+BEGIN_SRC ipython :session osm :exports both
+#+BEGIN_SRC python
   elements.to_csv("bordeaux-metropole.csv", date_format='%Y-%m-%d %H:%M:%S')
 #+END_SRC
 #+CAPTION: Bordeaux OSM data history disk saving
@@ -358,8 +346,8 @@ but seminal procedure called =datedelems= that allows to get the OSM API
 picture given a specific date:
 
 #+NAME: datedelems
-#+BEGIN_SRC ipython :session osm :exports both
-  def datedelems(history, date): 
+#+BEGIN_SRC python
+  def datedelems(history, date):
       datedelems = (history.query("ts <= @date")
                     .groupby(['type','id'])['version']
                     .max()
@@ -380,8 +368,8 @@ many node/way/relation there are, how many users have contributed, how many
 change sets have been opened:
 
 #+NAME: osm_stats
-#+BEGIN_SRC ipython :session osm :exports both
-  def osm_stats(osm_history, timestamp): 
+#+BEGIN_SRC python
+  def osm_stats(osm_history, timestamp):
       osmdata = datedelems(osm_history, timestamp)
       nb_nodes = len(osmdata.query('type == "node"'))
       nb_ways = len(osmdata.query('type == "way"'))
@@ -397,7 +385,7 @@ timestamps: monthly evaluations, or even a finner analysis, by taking advantage
 of pandas time series features.
 
 #+NAME: osm_chrono
-#+BEGIN_SRC ipython :session osm :exports both
+#+BEGIN_SRC python
   def osm_chronology(history, start_date, end_date, frequency="1M"):
       timerange = pd.date_range(start_date, end_date, freq=frequency).values
       osmstats = [osm_stats(history, str(date)) for date in timerange]
@@ -420,8 +408,8 @@ To illustrate the previous points, we can call the =osm_chronology= procedure
 to Bordeaux-related OSM data. We can study the last 10 years, as an example:
 
 #+NAME: osm_chrono_call
-#+BEGIN_SRC ipython :session osm :exports both
-  osm_chronology(elements, "2007-01-01", "2017-01-01", "AS")  
+#+BEGIN_SRC python
+  osm_chronology(elements, "2007-01-01", "2017-01-01", "AS")
 #+END_SRC
 #+CAPTION: Call of /osm_chronology/
 
