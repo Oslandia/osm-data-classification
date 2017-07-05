@@ -80,7 +80,7 @@ class AddExtraInfoUserMetadata(luigi.Task):
                                                 names=['uid', 'num'])
         # add total number of changesets to the 'users' DataFrame
         users = (users
-                 .join(changeset_count_users.set_index('uid'), on='uid')
+                 .join(changeset_count_users.set_index('uid'))
                  .rename_axis({'num': 'n_total_chgset'}, axis=1))
         # create `n_top_editor` cols
         selected_editor = (top_editor.sort_values(by="num", ascending=False)
@@ -96,7 +96,7 @@ class AddExtraInfoUserMetadata(luigi.Task):
                                .unstack()
                                .fillna(0))
         # add `n_top_editor` columns with the number of time that each user used them
-        users = users.join(used_editor_by_user, on='uid')
+        users = users.join(used_editor_by_user)
         with self.output().open('w') as fobj:
             users.to_csv(fobj, index=False)
 
