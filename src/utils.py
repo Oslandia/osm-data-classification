@@ -205,7 +205,6 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     """
     timehorizon = (osm_elements.ts.max() - osm_elements.ts.min())
     if init_feat == ['chgset']: # by change set definition, time horizon=24h
-        print("TEST CHANGE SET")
         timehorizon = pd.Timedelta('24h')
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
