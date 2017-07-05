@@ -47,19 +47,21 @@ class TopMostUsedEditors(luigi.Task):
 
 
 class AddExtraInfoUserMetadata(luigi.Task):
-    """Add extra info to User metadata such as used editor and total number of changesets
+    """Add extra info to User metadata such as used editor and total number of
+    changesets
+    
     """
     datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter()
+    dsname = luigi.Parameter("bordeaux-metropole")
     # take first 15th most used editors
     n_top_editor = 15
-    fname = 'user-metadata-extra'
     editor_fname = 'soft-used-by-users.csv'
     total_user_changeset_fname = 'all-users-count-changesets.csv'
 
     def output(self):
         return luigi.LocalTarget(
-            osp.join(self.datarep, OUTPUT_DIR, self.dsname, self.fname + ".csv"),
+            osp.join(self.datarep, OUTPUT_DIR, self.dsname,
+                     self.dsname + "-user-md-extra.csv"),
             format=UTF8)
 
     def requires(self):
@@ -71,7 +73,6 @@ class AddExtraInfoUserMetadata(luigi.Task):
             users = pd.read_csv(fobj, index_col=0)
         with self.input()['top_editor'].open() as fobj:
             top_editor = pd.read_csv(fobj)
-            # print(top_editor)
         with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
             user_editor = pd.read_csv(fobj)
         with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
