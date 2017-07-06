@@ -24,7 +24,24 @@ changeset_pattern = re.compile(r' '.join([r'\s+<changeset',
                                           box_re,
                                           num_re,
                                           comments_re]))
+# sometimes, there is not a bbox as attribute
+changeset_wo_bbox_pattern = re.compile(r' '.join([r'\s+<changeset',
+                                                  id_re,
+                                                  created_re,
+                                                  # closed_re,
+                                                  userid_re,
+                                                  num_re,
+                                                  comments_re]))
 tag_re = re.compile(r'  <tag k="(?P<key>.*)" v="(?P<value>.*)"/>')
+
+def is_bbox(line):
+    """is there a bbox as attribute of a changeset
+
+    i.e. min_lat, max_lon, min_lon, max_lin
+    """
+    if 'min_lat' in line:
+        return True
+    return False
 
 
 def main(fname, output_fname):
@@ -34,9 +51,18 @@ def main(fname, output_fname):
         multiple_lines = []
         # values = []
         for xmlline in fobj:
-            match = changeset_pattern.match(xmlline)
+            if is_bbox(xmlline):
+                match = changeset_pattern.match(xmlline)
+                bbox = True
+            else:
+                match = changeset_wo_bbox_pattern.match(xmlline)
+                bbox = False
             if match:
-                line = ",".join(match.groups()) + ","
+                data = list(match.groups())
+                if not bbox:
+                    # add empty value for min_lat, max_lat, etc.
+                    data = data[:3] + [''] * 4 + data[3:]
+                line = ",".join(data) + ","
                 # There is not tags for this changeset
                 if xmlline.endswith('/>\n'):
                     out.write(line + ',\n')
