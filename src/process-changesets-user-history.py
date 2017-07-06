@@ -49,5 +49,30 @@ def distinct_software_by_uid(data):
 
 
 if __name__ == '__main__':
-    fname = "data/raw/changesets-full-17-03-22.csv"
-    data = dd.read_csv(fname, blocksize=2**32, dtype=d)
+    import os
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('analyze', help='type of the analyze: changeset or editor', type=str)
+    parser.add_argument('-o', '--output', help='name of the output file')
+    args = parser.parse_args()
+
+    analyze = args.analyze
+    if analyze not in ['changeset', 'editor']:
+        raise ValueError("wrong analyze name: 'changeset' or 'editor'")
+
+    if args.output is None:
+        outpath = os.path.join('./data', 'output-extracts', 'all-' + analyze  + 's-by-user.csv')
+    print(outpath)
+
+    fname = "data/output-extracts/changesets-full-17-03-22.csv"
+    print("dask read the CSV '{}'".format(fname))
+    data = dd.read_csv(fname, blocksize=2**32, dtype=DTYPE)
+
+    print("data processing")
+    if analyze == 'changeset':
+        result = nb_changeset_by_uid(data)
+    if analyze == 'editor':
+        result = distinct_software_by_uid(data)
+    print("writing results")
+    result.to_csv(outpath)
