@@ -38,8 +38,7 @@ class OSMHistoryParsing(luigi.Task):
         tlhandler = osmparsing.TimelineHandler()
         datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
         tlhandler.apply_file(datapath)
-        colnames = ['elem', 'id', 'version', 'visible', 'ts',
-                    'uid', 'chgset', 'ntags', 'tagkeys']
+        colnames = ['elem', 'id', 'version', 'visible', 'ts', 'uid', 'chgset']
         elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
         elements = elements.sort_values(by=['elem', 'id', 'version'])
         with self.output().open('w') as outputflow:

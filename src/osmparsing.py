@@ -53,15 +53,14 @@ class TimelineHandler(osm.SimpleHandler):
     """Encapsulates the recovery of elements inside the OSM history.
 
     This history is composed of nodes, ways and relations, that have common
-    attributes (id, version, visible, timestamp, userid, changesetid, nbtags,
-    tagkeys). Nodes are characterized with their latitude and longitude; ways
-    with the nodes that composed them; relations with a list of OSM elements
-    that compose it, aka their members (a member can be a node, a way or
-    another relation). We gather these informations into a single attributes
-    named 'descr'. The timeline handler consider the OSM element type as well
-    (node, way or relation). OSM history dumps do not seem to update properly
-    'visible' flag of OSM elements, so this handler recode it according to
-    elements property.
+    attributes (id, version, visible, timestamp, userid, changesetid). Nodes
+    are characterized with their latitude and longitude; ways with the nodes
+    that composed them; relations with a list of OSM elements that compose it,
+    aka their members (a member can be a node, a way or another relation). We
+    gather these informations into a single attributes named 'descr'. The
+    timeline handler consider the OSM element type as well (node, way or
+    relation). OSM history dumps do not seem to update properly 'visible' flag
+    of OSM elements, so this handler recode it according to elements property.
 
     """
     def __init__(self):
@@ -75,7 +74,7 @@ class TimelineHandler(osm.SimpleHandler):
         element dataframe.
         
         The features are the following: elem type ("node"), id, version,
-        visible?, timestamp, userid, chgsetid, nbtags, tagkeys
+        visible?, timestamp, userid, chgsetid
 
         """
         self.elemtimeline.append(["node",
@@ -84,9 +83,7 @@ class TimelineHandler(osm.SimpleHandler):
                                   n.visible,
                                   pd.Timestamp(n.timestamp),
                                   n.uid,
-                                  n.changeset,
-                                  len(n.tags),
-                                  [x.k for x in n.tags]])
+                                  n.changeset])
 
 
     def way(self,w):
@@ -94,8 +91,8 @@ class TimelineHandler(osm.SimpleHandler):
         element dataframe.
 
         The features are the following: elem type ("way"), id, version,
-        visible?, timestamp, userid, chgsetid, nbtags, tagkeys -- Note: a way
-        that does not contain any node is considered as unavailable
+        visible?, timestamp, userid, chgsetid -- Note: a way that does not
+        contain any node is considered as unavailable
 
         """
         self.elemtimeline.append(["way",
@@ -104,9 +101,7 @@ class TimelineHandler(osm.SimpleHandler):
                                   w.visible,
                                   pd.Timestamp(w.timestamp),
                                   w.uid,
-                                  w.changeset,
-                                  len(w.tags),
-                                  [x.k for x in w.tags]])
+                                  w.changeset])
 
                                      
     def relation(self,r):
@@ -114,8 +109,8 @@ class TimelineHandler(osm.SimpleHandler):
         the element dataframe.
 
         The features are the following: elem type ("relation"), id, version,
-        visible?, timestamp, userid, chgsetid, nbtags, tagkeys -- Note: a
-        relation withouth any member is considered as unavailable
+        visible?, timestamp, userid, chgsetid -- Note: a relation withouth any
+        member is considered as unavailable
 
         """
         self.elemtimeline.append(["relation",
@@ -124,6 +119,4 @@ class TimelineHandler(osm.SimpleHandler):
                                   r.visible,
                                   pd.Timestamp(r.timestamp),
                                   r.uid,
-                                  r.changeset,
-                                  len(r.tags),
-                                  [x.k for x in r.tags]])
+                                  r.changeset])

@@ -243,8 +243,7 @@ def enrich_osm_elements(osm_elements):
     osm_elements = pd.merge(osm_elements, osmelem_first_version,
                                 on=['elem','id'])
     osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
-                                'uid', 'chgset', 'ntags', 'tagkeys',
-                                'vmin', 'first_uid']
+                                'uid', 'chgset', 'vmin', 'first_uid']
     osmelem_last_version = (osm_elements
                              .groupby(['elem','id'])['version', 'uid',
                                                      'visible']
@@ -252,9 +251,9 @@ def enrich_osm_elements(osm_elements):
                              .reset_index())
     osm_elements = pd.merge(osm_elements, osmelem_last_version,
                                 on=['elem','id'])
-    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
-                            'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
-                            'first_uid', 'vmax', 'last_uid', 'available']
+    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts', 'uid',
+                            'chgset', 'vmin', 'first_uid', 'vmax', 'last_uid',
+                            'available']
     osmelem_last_bychgset = (osm_elements
                              .groupby(['elem','id','chgset'])['version',
                                                               'visible']
@@ -264,10 +263,9 @@ def enrich_osm_elements(osm_elements):
                             osmelem_last_bychgset[['elem', 'id',
                                                    'chgset', 'visible']],
                             on=['elem','id', 'chgset'])
-    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
-                            'uid', 'chgset', 'ntags', 'tagkeys', 'vmin',
-                            'first_uid', 'vmax', 'last_uid', 'available',
-                            'open']
+    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts', 'uid',
+                            'chgset', 'vmin', 'first_uid', 'vmax', 'last_uid',
+                            'available', 'open']
 
     # New version-related features
     osm_elements['init'] = osm_elements.version == osm_elements.vmin
@@ -282,10 +280,10 @@ def enrich_osm_elements(osm_elements):
                             osmelem_first_bychgset[['elem', 'id',
                                                     'chgset', 'init']],
                             on=['elem','id','chgset'])
-    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts',
-                            'uid', 'chgset', 'ntags', 'tagkeys',
-                            'first_uid', 'vmax', 'last_uid', 'available',
-                            'open', 'init', 'up_to_date', 'created']
+    osm_elements.columns = ['elem', 'id', 'version', 'visible', 'ts', 'uid',
+                            'chgset', 'first_uid', 'vmax', 'last_uid',
+                            'available', 'open', 'init', 'up_to_date',
+                            'created']
 
     # Whether or not an element will be corrected in the last version
     osm_elements['willbe_corr'] = np.logical_and(osm_elements.id.diff(-1)==0,
@@ -350,8 +348,7 @@ def extract_elem_metadata(osm_elements):
                              .reset_index()['willbe_corr']
                              .astype('int'))
     elem_md = pd.merge(elem_md, osm_elements[['elem', 'id',
-                                              'version', 'visible',
-                                              'ntags', 'tagkeys']],
+                                              'version', 'visible']],
                        on=['elem', 'id', 'version'])
     elem_md = elem_md.set_index(['elem', 'id'])
     return elem_md
