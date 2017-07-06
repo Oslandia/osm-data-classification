@@ -28,7 +28,7 @@ class TopMostUsedEditors(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     fname = 'most-used-editor'
-    editor_fname = 'soft-used-by-users.csv'
+    editor_fname = 'editors-count-by-user.csv'
 
     def output(self):
         return luigi.LocalTarget(
@@ -55,8 +55,8 @@ class AddExtraInfoUserMetadata(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     # take first 15th most used editors
     n_top_editor = 15
-    editor_fname = 'soft-used-by-users.csv'
-    total_user_changeset_fname = 'all-users-count-changesets.csv'
+    editor_fname = 'editors-count-by-user.csv'
+    total_user_changeset_fname = 'all-changesets-by-user.csv'
 
     def output(self):
         return luigi.LocalTarget(
