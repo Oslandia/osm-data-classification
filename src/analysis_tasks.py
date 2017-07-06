@@ -14,7 +14,7 @@ from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
 import data_preparation_tasks
-from extract_user_editor import editor_name, editor_count, get_top_editor
+from extract_user_editor import editor_count, get_top_editor
 import tagmetanalyse
 import unsupervised_learning as ul
 import utils
@@ -79,24 +79,9 @@ class AddExtraInfoUserMetadata(luigi.Task):
             changeset_count_users = pd.read_csv(fobj, header=None,
                                                 names=['uid', 'num'])
         # add total number of changesets to the 'users' DataFrame
-        users = (users
-                 .join(changeset_count_users.set_index('uid'))
-                 .rename_axis({'num': 'n_total_chgset'}, axis=1))
-        # create `n_top_editor` cols
-        selected_editor = (top_editor.sort_values(by="num", ascending=False)
-                           .iloc[:self.n_top_editor]['fullname']
-                           .values
-                           .tolist())
-        user_editor['name'] = user_editor['value'].apply(editor_name)
-        set_label = lambda x: x if x in selected_editor else 'other'
-        user_editor['label'] = user_editor['name'].apply(set_label)
-        # number of times an editor is used by user
-        used_editor_by_user = (user_editor.groupby(['uid', 'label'])['num']
-                               .sum()
-                               .unstack()
-                               .fillna(0))
-        # add `n_top_editor` columns with the number of time that each user used them
-        users = users.join(used_editor_by_user)
+        users = utils.add_chgset_metadata(users, changeset_count_users)
+        users = utils.add_editor_metadata(users, user_editor, top_editor,
+                                  self.n_top_editor)
         with self.output().open('w') as fobj:
             users.to_csv(fobj, index=False)
 

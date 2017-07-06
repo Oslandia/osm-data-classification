@@ -11,8 +11,9 @@ import numpy as np
 from datetime import timedelta
 import re
 import math
-
 import statsmodels.api as sm
+
+from extract_user_editor import editor_name
 
 ### OSM data exploration ######################
 def updatedelem(data):
@@ -461,6 +462,51 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = ecdf_transform(user_md, 'n_relation_modif')
     user_md = user_md.set_index('uid')
     return user_md
+
+def add_chgset_metadata(metadata, total_change_sets):
+    """Add total change set count to user metadata
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        user metadata; must be indexed by a column 'uid'
+    total_change_sets: pd.DataFrame
+        total number of change sets by user; must contain columns 'uid' and 'num'
+    
+    """
+    return (metadata
+         .join(total_change_sets.set_index('uid'))
+         .rename_axis({'num': 'n_total_chgset'}, axis=1))
+
+def add_editor_metadata(metadata, used_editors, top_editors, n_top_editor):
+    """Add editor information to each metadata recordings
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        user metadata; must be indexed by a column 'uid'
+    used_editors: pd.DataFrame
+        raw editor information, editors used by each user; must contain a
+    column 'uid'
+    top_editors: pd.DataFrame
+        raw editor information, most used OSM editors
+    
+    """
+    # create `n_top_editor` cols
+    selected_editor = (top_editors.sort_values(by="num", ascending=False)
+                       .iloc[:n_top_editor]['fullname']
+                       .values
+                       .tolist())
+    used_editors['name'] = used_editors['value'].apply(editor_name)
+    set_label = lambda x: x if x in selected_editor else 'other'
+    used_editors['label'] = used_editors['name'].apply(set_label)
+    # number of times an editor is used by user
+    used_editor_by_user = (used_editors.groupby(['uid', 'label'])['num']
+                           .sum()
+                           .unstack()
+                           .fillna(0))
+    # add `n_top_editor` columns with the number of time that each user used them
+    return metadata.join(used_editor_by_user)
 
 def ecdf_transform(metadata, feature):
     """ Apply an ECDF transform on feature within metadata; transform the column
