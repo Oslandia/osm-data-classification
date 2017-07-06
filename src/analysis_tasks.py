@@ -80,8 +80,7 @@ class AddExtraInfoUserMetadata(luigi.Task):
                                                 names=['uid', 'num'])
         # add total number of changesets to the 'users' DataFrame
         users = utils.add_chgset_metadata(users, changeset_count_users)
-        users = utils.add_editor_metadata(users, user_editor, top_editor,
-                                  self.n_top_editor)
+        users = utils.add_editor_metadata(users, user_editor)
         with self.output().open('w') as fobj:
             users.to_csv(fobj, index=False)
 

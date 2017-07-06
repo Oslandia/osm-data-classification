@@ -478,7 +478,7 @@ def add_chgset_metadata(metadata, total_change_sets):
          .join(total_change_sets.set_index('uid'))
          .rename_axis({'num': 'n_total_chgset'}, axis=1))
 
-def add_editor_metadata(metadata, used_editors, top_editors, n_top_editor):
+def add_editor_metadata(metadata, top_editors):
     """Add editor information to each metadata recordings
 
     Parameters
@@ -492,21 +492,7 @@ def add_editor_metadata(metadata, used_editors, top_editors, n_top_editor):
         raw editor information, most used OSM editors
     
     """
-    # create `n_top_editor` cols
-    selected_editor = (top_editors.sort_values(by="num", ascending=False)
-                       .iloc[:n_top_editor]['fullname']
-                       .values
-                       .tolist())
-    used_editors['name'] = used_editors['value'].apply(editor_name)
-    set_label = lambda x: x if x in selected_editor else 'other'
-    used_editors['label'] = used_editors['name'].apply(set_label)
-    # number of times an editor is used by user
-    used_editor_by_user = (used_editors.groupby(['uid', 'label'])['num']
-                           .sum()
-                           .unstack()
-                           .fillna(0))
-    # add `n_top_editor` columns with the number of time that each user used them
-    return metadata.join(used_editor_by_user)
+    return metadata.join(top_editors, how='outer').fillna(0)
 
 def ecdf_transform(metadata, feature):
     """ Apply an ECDF transform on feature within metadata; transform the column
