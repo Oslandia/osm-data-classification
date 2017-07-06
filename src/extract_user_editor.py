@@ -13,7 +13,9 @@ Such as:
 import re
 import logging
 
+import numpy as np
 import pandas as pd
+
 
 FORMAT = '%(asctime)s :: %(levelname)s :: %(funcName)s : %(message)s'
 logging.basicConfig(format=FORMAT, level=logging.INFO)
@@ -48,7 +50,7 @@ def editor_name(value):
 
 def main(fname, output_fname):
     logger.info("read the CSV file '%s'", fname)
-    df = pd.read_csv(fname)
+    df = pd.read_csv(fname, header=None, names=['uid', 'value', 'num'])
     logger.info("retrieve the unique editor name")
     df['fullname'] = df['value'].apply(editor_name)
     logger.info("group by uid,fullname")
@@ -111,14 +113,19 @@ if __name__ == '__main__':
     OUTPUT_FNAME = sys.argv[2]
     # OUTPUT_FNAME = None
     df = main(INPUT_FNAME, OUTPUT_FNAME)
-    data = (editor_count(df)
-            .to_frame()
-            .reset_index()
-            .rename_axis({"uid": "num"}, axis=1))
-    data['ratio'] = data['num'] / data['num'].sum() * 100.
-    data['cumulative'] = data['ratio'].cumsum()
+    top_editor = get_top_editor(editor_count(df))
     # after an analysis, we want to take the first 15th most used editors. The
     # other editors represent only less than 5% of the total used editors.
-    selection = data.fullname[:16].tolist() + ['other']
+    selection = top_editor.fullname[:16].tolist() + ['other']
+
+    # Set the 'other' label for editors which are not in the top selection
+    logger.info("compute the number of 'other' editors")
+    other_mask = np.logical_not(df['fullname'].isin(selection))
+    df.loc[other_mask, 'fullname'] = 'other'
+    logger.info("count the number of used selected editors by user")
+    data = (df.groupby(["uid", "fullname"])["num"].sum()
+            .unstack()
+            .reset_index()
+            .fillna(0))
     logger.info("Write the '%s' data file", OUTPUT_FNAME)
     data.to_csv(OUTPUT_FNAME, index=False)
