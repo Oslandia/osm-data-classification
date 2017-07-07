@@ -455,7 +455,6 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
-    user_md = ecdf_transform(user_md, 'n_chgset')
     user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
     user_md = ecdf_transform(user_md, 'n_node_modif')
     user_md = ecdf_transform(user_md, 'n_way_modif')
@@ -474,24 +473,44 @@ def add_chgset_metadata(metadata, total_change_sets):
         total number of change sets by user; must contain columns 'uid' and 'num'
 
     """
-    return (metadata
-         .join(total_change_sets.set_index('uid'))
-         .rename_axis({'num': 'n_total_chgset'}, axis=1))
+    return (metadata.join(total_change_sets.set_index('uid'))
+                .rename_axis({'num': 'n_total_chgset'}, axis=1))
 
-def add_editor_metadata(metadata, user_editors):
-    """Add editor information to each metadata recordings
+def add_editor_metadata(metadata, top_editors):
+    """Add editor information to each metadata recordings; use an outer join to
+    overcome the fact that some users do not indicate their editor, and may be
+    skipped by a natural join => the outer join allow to keep them with 0
+    values on known editors
 
     Parameters
     ----------
     metadata: pd.DataFrame
         user metadata; must be indexed by a column 'uid'
-    user_editors: pd.DataFrame
-        count used editor by user; must contain a column 'uid'
     top_editors: pd.DataFrame
-        raw editor information, most used OSM editors
+        raw editor information, editors used by each user, with a highlight on
+    N most popular editors; must contain a column 'uid'
 
     """
-    return metadata.join(user_editors.set_index('uid'), how='outer').fillna(0)
+    return metadata.join(top_editors.set_index('uid'), how='left').fillna(0)
+
+def transform_editor_features(metadata):
+    """Transform editor-related features into metadata; editors are expressed
+    as proportions of n_total_chgset, a proportion of local change sets is
+    computed as a new feature and an ecdf transformation is applied on n_chgset
+    and n_total_chgset
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        user metadata; must contain n_chgset and n_total_chgset columns, and
+    editor column names must begin with 'n_total_chgset_'
+    
+    """
+    normalize_features(metadata, 'n_total_chgset')
+    metadata['p_local_chgset'] = metadata.n_chgset / metadata.n_total_chgset
+    metadata = ecdf_transform(metadata, 'n_chgset')
+    metadata = ecdf_transform(metadata, 'n_total_chgset')
+    return metadata
 
 def ecdf_transform(metadata, feature):
     """ Apply an ECDF transform on feature within metadata; transform the column

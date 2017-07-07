@@ -78,9 +78,10 @@ class EditorCountByUser(luigi.Task):
                 .unstack()
                 .reset_index()
                 .fillna(0))
+        data.columns.values[1:] = ['n_total_chgset_'+name.replace(' ', '_')
+                            for name in data.columns.values[1:]]
         with self.output().open("w") as fobj:
             data.to_csv(fobj, index=False)
-
 
 class AddExtraInfoUserMetadata(luigi.Task):
     """Add extra info to User metadata such as used editor and total number of
@@ -88,15 +89,14 @@ class AddExtraInfoUserMetadata(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-    # take first 15th most used editors
     n_top_editor = luigi.IntParameter(default=15)
+    editor_fname = 'editor-counts-by-user.csv'
     total_user_changeset_fname = 'all-changesets-by-user.csv'
 
     def output(self):
         return luigi.LocalTarget(
             osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                     self.dsname + "-user-md-extra.csv"),
-            format=UTF8)
+                     self.dsname + "-user-md-extra.csv"), format=UTF8)
 
     def requires(self):
         return {'editor_count_by_user': EditorCountByUser(self.datarep, self.n_top_editor),
@@ -110,9 +110,9 @@ class AddExtraInfoUserMetadata(luigi.Task):
         with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
             changeset_count_users = pd.read_csv(fobj, header=None,
                                                 names=['uid', 'num'])
-        # add total number of changesets to the 'users' DataFrame
         users = utils.add_chgset_metadata(users, changeset_count_users)
         users = utils.add_editor_metadata(users, user_editor)
+        users = utils.transform_editor_features(users)
         with self.output().open('w') as fobj:
             users.to_csv(fobj)
 
