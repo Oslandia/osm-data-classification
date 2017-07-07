@@ -502,8 +502,7 @@ class MetadataKmeans(luigi.Task):
             kmeans.fit(Xpca)
             scores.append(kmeans.inertia_)
         if self.select_param_mode == "manual":
-            plt.plot(range(1, self.nbmax_clusters+1), scores)
-            plt.show()
+            ul.plot_elbow(range(1, self.nbmax_clusters+1), scores)
             nb_clusters = input("# \n# Enter the number of clusters: \n# ")
             return int(nb_clusters)
         elbow_deriv = ul.elbow_derivation(scores, self.nbmin_clusters)
