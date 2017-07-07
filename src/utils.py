@@ -472,27 +472,26 @@ def add_chgset_metadata(metadata, total_change_sets):
         user metadata; must be indexed by a column 'uid'
     total_change_sets: pd.DataFrame
         total number of change sets by user; must contain columns 'uid' and 'num'
-    
+
     """
     return (metadata
          .join(total_change_sets.set_index('uid'))
          .rename_axis({'num': 'n_total_chgset'}, axis=1))
 
-def add_editor_metadata(metadata, top_editors):
+def add_editor_metadata(metadata, user_editors):
     """Add editor information to each metadata recordings
 
     Parameters
     ----------
     metadata: pd.DataFrame
         user metadata; must be indexed by a column 'uid'
-    used_editors: pd.DataFrame
-        raw editor information, editors used by each user; must contain a
-    column 'uid'
+    user_editors: pd.DataFrame
+        count used editor by user; must contain a column 'uid'
     top_editors: pd.DataFrame
         raw editor information, most used OSM editors
-    
+
     """
-    return metadata.join(top_editors, how='outer').fillna(0)
+    return metadata.join(user_editors.set_index('uid'), how='outer').fillna(0)
 
 def ecdf_transform(metadata, feature):
     """ Apply an ECDF transform on feature within metadata; transform the column
