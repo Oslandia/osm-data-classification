@@ -494,17 +494,17 @@ def add_editor_metadata(metadata, top_editors):
     return metadata.join(top_editors.set_index('uid'), how='left').fillna(0)
 
 def transform_editor_features(metadata):
-    """Transform editor-related features into metadata; editors are expressed
+    """Transform editor-related features into metadata; editor uses are expressed
     as proportions of n_total_chgset, a proportion of local change sets is
     computed as a new feature and an ecdf transformation is applied on n_chgset
     and n_total_chgset
-
+    
     Parameters
     ----------
     metadata: pd.DataFrame
         user metadata; must contain n_chgset and n_total_chgset columns, and
     editor column names must begin with 'n_total_chgset_'
-    
+
     """
     normalize_features(metadata, 'n_total_chgset')
     metadata['p_local_chgset'] = metadata.n_chgset / metadata.n_total_chgset
