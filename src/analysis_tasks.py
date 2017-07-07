@@ -1,49 +1,122 @@
 # coding: utf-8
 
-""" Luigi implementation for OSM data analysis
+"""Module dedicated write some Luigi tasks for analysis purposes
 """
 
 import os.path as osp
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
+
+import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import RobustScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
 
-import osmparsing
+import data_preparation_tasks
+from extract_user_editor import editor_count, get_top_editor, editor_name
 import tagmetanalyse
 import unsupervised_learning as ul
 import utils
 
-class OSMHistoryParsing(luigi.Task):
+OUTPUT_DIR = 'output-extracts'
 
-    """ Luigi task : parse OSM data history from a .pbf file
+### OSM Editor analysis ####################################
+class TopMostUsedEditors(luigi.Task):
+    """Compute the most used editor. Transform the editor name such as JOSM/1.2.3
+    into josm in order to have
+    """
+    datarep = luigi.Parameter("data")
+    fname = 'most-used-editor'
+    editor_fname = 'all-editors-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(
+            osp.join(self.datarep, OUTPUT_DIR, self.fname + ".csv"),
+            format=UTF8)
+
+    def run(self):
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
+        # extract the unique editor name aka fullname
+        user_editor['fullname'] = user_editor['value'].apply(editor_name)
+        editor = editor_count(user_editor)
+        top_editor = get_top_editor(editor)
+        with self.output().open('w') as fobj:
+            top_editor.to_csv(fobj, index=False)
+
+
+class EditorCountByUser(luigi.Task):
+    datarep = luigi.Parameter("data")
+    # take first 15th most used editors
+    n_top_editor = luigi.IntParameter(default=15)
+    editor_fname = 'all-editors-by-user.csv'
+    fname = 'editors-count-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(osp.join(self.datarep, OUTPUT_DIR, self.fname),
+                                 format=UTF8)
+
+    def requires(self):
+        return TopMostUsedEditors(self.datarep)
+
+    def run(self):
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
+        # extract the unique editor name aka fullname
+        user_editor['fullname'] = user_editor['value'].apply(editor_name)
+        with self.input().open('r') as fobj:
+            top_editor = pd.read_csv(fobj)
+        selection = top_editor.fullname[:self.n_top_editor + 1].tolist() + ['other']
+        # Set the 'other' label for editors which are not in the top selection
+        other_mask = np.logical_not(user_editor['fullname'].isin(selection))
+        user_editor.loc[other_mask, 'fullname'] = 'other'
+        data = (user_editor.groupby(["uid", "fullname"])["num"].sum()
+                .unstack()
+                .reset_index()
+                .fillna(0))
+        data.columns.values[1:] = ['n_total_chgset_'+name.replace(' ', '_')
+                            for name in data.columns.values[1:]]
+        with self.output().open("w") as fobj:
+            data.to_csv(fobj, index=False)
+
+class AddExtraInfoUserMetadata(luigi.Task):
+    """Add extra info to User metadata such as used editor and total number of
+    changesets
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-
-    def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-elements.csv")
+    n_top_editor = luigi.IntParameter(default=15)
+    editor_fname = 'editor-counts-by-user.csv'
+    total_user_changeset_fname = 'all-changesets-by-user.csv'
 
     def output(self):
-        return luigi.LocalTarget(self.outputpath())
+        return luigi.LocalTarget(
+            osp.join(self.datarep, OUTPUT_DIR, self.dsname,
+                     self.dsname + "-user-md-extra.csv"), format=UTF8)
+
+    def requires(self):
+        return {'editor_count_by_user': EditorCountByUser(self.datarep, self.n_top_editor),
+                'user_metadata': UserMetadataExtract(self.datarep, self.dsname)}
 
     def run(self):
-        tlhandler = osmparsing.TimelineHandler()
-        datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
-        tlhandler.apply_file(datapath)
-        colnames = ['elem', 'id', 'version', 'visible', 'ts', 'uid', 'chgset']
-        elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
-        elements = elements.sort_values(by=['elem', 'id', 'version'])
-        with self.output().open('w') as outputflow:
-            elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+        with self.input()['user_metadata'].open() as fobj:
+            users = pd.read_csv(fobj, index_col=0)
+        with self.input()['editor_count_by_user'].open() as fobj:
+            user_editor = pd.read_csv(fobj)
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
+            changeset_count_users = pd.read_csv(fobj, header=None,
+                                                names=['uid', 'num'])
+        users = utils.add_chgset_metadata(users, changeset_count_users)
+        users = utils.add_editor_metadata(users, user_editor)
+        users = utils.transform_editor_features(users)
+        with self.output().open('w') as fobj:
+            users.to_csv(fobj)
 
+### OSM Evolution through time ####################################
 class OSMChronology(luigi.Task):
     """ Luigi task: evaluation of OSM element historical evolution
     """
@@ -53,52 +126,27 @@ class OSMChronology(luigi.Task):
     end_date = luigi.Parameter('2017-01-01')
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-chronology.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMHistoryParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMHistoryParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-        osm_stats = utils.osm_chronology(osm_elements, self.start_date, self.end_date)
-
+        osm_stats = utils.osm_chronology(osm_elements,
+                                         self.start_date,
+                                         self.end_date)
         with self.output().open('w') as outputflow:
             osm_stats.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-
-class OSMTagParsing(luigi.Task):
-
-    """ Luigi task : parse OSM tag genome from a .pbf file
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-
-    def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-tag-genome.csv")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath())
-
-    def run(self):
-        taghandler = osmparsing.TagGenomeHandler()
-        datapath = osp.join(self.datarep, "raw", self.dsname+".osh.pbf")
-        taghandler.apply_file(datapath)
-        tag_genome = pd.DataFrame(taghandler.taggenome)
-        tag_genome.columns = ['elem', 'id', 'version', 'tagkey', 'tagvalue']
-        tag_genome = tag_genome.sort_values(['elem', 'id', 'version'],
-                                            ascending=False)
-        with self.output().open('w') as outputflow:
-            tag_genome.to_csv(outputflow)
-
-
+### OSM tag genome analysis ####################################
 class OSMTagCount(luigi.Task):
     """ Luigi task: OSM tag count
     """
@@ -106,14 +154,14 @@ class OSMTagCount(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagcount.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -133,14 +181,14 @@ class OSMTagKeyCount(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagkeycount.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -165,15 +213,17 @@ class OSMTagFreq(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagfreq.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return {'history': OSMHistoryParsing(self.datarep, self.dsname),
-                'taggenome': OSMTagParsing(self.datarep, self.dsname)}
+        return {'history': data_preparation_tasks.OSMHistoryParsing(self.datarep,
+                                                                  self.dsname),
+                'taggenome': data_preparation_tasks.OSMTagParsing(self.datarep,
+                                                                self.dsname)}
 
     def run(self):
         with self.input()['history'].open('r') as inputflow:
@@ -196,14 +246,14 @@ class OSMTagValue(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagvalue.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -221,14 +271,14 @@ class OSMTagValueFreq(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-tagvalue-freq.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMTagParsing(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMTagParsing(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -239,46 +289,8 @@ class OSMTagValueFreq(luigi.Task):
         with self.output().open('w') as outputflow:
             tagvalue_freq.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-class OSMTagMetaAnalysis(luigi.Task):
-    """ Luigi task: generic task that implements the tag meta-analysis
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    
-    def requires(self):
-        yield OSMTagCount(self.datarep, self.dsname)
-        yield OSMTagKeyCount(self.datarep, self.dsname)
-        yield OSMTagFreq(self.datarep, self.dsname)
-        yield OSMTagValue(self.datarep, self.dsname)
-        yield OSMTagValueFreq(self.datarep, self.dsname)
-
-class OSMElementEnrichment(luigi.Task):
-    """ Luigi task: building of new features for OSM element history
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-
-    def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-enriched-elements.csv")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath())
-
-    def requires(self):
-        return OSMHistoryParsing(self.datarep, self.dsname)
-
-    def run(self):
-        with self.input().open('r') as inputflow:
-            osm_elements = pd.read_csv(inputflow,
-                                       index_col=0,
-                                       parse_dates=['ts'])
-        osm_elements.sort_values(by=['elem','id','version'])
-        osm_elements = utils.enrich_osm_elements(osm_elements)
-        with self.output().open('w') as outputflow:
-            osm_elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
-
-
+            
+### OSM Metadata Extraction ####################################
 class ElementMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM element
     """
@@ -293,7 +305,8 @@ class ElementMetadataExtract(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMElementEnrichment(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMElementEnrichment(self.datarep,
+                                                         self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -312,14 +325,14 @@ class ChangeSetMetadataExtract(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-chgset-md.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return OSMElementEnrichment(self.datarep, self.dsname)
+        return data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -338,7 +351,7 @@ class UserMetadataExtract(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-user-md.csv")
 
     def output(self):
@@ -346,9 +359,9 @@ class UserMetadataExtract(luigi.Task):
 
     def requires(self):
         return {'chgsets': ChangeSetMetadataExtract(self.datarep, self.dsname),
-                'enrichhist': OSMElementEnrichment(self.datarep, self.dsname),
+                'enrichhist': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
                 'chgset_kmeans': MetadataKmeans(self.datarep, self.dsname,
-                                                "chgset", "manual", 3, 10)}
+                                                "chgset", "auto", 3, 10)}
 
     def run(self):
         with self.input()['chgsets'].open('r') as inputflow:
@@ -367,6 +380,7 @@ class UserMetadataExtract(luigi.Task):
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
 
+### OSM Metadata analysis with unsupervised learning tool #########
 class MetadataPCA(luigi.Task):
     """ Luigi task: compute PCA for any metadata
     """
@@ -379,7 +393,7 @@ class MetadataPCA(luigi.Task):
     features = luigi.Parameter('')
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-"+self.metadata_type+"-pca.h5")
 
     def output(self):
@@ -389,7 +403,7 @@ class MetadataPCA(luigi.Task):
         if self.metadata_type == "chgset":
             return ChangeSetMetadataExtract(self.datarep, self.dsname)
         elif self.metadata_type == "user":
-            return UserMetadataExtract(self.datarep, self.dsname)
+            return AddExtraInfoUserMetadata(self.datarep, self.dsname)
         else:
             raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
         
@@ -465,7 +479,7 @@ class MetadataKmeans(luigi.Task):
     nbmax_clusters = luigi.parameter.IntParameter(8)
     
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-"+self.metadata_type+"-kmeans.h5")
 
     def output(self):
@@ -513,18 +527,3 @@ class MetadataKmeans(luigi.Task):
         kmeans_ind.to_hdf(path, '/individuals')
         kmeans_centroids.to_hdf(path, '/centroids')        
     
-class MasterTask(luigi.Task):
-    """ Luigi task: generic task that launches every final tasks
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-
-    def requires(self):
-        yield ElementMetadataExtract(self.datarep, self.dsname)
-        yield OSMChronology(self.datarep, self.dsname,
-                            '2006-01-01', '2017-06-01')
-        yield MetadataKmeans(self.datarep, self.dsname, "user", "manual", 3, 10)
-
-    def complete(self):
-        return False
-

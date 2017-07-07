@@ -11,8 +11,9 @@ import numpy as np
 from datetime import timedelta
 import re
 import math
-
 import statsmodels.api as sm
+
+from extract_user_editor import editor_name
 
 ### OSM data exploration ######################
 def updatedelem(data):
@@ -176,7 +177,7 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
 def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
-                  timeunit='day'):
+                  timeunit='day', drop_ts=True):
     """ This function produces an init metadata table based on 'init_feature'
     in table 'osm_elements'. The intialization consider timestamp measurements
     (generated for each metadata tables, i.e. elements, change sets and users).
@@ -200,31 +201,23 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     first_at (datetime) -- first timestamp
     last_at (datetime) -- last timestamp
     activity (int) -- activity (in 'timeunit' format)
+    drop_ts (boolean) -- if true, drop timestamp features
 
     """
     timehorizon = (osm_elements.ts.max() - osm_elements.ts.min())
+    if init_feat == ['chgset']: # by change set definition, time horizon=24h
+        timehorizon = pd.Timedelta('24h')
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
     metadata.columns = [*init_feat, 'first_at', 'last_at']
     metadata[duration_feat] = metadata.last_at - metadata.first_at
-    if timeunit == 'second':
-        metadata[duration_feat] = (metadata[duration_feat] /
-                                   timedelta(seconds=1))
-        timehorizon = timehorizon / pd.Timedelta('1s')
-    if timeunit == 'minute':
-        metadata[duration_feat] = (metadata[duration_feat] /
-                                   timedelta(minutes=1))
-        timehorizon = timehorizon / pd.Timedelta('1m')
-    if timeunit == 'hour':
-        metadata[duration_feat] = metadata[duration_feat] / timedelta(hours=1)
-        timehorizon = timehorizon / pd.Timedelta('1h')
-    if timeunit == 'day':
-        metadata[duration_feat] = metadata[duration_feat] / timedelta(days=1)
-        timehorizon = timehorizon / pd.Timedelta('1D')
     metadata[duration_feat] = metadata[duration_feat] / timehorizon
     metadata = metadata.sort_values(by=['first_at'])
-    return drop_features(metadata, '_at')
+    if drop_ts:
+        return drop_features(metadata, '_at')
+    else:
+        return metadata
 
 def enrich_osm_elements(osm_elements):
     """Enrich OSM history data by computing additional features
@@ -368,7 +361,8 @@ def extract_chgset_metadata(osm_elements):
     and other features describing modification and OSM elements themselves
 
     """
-    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute')
+    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute',
+                              drop_ts=False)
     # User-related features
     chgset_md = pd.merge(chgset_md,
                          osm_elements[['chgset','uid']].drop_duplicates(),
@@ -449,7 +443,7 @@ def extract_user_metadata(osm_elements, chgset_md):
                            .reset_index())['chgset']
     user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration_m']
                                .mean()
-                               .reset_index())['duration_m'] / (24*60)
+                               .reset_index())['duration_m']
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
@@ -461,13 +455,62 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
-    user_md = ecdf_transform(user_md, 'n_chgset')
     user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
     user_md = ecdf_transform(user_md, 'n_node_modif')
     user_md = ecdf_transform(user_md, 'n_way_modif')
     user_md = ecdf_transform(user_md, 'n_relation_modif')
     user_md = user_md.set_index('uid')
     return user_md
+
+def add_chgset_metadata(metadata, total_change_sets):
+    """Add total change set count to user metadata
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        user metadata; must be indexed by a column 'uid'
+    total_change_sets: pd.DataFrame
+        total number of change sets by user; must contain columns 'uid' and 'num'
+
+    """
+    return (metadata.join(total_change_sets.set_index('uid'))
+                .rename_axis({'num': 'n_total_chgset'}, axis=1))
+
+def add_editor_metadata(metadata, top_editors):
+    """Add editor information to each metadata recordings; use an outer join to
+    overcome the fact that some users do not indicate their editor, and may be
+    skipped by a natural join => the outer join allow to keep them with 0
+    values on known editors
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        user metadata; must be indexed by a column 'uid'
+    top_editors: pd.DataFrame
+        raw editor information, editors used by each user, with a highlight on
+    N most popular editors; must contain a column 'uid'
+
+    """
+    return metadata.join(top_editors.set_index('uid'), how='left').fillna(0)
+
+def transform_editor_features(metadata):
+    """Transform editor-related features into metadata; editor uses are expressed
+    as proportions of n_total_chgset, a proportion of local change sets is
+    computed as a new feature and an ecdf transformation is applied on n_chgset
+    and n_total_chgset
+    
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        user metadata; must contain n_chgset and n_total_chgset columns, and
+    editor column names must begin with 'n_total_chgset_'
+
+    """
+    normalize_features(metadata, 'n_total_chgset')
+    metadata['p_local_chgset'] = metadata.n_chgset / metadata.n_total_chgset
+    metadata = ecdf_transform(metadata, 'n_chgset')
+    metadata = ecdf_transform(metadata, 'n_total_chgset')
+    return metadata
 
 def ecdf_transform(metadata, feature):
     """ Apply an ECDF transform on feature within metadata; transform the column
@@ -484,13 +527,13 @@ def ecdf_transform(metadata, feature):
     ------
     New metadata, with a new renamed feature containing ecdf version of
     original data
-    
+
     """
     ecdf = sm.distributions.ECDF(metadata[feature])
     metadata[feature] = ecdf(metadata[feature])
     new_feature_name = 'u_' + feature.split('_', 1)[1]
     return metadata.rename(columns={feature: new_feature_name})
-    
+
 def extract_modif_features(metadata, data, element_type, grp_feat):
     """Extract a set of metadata features corresponding to a specific element
     type; centered on modifications
@@ -592,7 +635,7 @@ def extract_element_features(metadata, data, element_type, grp_feat):
                                grp_feat, 'id', "_imp")
     metadata = create_unique_features(metadata, element_type,
                                typed_data.query("not created and open and not available"),
-                               grp_feat, 'id', "_impwrong") 
+                               grp_feat, 'id', "_impwrong")
     normalize_features(metadata, 'n_'+element_type+'_imp')
     metadata = create_unique_features(metadata, element_type,
                                typed_data.query("not created and not open"),
@@ -681,7 +724,7 @@ def normalize_features(metadata, total_column):
         Metadata table
     total_column: object
         String designing the reference column
-    
+
     """
     transformed_columns = metadata.columns[metadata.columns.to_series()
                                            .str.contains(total_column)]
@@ -697,6 +740,6 @@ def logtransform_feature(metadata, column):
         Metadata
     column: object
         string designing the name of the column to transform
-    
+
     """
     metadata[column] = metadata[column].apply(lambda x: math.log(1+x))
