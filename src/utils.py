@@ -508,13 +508,13 @@ def ecdf_transform(metadata, feature):
     ------
     New metadata, with a new renamed feature containing ecdf version of
     original data
-    
+
     """
     ecdf = sm.distributions.ECDF(metadata[feature])
     metadata[feature] = ecdf(metadata[feature])
     new_feature_name = 'u_' + feature.split('_', 1)[1]
     return metadata.rename(columns={feature: new_feature_name})
-    
+
 def extract_modif_features(metadata, data, element_type, grp_feat):
     """Extract a set of metadata features corresponding to a specific element
     type; centered on modifications
@@ -616,7 +616,7 @@ def extract_element_features(metadata, data, element_type, grp_feat):
                                grp_feat, 'id', "_imp")
     metadata = create_unique_features(metadata, element_type,
                                typed_data.query("not created and open and not available"),
-                               grp_feat, 'id', "_impwrong") 
+                               grp_feat, 'id', "_impwrong")
     normalize_features(metadata, 'n_'+element_type+'_imp')
     metadata = create_unique_features(metadata, element_type,
                                typed_data.query("not created and not open"),
@@ -705,7 +705,7 @@ def normalize_features(metadata, total_column):
         Metadata table
     total_column: object
         String designing the reference column
-    
+
     """
     transformed_columns = metadata.columns[metadata.columns.to_series()
                                            .str.contains(total_column)]
@@ -721,6 +721,6 @@ def logtransform_feature(metadata, column):
         Metadata
     column: object
         string designing the name of the column to transform
-    
+
     """
     metadata[column] = metadata[column].apply(lambda x: math.log(1+x))
