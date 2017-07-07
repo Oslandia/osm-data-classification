@@ -361,7 +361,7 @@ class UserMetadataExtract(luigi.Task):
         return {'chgsets': ChangeSetMetadataExtract(self.datarep, self.dsname),
                 'enrichhist': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
                 'chgset_kmeans': MetadataKmeans(self.datarep, self.dsname,
-                                                "chgset", "manual", 3, 10)}
+                                                "chgset", "auto", 3, 10)}
 
     def run(self):
         with self.input()['chgsets'].open('r') as inputflow:
