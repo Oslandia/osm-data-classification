@@ -28,13 +28,14 @@ class MasterTask(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
+    select_param = luigi.Parameter('manual')
 
     def requires(self):
         yield analysis_tasks.ElementMetadataExtract(self.datarep, self.dsname)
         yield analysis_tasks.OSMChronology(self.datarep, self.dsname,
                             '2006-01-01', '2017-06-01')
         yield analysis_tasks.MetadataKmeans(self.datarep, self.dsname,
-                                            "user", "manual", 3, 10)
+                                            "user", self.select_param, 3, 10)
 
     def complete(self):
         return False
