@@ -1,13 +1,11 @@
 DROP TABLE IF EXISTS bordeaux_metropole_elements;
 DROP TABLE IF EXISTS bordeaux_metropole_geomelements;
 CREATE TABLE bordeaux_metropole_elements(
-       id int,
        elem varchar,
        osm_id bigint,
        first_at timestamp,
        last_at timestamp,
        lifespan float,
-       lifecycle float,
        n_activity_days float,
        version int,
        n_chgsets int,
@@ -22,6 +20,7 @@ CREATE TABLE bordeaux_metropole_elements(
 );
 
 COPY bordeaux_metropole_elements FROM '/home/rde/data/osm-history/output-extracts/bordeaux-metropole/bordeaux-metropole-elem-md.csv' WITH(FORMAT CSV, HEADER, QUOTE '"');
+
 
 SELECT l.osm_id, h.first_at, h.lifespan, h.lifecycle, h.n_activity_days,
 h.version, h.visible,
