@@ -383,6 +383,38 @@ class AddExtraInfoUserMetadata(luigi.Task):
 
 
 ### OSM Metadata analysis with unsupervised learning tool #########
+class MetadataNormalization(luigi.Task):
+    """ Luigi task: normalize every features into metadata, so as to apply PCA
+    and Kmeans
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    
+    def outputpath(self):
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
+                        self.dsname+"-user-md-norm.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+    
+    def requires(self):
+        return AddExtraInfoUserMetadata(self.datarep, self.dsname)
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            metadata  = pd.read_csv(inputflow, index_col=0)
+        utils.normalize_features(metadata, 'n_node_modif')
+        utils.normalize_features(metadata, 'n_way_modif')
+        utils.normalize_features(metadata, 'n_relation_modif')
+        metadata = utils.ecdf_transform(metadata, 'nmean_modif_byelem')
+        metadata = utils.ecdf_transform(metadata, 'n_node_modif')
+        metadata = utils.ecdf_transform(metadata, 'n_way_modif')
+        metadata = utils.ecdf_transform(metadata, 'n_relation_modif')
+        metadata = utils.transform_editor_features(metadata)
+        with self.output().open('w') as fobj:
+            metadata.to_csv(fobj)
+        
+
 class MetadataPCA(luigi.Task):
     """ Luigi task: compute PCA for any metadata
     """
