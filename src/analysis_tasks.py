@@ -26,98 +26,6 @@ import utils
 
 OUTPUT_DIR = 'output-extracts'
 
-### OSM Editor analysis ####################################
-class TopMostUsedEditors(luigi.Task):
-    """Compute the most used editor. Transform the editor name such as JOSM/1.2.3
-    into josm in order to have
-    """
-    datarep = luigi.Parameter("data")
-    fname = 'most-used-editor'
-    editor_fname = 'all-editors-by-user.csv'
-
-    def output(self):
-        return luigi.LocalTarget(
-            osp.join(self.datarep, OUTPUT_DIR, self.fname + ".csv"),
-            format=UTF8)
-
-    def run(self):
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
-            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
-        # extract the unique editor name aka fullname
-        user_editor['fullname'] = user_editor['value'].apply(editor_name)
-        editor = editor_count(user_editor)
-        top_editor = get_top_editor(editor)
-        with self.output().open('w') as fobj:
-            top_editor.to_csv(fobj, index=False)
-
-
-class EditorCountByUser(luigi.Task):
-    datarep = luigi.Parameter("data")
-    # take first 15th most used editors
-    n_top_editor = luigi.IntParameter(default=15)
-    editor_fname = 'all-editors-by-user.csv'
-    fname = 'editors-count-by-user.csv'
-
-    def output(self):
-        return luigi.LocalTarget(osp.join(self.datarep, OUTPUT_DIR, self.fname),
-                                 format=UTF8)
-
-    def requires(self):
-        return TopMostUsedEditors(self.datarep)
-
-    def run(self):
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
-            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
-        # extract the unique editor name aka fullname
-        user_editor['fullname'] = user_editor['value'].apply(editor_name)
-        with self.input().open('r') as fobj:
-            top_editor = pd.read_csv(fobj)
-        selection = top_editor.fullname[:self.n_top_editor + 1].tolist() + ['other']
-        # Set the 'other' label for editors which are not in the top selection
-        other_mask = np.logical_not(user_editor['fullname'].isin(selection))
-        user_editor.loc[other_mask, 'fullname'] = 'other'
-        data = (user_editor.groupby(["uid", "fullname"])["num"].sum()
-                .unstack()
-                .reset_index()
-                .fillna(0))
-        data.columns.values[1:] = ['n_total_chgset_'+name.replace(' ', '_')
-                            for name in data.columns.values[1:]]
-        with self.output().open("w") as fobj:
-            data.to_csv(fobj, index=False)
-
-class AddExtraInfoUserMetadata(luigi.Task):
-    """Add extra info to User metadata such as used editor and total number of
-    changesets
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    n_top_editor = luigi.IntParameter(default=15)
-    editor_fname = 'editor-counts-by-user.csv'
-    total_user_changeset_fname = 'all-changesets-by-user.csv'
-
-    def output(self):
-        return luigi.LocalTarget(
-            osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                     self.dsname + "-user-md-extra.csv"), format=UTF8)
-
-    def requires(self):
-        return {'editor_count_by_user': EditorCountByUser(self.datarep, self.n_top_editor),
-                'user_metadata': UserMetadataExtract(self.datarep, self.dsname)}
-
-    def run(self):
-        with self.input()['user_metadata'].open() as fobj:
-            users = pd.read_csv(fobj, index_col=0)
-        with self.input()['editor_count_by_user'].open() as fobj:
-            user_editor = pd.read_csv(fobj)
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
-            changeset_count_users = pd.read_csv(fobj, header=None,
-                                                names=['uid', 'num'])
-        users = utils.add_chgset_metadata(users, changeset_count_users)
-        users = utils.add_editor_metadata(users, user_editor)
-        users = utils.transform_editor_features(users)
-        with self.output().open('w') as fobj:
-            users.to_csv(fobj)
-
 ### OSM Evolution through time ####################################
 class OSMChronology(luigi.Task):
     """ Luigi task: evaluation of OSM element historical evolution
@@ -380,6 +288,98 @@ class UserMetadataExtract(luigi.Task):
         user_md = utils.extract_user_metadata(osm_elements, chgset_md)
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+### OSM Editor analysis ####################################
+class TopMostUsedEditors(luigi.Task):
+    """Compute the most used editor. Transform the editor name such as JOSM/1.2.3
+    into josm in order to have
+    """
+    datarep = luigi.Parameter("data")
+    fname = 'most-used-editor'
+    editor_fname = 'all-editors-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(
+            osp.join(self.datarep, OUTPUT_DIR, self.fname + ".csv"),
+            format=UTF8)
+
+    def run(self):
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
+        # extract the unique editor name aka fullname
+        user_editor['fullname'] = user_editor['value'].apply(editor_name)
+        editor = editor_count(user_editor)
+        top_editor = get_top_editor(editor)
+        with self.output().open('w') as fobj:
+            top_editor.to_csv(fobj, index=False)
+
+
+class EditorCountByUser(luigi.Task):
+    datarep = luigi.Parameter("data")
+    # take first 15th most used editors
+    n_top_editor = luigi.IntParameter(default=15)
+    editor_fname = 'all-editors-by-user.csv'
+    fname = 'editors-count-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(osp.join(self.datarep, OUTPUT_DIR, self.fname),
+                                 format=UTF8)
+
+    def requires(self):
+        return TopMostUsedEditors(self.datarep)
+
+    def run(self):
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
+        # extract the unique editor name aka fullname
+        user_editor['fullname'] = user_editor['value'].apply(editor_name)
+        with self.input().open('r') as fobj:
+            top_editor = pd.read_csv(fobj)
+        selection = top_editor.fullname[:self.n_top_editor + 1].tolist() + ['other']
+        # Set the 'other' label for editors which are not in the top selection
+        other_mask = np.logical_not(user_editor['fullname'].isin(selection))
+        user_editor.loc[other_mask, 'fullname'] = 'other'
+        data = (user_editor.groupby(["uid", "fullname"])["num"].sum()
+                .unstack()
+                .reset_index()
+                .fillna(0))
+        data.columns.values[1:] = ['n_total_chgset_'+name.replace(' ', '_')
+                            for name in data.columns.values[1:]]
+        with self.output().open("w") as fobj:
+            data.to_csv(fobj, index=False)
+
+class AddExtraInfoUserMetadata(luigi.Task):
+    """Add extra info to User metadata such as used editor and total number of
+    changesets
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    n_top_editor = luigi.IntParameter(default=15)
+    editor_fname = 'editor-counts-by-user.csv'
+    total_user_changeset_fname = 'all-changesets-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(
+            osp.join(self.datarep, OUTPUT_DIR, self.dsname,
+                     self.dsname + "-user-md-extra.csv"), format=UTF8)
+
+    def requires(self):
+        return {'editor_count_by_user': EditorCountByUser(self.datarep, self.n_top_editor),
+                'user_metadata': UserMetadataExtract(self.datarep, self.dsname)}
+
+    def run(self):
+        with self.input()['user_metadata'].open() as fobj:
+            users = pd.read_csv(fobj, index_col=0)
+        with self.input()['editor_count_by_user'].open() as fobj:
+            user_editor = pd.read_csv(fobj)
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
+            changeset_count_users = pd.read_csv(fobj, header=None,
+                                                names=['uid', 'num'])
+        users = utils.add_chgset_metadata(users, changeset_count_users)
+        users = utils.add_editor_metadata(users, user_editor)
+        # users = utils.transform_editor_features(users)
+        with self.output().open('w') as fobj:
+            users.to_csv(fobj)
 
 
 ### OSM Metadata analysis with unsupervised learning tool #########
