@@ -132,7 +132,6 @@ class TimelineHandler(osm.SimpleHandler):
         """ Class default constructor"""
         osm.SimpleHandler.__init__(self)
         self.elemtimeline = [] # Dictionnary of OSM elements
-        print("<TRACE> Initialization of a TimelineHandler instance !")
         
     def node(self,n):
         """Node recovery: each record in the history is saved as a row in the
