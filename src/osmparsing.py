@@ -15,7 +15,65 @@ import osmium as osm
 DEFAULT_START = pd.Timestamp("2000-01-01T00:00:00Z")
 
 #####
+wkb_factory = osm.geom.WKBFactory()
 
+class GeometryHandler(osm.SimpleHandler):
+    """
+    """
+
+    def __init__(self):
+        osm.SimpleHandler.__init__(self)
+        self.geometries = []
+            
+    def node(self, n):
+        nloc = n.location
+        if nloc.valid():
+            self.geometries.append(["node",
+                                    n.id,
+                                    n.version,
+                                    n.visible,
+                                    wkb_factory.create_point(nloc)])
+        else:
+            self.geometries.append(["node",
+                                    n.id,
+                                    n.version,
+                                    n.visible,
+                                    ""])
+
+    def way(self, w):
+        validway = True
+        for n in w.nodes:
+            if not n.location.valid():
+                validway = False
+                break
+        if validway and len(w.nodes) > 1:
+            if not w.is_closed():
+                self.geometries.append(["way",
+                                        w.id,
+                                        w.version,
+                                        w.visible,
+                                        wkb_factory.create_linestring(w.nodes)])
+        else:
+            self.geometries.append(["way", w.id, w.version, w.visible, ""])
+
+
+class AreaHandler(osm.SimpleHandler):
+    def __init__(self):
+        osm.SimpleHandler.__init__(self)
+        self.areas = []
+
+    def area(self, a):
+        self.areas.append([a.id,
+                           a.from_way(),
+                           a.is_multipolygon(),
+                           a.orig_id(),
+                           a.num_rings(),
+                           a.version,
+                           a.visible,
+                           pd.Timestamp(a.timestamp),
+                           a.uid,
+                           a.changeset])
+        
 class TagGenomeHandler(osm.SimpleHandler):
     """Encapsulates the recovery of tag genome history
 
