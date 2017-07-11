@@ -89,12 +89,19 @@ class TagGenomeHandler(osm.SimpleHandler):
         self.taggenome = []
 
     def tag_inventory(self, elem, elem_type):
-        for tag in elem.tags:
-            self.taggenome.append([elem_type,
-                                   elem.id,
-                                   elem.version,
-                                   tag.k,
-                                   tag.v])
+        if len(elem.tags) == 0:
+            self.taggenome.appen([elem_type,
+                                  elem.id,
+                                  elem.version,
+                                  '',
+                                  ''])
+        else:
+            for tag in elem.tags:
+                self.taggenome.append([elem_type,
+                                       elem.id,
+                                       elem.version,
+                                       tag.k,
+                                       tag.v])
 
     def node(self, n):
         self.tag_inventory(n, "node")
