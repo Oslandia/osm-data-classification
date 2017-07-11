@@ -204,15 +204,11 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     drop_ts (boolean) -- if true, drop timestamp features
 
     """
-    timehorizon = (osm_elements.ts.max() - osm_elements.ts.min())
-    if init_feat == ['chgset']: # by change set definition, time horizon=24h
-        timehorizon = pd.Timedelta('24h')
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
     metadata.columns = [*init_feat, 'first_at', 'last_at']
     metadata[duration_feat] = metadata.last_at - metadata.first_at
-    metadata[duration_feat] = metadata[duration_feat] / timehorizon
     metadata = metadata.sort_values(by=['first_at'])
     if drop_ts:
         return drop_features(metadata, '_at')
@@ -714,6 +710,28 @@ def drop_features(data, pattern, copy=True):
     else:
         return data[[col for col in data.columns
                      if re.search(pattern, col) is None]]
+
+def normalize_temporal_features(metadata, timehorizon, init_feat='user',
+                                duration_feat='activity_d'):
+    """Transform metadata features that are linked with temporal information
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table, must contains temporal features
+    timehorizon: pd.TimeDelta
+        time horizon, used to normalize the temporal feature
+    init_feat: string
+        string designing which type of metadata is currently managed ('elem',
+    'chgset', or 'user')
+    duration_feat: object
+        string designing the name of the individuals activity duration
+    
+    """
+    if init_feat == ['chgset']: # by change set definition, time horizon=24h
+        timehorizon = pd.Timedelta('24h')
+    metadata[duration_feat] = metadata[duration_feat] / timehorizon
+
 
 def normalize_features(metadata, total_column):
     """Transform values of metadata located in cols columns into percentages of

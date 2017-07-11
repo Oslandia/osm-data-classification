@@ -398,11 +398,18 @@ class MetadataNormalization(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
     
     def requires(self):
-        return AddExtraInfoUserMetadata(self.datarep, self.dsname)
+        return {'osmelem':
+        data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+                'metadata': AddExtraInfoUserMetadata(self.datarep, self.dsname)}
 
     def run(self):
-        with self.input().open('r') as inputflow:
+        with self.input()['osmelem'].open('r') as inputflow:
+            osm_elements  = pd.read_csv(inputflow, index_col=0,
+                                        parse_dates=['ts'])
+        with self.input()['metadata'].open('r') as inputflow:
             metadata  = pd.read_csv(inputflow, index_col=0)
+        timehorizon = osm_elements.ts.max() - osm_elements.ts.min()
+        utils.normalize_temporal_features(metadata, timehorizon)
         utils.normalize_features(metadata, 'n_node_modif')
         utils.normalize_features(metadata, 'n_way_modif')
         utils.normalize_features(metadata, 'n_relation_modif')
