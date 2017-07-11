@@ -58,19 +58,24 @@ def plot_pca_variance(varmat):
     ax[1].legend(loc="best")
     f.show()
 
-def plot_elbow(x, y):
-    """Plot a range of kmeans inertia scores, so as to identify the best cluster
-    quantity according to elbow method; overwriting of basic plot method
+def plot_cluster_decision(x, y1, y2):
+    """Plot a range of kmeans inertia scores and silhouette boxplots, so as to
+    identify the best cluster quantity according to elbow method; overwriting
+    of basic plot method
 
     Parameters
     ----------
     x: list
         units; typically from 1 to the max number of clusters
-    y: list
+    y1: list
         inertia scores
-    
+    y2: list of lists
+        silhouette samples
     """
-    plt.plot(x, y)
+    f, ax = plt.subplots(2, 1)
+    ax[0].plot(x, y1)
+    ax[1].boxplot(y2)
+    plt.tight_layout()
     plt.show()
     
 def elbow_derivation(elbow, nbmin_clusters):

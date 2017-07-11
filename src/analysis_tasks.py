@@ -4,6 +4,7 @@
 """
 
 import os.path as osp
+import random
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
@@ -15,6 +16,7 @@ import numpy as np
 from sklearn.preprocessing import RobustScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 import data_preparation_tasks
 from extract_user_editor import editor_count, get_top_editor, editor_name
@@ -496,13 +498,34 @@ class MetadataKmeans(luigi.Task):
         number of clusters based on the elbow plot
         
         """
+        if not self.use_elbow and not self.use_silhouette:
+            return 4
         scores = []
+        silhouette = []
         for i in range(1, self.nbmax_clusters + 1):
             kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
             kmeans.fit(Xpca)
             scores.append(kmeans.inertia_)
+            Xclust = kmeans.fit_predict(Xpca)
+            silhouette_avg = []
+            if i == 1:
+                silhouette.append(np.repeat(1,1000))
+                continue
+            for k in range(10):
+                s = random.sample(range(len(Xpca)), 2000)
+                Xsampled = Xpca[s]
+                Csampled = Xclust[s]
+                while(len(np.unique(Csampled))==1):
+                    s = random.sample(range(len(Xpca)), 2000)
+                    Xsampled = Xpca[s]
+                    Csampled = Xclust[s]
+                silhouette_avg.append(silhouette_score(X=Xsampled,
+                                                       labels=Csampled))
+            silhouette.append(silhouette_avg)
         if self.select_param_mode == "manual":
-            ul.plot_elbow(range(1, self.nbmax_clusters+1), scores)
+            ul.plot_cluster_decision(range(1, self.nbmax_clusters+1),
+                                     scores,
+                                     silhouette)
             nb_clusters = input("# \n# Enter the number of clusters: \n# ")
             return int(nb_clusters)
         elbow_deriv = ul.elbow_derivation(scores, self.nbmin_clusters)
