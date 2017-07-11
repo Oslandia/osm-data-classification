@@ -437,7 +437,7 @@ class MetadataPCA(luigi.Task):
         if self.metadata_type == "chgset":
             return ChangeSetMetadataExtract(self.datarep, self.dsname)
         elif self.metadata_type == "user":
-            return AddExtraInfoUserMetadata(self.datarep, self.dsname)
+            return MetadataNormalization(self.datarep, self.dsname)
         else:
             raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
         
