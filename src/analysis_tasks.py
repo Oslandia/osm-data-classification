@@ -477,6 +477,8 @@ class MetadataKmeans(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     metadata_type = luigi.Parameter("user")
     select_param_mode = luigi.Parameter("auto")
+    use_elbow = luigi.parameter.BooleanParameter(True)
+    use_silhouette = luigi.parameter.BooleanParameter(True)
     nbmin_clusters = luigi.parameter.IntParameter(3)
     nbmax_clusters = luigi.parameter.IntParameter(8)
     
