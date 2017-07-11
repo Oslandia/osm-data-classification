@@ -455,10 +455,10 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
-    user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
-    user_md = ecdf_transform(user_md, 'n_node_modif')
-    user_md = ecdf_transform(user_md, 'n_way_modif')
-    user_md = ecdf_transform(user_md, 'n_relation_modif')
+    # user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
+    # user_md = ecdf_transform(user_md, 'n_node_modif')
+    # user_md = ecdf_transform(user_md, 'n_way_modif')
+    # user_md = ecdf_transform(user_md, 'n_relation_modif')
     user_md = user_md.set_index('uid')
     return user_md
 
@@ -473,8 +473,10 @@ def add_chgset_metadata(metadata, total_change_sets):
         total number of change sets by user; must contain columns 'uid' and 'num'
 
     """
-    return (metadata.join(total_change_sets.set_index('uid'))
+    metadata = (metadata.join(total_change_sets.set_index('uid'))
                 .rename_axis({'num': 'n_total_chgset'}, axis=1))
+    metadata['p_local_chgset'] = metadata.n_chgset / metadata.n_total_chgset
+    return metadata
 
 def add_editor_metadata(metadata, top_editors):
     """Add editor information to each metadata recordings; use an outer join to
@@ -507,7 +509,6 @@ def transform_editor_features(metadata):
 
     """
     normalize_features(metadata, 'n_total_chgset')
-    metadata['p_local_chgset'] = metadata.n_chgset / metadata.n_total_chgset
     metadata = ecdf_transform(metadata, 'n_chgset')
     metadata = ecdf_transform(metadata, 'n_total_chgset')
     return metadata
@@ -572,7 +573,7 @@ def extract_modif_features(metadata, data, element_type, grp_feat):
     metadata = create_count_features(metadata, element_type,
                                typed_data.query("willbe_autocorr"),
                                grp_feat, 'id', "_autocor")
-    normalize_features(metadata, 'n_'+element_type+'_modif')
+    # normalize_features(metadata, 'n_'+element_type+'_modif')
     return metadata
 
 def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
