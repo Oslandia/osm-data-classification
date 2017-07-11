@@ -494,36 +494,41 @@ class MetadataKmeans(luigi.Task):
                            self.metadata_type, self.select_param_mode)
 
     def compute_nb_clusters(self, Xpca):
-        """Compute kmeans for each cluster number (until nbmax_clusters+1) to
-        find the optimal number of clusters; if
-        self.select_param_mode=="manual", the user must enter its preferred
-        number of clusters based on the elbow plot
-        
+        """Compute kmeans for each cluster number until nbmax_clusters+1 to find the
+        optimal number of clusters; if self.select_param_mode=="manual", the
+        user must enter its preferred number of clusters based on the elbow
+        plot: the visual selection criteria are elbow and/or silhouette methods,
+        according to Luigi parameters
+
         """
         if not self.use_elbow and not self.use_silhouette:
-            return 4
-        scores = []
-        silhouette = []
+            self.select_param_mode = "auto"
+        if self.use_elbow:
+            scores = []
+        if self.use_silhouette:
+            silhouette = []
         for i in range(1, self.nbmax_clusters + 1):
             kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
             kmeans.fit(Xpca)
-            scores.append(kmeans.inertia_)
-            Xclust = kmeans.fit_predict(Xpca)
-            silhouette_avg = []
-            if i == 1:
-                silhouette.append(np.repeat(1,1000))
-                continue
-            for k in range(10):
-                s = random.sample(range(len(Xpca)), 2000)
-                Xsampled = Xpca[s]
-                Csampled = Xclust[s]
-                while(len(np.unique(Csampled))==1):
+            if self.use_elbow:
+                scores.append(kmeans.inertia_)
+            if self.use_silhouette:
+                Xclust = kmeans.fit_predict(Xpca)
+                silhouette_avg = []
+                if i == 1:
+                    silhouette.append(np.repeat(1,1000))
+                    continue
+                for k in range(10):
                     s = random.sample(range(len(Xpca)), 2000)
                     Xsampled = Xpca[s]
                     Csampled = Xclust[s]
-                silhouette_avg.append(silhouette_score(X=Xsampled,
-                                                       labels=Csampled))
-            silhouette.append(silhouette_avg)
+                    while(len(np.unique(Csampled))==1):
+                        s = random.sample(range(len(Xpca)), 2000)
+                        Xsampled = Xpca[s]
+                        Csampled = Xclust[s]
+                    silhouette_avg.append(silhouette_score(X=Xsampled,
+                                                           labels=Csampled))
+                silhouette.append(silhouette_avg)
         if self.select_param_mode == "manual":
             ul.plot_cluster_decision(range(1, self.nbmax_clusters+1),
                                      scores,
