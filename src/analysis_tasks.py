@@ -379,7 +379,6 @@ class AddExtraInfoUserMetadata(luigi.Task):
                                                 names=['uid', 'num'])
         users = utils.add_chgset_metadata(users, changeset_count_users)
         users = utils.add_editor_metadata(users, user_editor)
-        # users = utils.transform_editor_features(users)
         with self.output().open('w') as fobj:
             users.to_csv(fobj)
 
