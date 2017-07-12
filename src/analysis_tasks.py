@@ -390,18 +390,24 @@ class MetadataNormalization(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
     
     def outputpath(self):
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-user-md-norm.csv")
+                        self.dsname+"-"+self.metadata_type+"-md-norm.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
     
     def requires(self):
-        return {'osmelem':
-        data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
-                'metadata': AddExtraInfoUserMetadata(self.datarep, self.dsname)}
+        if self.metadata_type == "chgset":
+            return {'osmelem': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+                    'metadata': ChangeSetMetadataExtract(self.datarep, self.dsname)}
+        elif self.metadata_type == "user":
+            return {'osmelem': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+                    'metadata': AddExtraInfoUserMetadata(self.datarep, self.dsname)}
+        else:
+            raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
 
     def run(self):
         with self.input()['osmelem'].open('r') as inputflow:
@@ -442,12 +448,8 @@ class MetadataPCA(luigi.Task):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
 
     def requires(self):
-        if self.metadata_type == "chgset":
-            return ChangeSetMetadataExtract(self.datarep, self.dsname)
-        elif self.metadata_type == "user":
-            return MetadataNormalization(self.datarep, self.dsname)
-        else:
-            raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
+        return MetadataNormalization(self.datarep, self.dsname,
+                                     self.metadata_type)
         
     def compute_nb_dimensions(self, var_analysis):
         """Return a number of components that is supposed to be optimal,
