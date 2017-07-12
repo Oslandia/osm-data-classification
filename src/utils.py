@@ -434,9 +434,9 @@ def extract_user_metadata(osm_elements, chgset_md, drop_ts=True):
     user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
                            .count()
                            .reset_index())['chgset']
-    user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration_m']
+    user_md['dmean_chgset'] = (chgset_md.groupby('uid')['lifespan']
                                .mean()
-                               .reset_index())['duration_m']
+                               .reset_index())['lifespan']
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
