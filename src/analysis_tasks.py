@@ -415,16 +415,26 @@ class MetadataNormalization(luigi.Task):
                                         parse_dates=['ts'])
         with self.input()['metadata'].open('r') as inputflow:
             metadata  = pd.read_csv(inputflow, index_col=0)
-        timehorizon = osm_elements.ts.max() - osm_elements.ts.min()
-        utils.normalize_temporal_features(metadata, timehorizon)
-        utils.normalize_features(metadata, 'n_node_modif')
-        utils.normalize_features(metadata, 'n_way_modif')
-        utils.normalize_features(metadata, 'n_relation_modif')
-        metadata = utils.ecdf_transform(metadata, 'nmean_modif_byelem')
-        metadata = utils.ecdf_transform(metadata, 'n_node_modif')
-        metadata = utils.ecdf_transform(metadata, 'n_way_modif')
-        metadata = utils.ecdf_transform(metadata, 'n_relation_modif')
-        metadata = utils.transform_editor_features(metadata)
+        timehorizon = ((osm_elements.ts.max() - osm_elements.ts.min())
+                       / pd.Timedelta('1d'))
+        if self.metadata_type == "chgset":
+            # By definition, a change set takes 24h max
+            utils.normalize_temporal_features(metadata,
+                                              24*60, timehorizon)
+        else:
+            utils.normalize_temporal_features(metadata,
+                                              timehorizon, timehorizon)
+        if self.metadata_type == "chgset":
+            self.metadata_type # TODO - chgset normalization
+        else:
+            utils.normalize_features(metadata, 'n_node_modif')
+            utils.normalize_features(metadata, 'n_way_modif')
+            utils.normalize_features(metadata, 'n_relation_modif')
+            metadata = utils.ecdf_transform(metadata, 'nmean_modif_byelem')
+            metadata = utils.ecdf_transform(metadata, 'n_node_modif')
+            metadata = utils.ecdf_transform(metadata, 'n_way_modif')
+            metadata = utils.ecdf_transform(metadata, 'n_relation_modif')
+            metadata = utils.transform_editor_features(metadata)
         with self.output().open('w') as fobj:
             metadata.to_csv(fobj)
         
