@@ -344,6 +344,7 @@ class EditorCountByUser(luigi.Task):
                 .unstack()
                 .reset_index()
                 .fillna(0))
+        data['known'] = data.iloc[:,1:].apply(lambda x: x.sum(), axis=1)
         data.columns.values[1:] = ['n_total_chgset_'+name.replace(' ', '_')
                             for name in data.columns.values[1:]]
         with self.output().open("w") as fobj:

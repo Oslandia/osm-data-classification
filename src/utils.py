@@ -489,7 +489,12 @@ def add_editor_metadata(metadata, top_editors):
     N most popular editors; must contain a column 'uid'
 
     """
-    return metadata.join(top_editors.set_index('uid'), how='left').fillna(0)
+    metadata = (metadata
+                .join(top_editors.set_index('uid'), how='left')
+                .fillna(0))
+    metadata['n_total_chgset_unknown'] = (metadata['n_total_chgset']
+                                          - metadata['n_total_chgset_known'])
+    return drop_features(metadata, 'n_total_chgset_known')
 
 def transform_editor_features(metadata):
     """Transform editor-related features into metadata; editor uses are expressed
