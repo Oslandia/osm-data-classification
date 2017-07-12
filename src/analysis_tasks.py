@@ -313,11 +313,10 @@ class TopMostUsedEditors(luigi.Task):
         with self.output().open('w') as fobj:
             top_editor.to_csv(fobj, index=False)
 
-
 class EditorCountByUser(luigi.Task):
     datarep = luigi.Parameter("data")
-    # take first 15th most used editors
-    n_top_editor = luigi.IntParameter(default=15)
+    # take first 9th most used editors (the tenth being "others")
+    n_top_editor = luigi.IntParameter(default=5)
     editor_fname = 'all-editors-by-user.csv'
     fname = 'editors-count-by-user.csv'
 
@@ -330,12 +329,14 @@ class EditorCountByUser(luigi.Task):
 
     def run(self):
         with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
-            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
+            user_editor = pd.read_csv(fobj, header=None,
+                                      names=['uid', 'value', 'num'])
         # extract the unique editor name aka fullname
         user_editor['fullname'] = user_editor['value'].apply(editor_name)
         with self.input().open('r') as fobj:
             top_editor = pd.read_csv(fobj)
-        selection = top_editor.fullname[:self.n_top_editor + 1].tolist() + ['other']
+        selection = (top_editor.fullname[:self.n_top_editor].tolist()
+                     + ['other'])
         # Set the 'other' label for editors which are not in the top selection
         other_mask = np.logical_not(user_editor['fullname'].isin(selection))
         user_editor.loc[other_mask, 'fullname'] = 'other'
@@ -354,7 +355,7 @@ class AddExtraInfoUserMetadata(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-    n_top_editor = luigi.IntParameter(default=15)
+    n_top_editor = luigi.IntParameter(default=5)
     editor_fname = 'editor-counts-by-user.csv'
     total_user_changeset_fname = 'all-changesets-by-user.csv'
 
