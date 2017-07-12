@@ -307,9 +307,6 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
         x_column = 'PC'+str(1+comp[0])
         y_column = 'PC'+str(1+comp[1])
         if cluster is not None:
-            data.Xclust.replace(to_replace={0:'Cluster_0',
-                                            1:'Cluster_1',
-                                            2:'Cluster_2'}, inplace=True)
             for name, group in data.groupby('Xclust'):
                 ax_.plot(group[x_column], group[y_column], marker='.',
                          linestyle='', ms=10, label=name)
