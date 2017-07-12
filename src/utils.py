@@ -443,6 +443,7 @@ def extract_user_metadata(osm_elements, chgset_md, drop_ts=True):
                                     .mean()
                                      .reset_index())['version']
     # Modification-related features
+    user_md = extract_generic_modif_features(user_md, osm_elements, 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
@@ -529,6 +530,48 @@ def ecdf_transform(metadata, feature):
     metadata[feature] = ecdf(metadata[feature])
     new_feature_name = 'u_' + feature.split('_', 1)[1]
     return metadata.rename(columns={feature: new_feature_name})
+
+def extract_generic_modif_features(metadata, data, grp_feat):
+    """Extract generic features about modifications done by each individuals: number
+    of modifications, number of modifications per element type
+    
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        metadata table
+    data: pd.DataFrame
+        original data
+    grp_feat: ojbect
+        string designing the grouping feature: it characterizes the metadata
+    ("chgset", or "user")
+    
+    """
+    newfeature = (data.groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    newfeature = (data.query('elem=="node"').groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif_node"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    newfeature = (data.query('elem=="way"').groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif_way"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    newfeature = (data.query('elem=="relation"').groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif_relation"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+
+    return metadata
 
 def extract_modif_features(metadata, data, element_type, grp_feat):
     """Extract a set of metadata features corresponding to a specific element
