@@ -293,7 +293,7 @@ def enrich_osm_elements(osm_elements):
 
     return osm_elements
 
-def extract_elem_metadata(osm_elements):
+def extract_elem_metadata(osm_elements, drop_ts=True):
     """ Extract element metadata from OSM history data
 
     Parameters
@@ -332,9 +332,12 @@ def extract_elem_metadata(osm_elements):
                                               'version', 'visible']],
                        on=['elem', 'id', 'version'])
     elem_md = elem_md.set_index(['elem', 'id'])
-    return elem_md
+    if drop_ts:
+        return drop_features(elem_md, '_at')
+    else:
+        return elem_md
 
-def extract_chgset_metadata(osm_elements):
+def extract_chgset_metadata(osm_elements, drop_ts=True):
     """ Extract change set metadata from OSM history data
 
     Parameters
@@ -376,7 +379,10 @@ def extract_chgset_metadata(osm_elements):
     chgset_md = extract_element_features(chgset_md, osm_elements,
                                        'relation', 'chgset')
     chset_md = chgset_md.set_index('chgset')
-    return chgset_md
+    if drop_ts:
+        return drop_features(chgset_md, '_at')
+    else:
+        return chgset_md
 
 def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
     """Compute the version-related features of metadata and append them into
@@ -406,7 +412,7 @@ def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
                               'v', '_relation'+feature_suffix)
     return metadata
 
-def extract_user_metadata(osm_elements, chgset_md):
+def extract_user_metadata(osm_elements, chgset_md, drop_ts=True):
     """ Extract user metadata from OSM history data
 
     Parameters
@@ -442,12 +448,11 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
-    # user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
-    # user_md = ecdf_transform(user_md, 'n_node_modif')
-    # user_md = ecdf_transform(user_md, 'n_way_modif')
-    # user_md = ecdf_transform(user_md, 'n_relation_modif')
     user_md = user_md.set_index('uid')
-    return user_md
+    if drop_ts:
+        return drop_features(user_md, '_at')
+    else:
+        return user_md
 
 def add_chgset_metadata(metadata, total_change_sets):
     """Add total change set count to user metadata
