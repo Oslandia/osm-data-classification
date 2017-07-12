@@ -176,8 +176,7 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     md_ext.columns = [grp_feat, *colnames]
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
-def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
-                  timeunit='day', drop_ts=True):
+def init_metadata(osm_elements, init_feat, timeunit='1d'):
     """ This function produces an init metadata table based on 'init_feature'
     in table 'osm_elements'. The intialization consider timestamp measurements
     (generated for each metadata tables, i.e. elements, change sets and users).
@@ -186,34 +185,27 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    init_feat: object
-        metadata basic feature name in string format
     duration_feat: object
         metadata duration feature name in string format
     timeunit: object
         time unit in which 'duration_feature' will be expressed
-
-    Return
-    ------
-    metadata: pd.DataFrame
-    metadata table with following features:
-    init_feature (int) -- initializing feature ID
-    first_at (datetime) -- first timestamp
-    last_at (datetime) -- last timestamp
-    activity (int) -- activity (in 'timeunit' format)
-    drop_ts (boolean) -- if true, drop timestamp features
 
     """
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
     metadata.columns = [*init_feat, 'first_at', 'last_at']
-    metadata[duration_feat] = metadata.last_at - metadata.first_at
-    metadata = metadata.sort_values(by=['first_at'])
-    if drop_ts:
-        return drop_features(metadata, '_at')
-    else:
-        return metadata
+    metadata['lifespan'] = ((metadata.last_at - metadata.first_at)
+                            / pd.Timedelta(timeunit))
+    extraction_date = osm_elements.ts.max()
+    metadata['n_inscription_days'] = ((extraction_date - metadata.first_at)
+                                      / pd.Timedelta('1d'))
+    metadata['n_activity_days'] = (osm_elements
+                                   .groupby(init_feat)['ts']
+                                   .nunique()
+                                   .reset_index())['ts']
+    # nb_inscription_day
+    return metadata.sort_values(by=['first_at'])
 
 def enrich_osm_elements(osm_elements):
     """Enrich OSM history data by computing additional features
@@ -316,7 +308,7 @@ def extract_elem_metadata(osm_elements):
     and number of unique change sets (resp. users)
 
     """
-    elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
+    elem_md = init_metadata(osm_elements, ['elem','id'])
     elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
                           .max()
                           .reset_index())['version']
@@ -357,8 +349,7 @@ def extract_chgset_metadata(osm_elements):
     and other features describing modification and OSM elements themselves
 
     """
-    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute',
-                              drop_ts=False)
+    chgset_md = init_metadata(osm_elements, ['chgset'], '1m')
     # User-related features
     chgset_md = pd.merge(chgset_md,
                          osm_elements[['chgset','uid']].drop_duplicates(),
