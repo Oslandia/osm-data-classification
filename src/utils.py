@@ -57,7 +57,6 @@ def osm_stats(osm_history, timestamp):
         date at which OSM elements are evaluated
     """
     osmdata = datedelems(osm_history, timestamp)
-#    nb_nodes, nb_ways, nb_relations = list(osm_data.elem.value_counts())
     nb_nodes = len(osmdata.query('elem=="node"'))
     nb_ways = len(osmdata.query('elem=="way"'))
     nb_relations = len(osmdata.query('elem=="relation"'))
@@ -204,7 +203,6 @@ def init_metadata(osm_elements, init_feat, timeunit='1d'):
                                    .groupby(init_feat)['ts']
                                    .nunique()
                                    .reset_index())['ts']
-    # nb_inscription_day
     return metadata.sort_values(by=['first_at'])
 
 def enrich_osm_elements(osm_elements):
@@ -570,7 +568,6 @@ def extract_modif_features(metadata, data, element_type, grp_feat):
     metadata = create_count_features(metadata, element_type,
                                typed_data.query("willbe_autocorr"),
                                grp_feat, 'id', "_autocor")
-    # normalize_features(metadata, 'n_'+element_type+'_modif')
     return metadata
 
 def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):

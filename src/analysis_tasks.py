@@ -315,7 +315,7 @@ class TopMostUsedEditors(luigi.Task):
 
 class EditorCountByUser(luigi.Task):
     datarep = luigi.Parameter("data")
-    # take first 9th most used editors (the tenth being "others")
+    # take first 5th most used editors
     n_top_editor = luigi.IntParameter(default=5)
     editor_fname = 'all-editors-by-user.csv'
     fname = 'editors-count-by-user.csv'
