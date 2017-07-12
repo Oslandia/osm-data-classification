@@ -427,10 +427,12 @@ class MetadataNormalization(luigi.Task):
         if self.metadata_type == "chgset":
             self.metadata_type # TODO - chgset normalization
         else:
+            utils.normalize_features(metadata, 'n_total_modif')
             utils.normalize_features(metadata, 'n_node_modif')
             utils.normalize_features(metadata, 'n_way_modif')
             utils.normalize_features(metadata, 'n_relation_modif')
             metadata = utils.ecdf_transform(metadata, 'nmean_modif_byelem')
+            metadata = utils.ecdf_transform(metadata, 'n_total_modif')
             metadata = utils.ecdf_transform(metadata, 'n_node_modif')
             metadata = utils.ecdf_transform(metadata, 'n_way_modif')
             metadata = utils.ecdf_transform(metadata, 'n_relation_modif')
