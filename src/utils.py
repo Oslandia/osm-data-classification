@@ -712,8 +712,10 @@ def drop_features(data, pattern, copy=True):
         return data[[col for col in data.columns
                      if re.search(pattern, col) is None]]
 
-def normalize_temporal_features(metadata, timehorizon, init_feat='user',
-                                duration_feat='activity_d'):
+def normalize_temporal_features(metadata, max_lifespan, timehorizon,
+                                duration_feats=['lifespan',
+                                               'n_inscription_days',
+                                               'n_activity_days']):
     """Transform metadata features that are linked with temporal information
 
     Parameters
@@ -722,17 +724,13 @@ def normalize_temporal_features(metadata, timehorizon, init_feat='user',
         Metadata table, must contains temporal features
     timehorizon: pd.TimeDelta
         time horizon, used to normalize the temporal feature
-    init_feat: string
-        string designing which type of metadata is currently managed ('elem',
-    'chgset', or 'user')
-    duration_feat: object
-        string designing the name of the individuals activity duration
+    duration_feats: list of objects
+        strings designing the name of the individuals activity duration
     
     """
-    if init_feat == ['chgset']: # by change set definition, time horizon=24h
-        timehorizon = pd.Timedelta('24h')
-    metadata[duration_feat] = metadata[duration_feat] / timehorizon
-
+    metadata[duration_feats[0]] = metadata[duration_feats[0]] / max_lifespan
+    metadata[duration_feats[1]] = metadata[duration_feats[1]] / timehorizon
+    metadata = ecdf_transform(metadata, duration_feats[2])
 
 def normalize_features(metadata, total_column):
     """Transform values of metadata located in cols columns into percentages of
