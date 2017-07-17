@@ -291,7 +291,7 @@ def enrich_osm_elements(osm_elements):
 
     return osm_elements
 
-def extract_elem_metadata(osm_elements, drop_ts=True):
+def extract_elem_metadata(osm_elements, user_groups, drop_ts=True):
     """ Extract element metadata from OSM history data
 
     Parameters
@@ -327,9 +327,15 @@ def extract_elem_metadata(osm_elements, drop_ts=True):
                              .reset_index()['willbe_corr']
                              .astype('int'))
     elem_md = pd.merge(elem_md, osm_elements[['elem', 'id',
-                                              'version', 'visible']],
+                                              'version', 'visible',
+                                              'first_uid', 'last_uid']],
                        on=['elem', 'id', 'version'])
     elem_md = elem_md.set_index(['elem', 'id'])
+    elem_md = elem_md.join(user_groups.Xclust, on='first_uid')
+    elem_md = elem_md.rename(columns={'Xclust':'first_ug'})
+    elem_md = elem_md.join(user_groups.Xclust, on='last_uid')
+    elem_md = elem_md.rename(columns={'Xclust':'last_ug'})
+    elem_md = elem_md.reset_index()
     if drop_ts:
         return drop_features(elem_md, '_at')
     else:
