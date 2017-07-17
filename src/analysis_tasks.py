@@ -201,33 +201,6 @@ class OSMTagValueFreq(luigi.Task):
 
             
 ### OSM Metadata Extraction ####################################
-class ElementMetadataExtract(luigi.Task):
-    """ Luigi task: extraction of metadata for each OSM element
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-
-    def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-elem-md.csv")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath())
-
-    def requires(self):
-        return data_preparation_tasks.OSMElementEnrichment(self.datarep,
-                                                         self.dsname)
-
-    def run(self):
-        with self.input().open('r') as inputflow:
-            osm_elements = pd.read_csv(inputflow,
-                                       index_col=0,
-                                       parse_dates=['ts'])
-        elem_md = utils.extract_elem_metadata(osm_elements)
-        with self.output().open('w') as outputflow:
-            elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
-
-
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
@@ -288,6 +261,38 @@ class UserMetadataExtract(luigi.Task):
         user_md = utils.extract_user_metadata(osm_elements, chgset_md)
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+class ElementMetadataExtract(luigi.Task):
+    """ Luigi task: extraction of metadata for each OSM element
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
+                self.dsname + "-elem-md.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return {'osm_elements':
+        data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+                'user_groups': MetadataKmeans(self.datarep, self.dsname,
+                                              'user', 'manual')}
+
+    def run(self):
+        with self.input()['osm_elements'].open('r') as inputflow:
+            osm_elements = pd.read_csv(inputflow,
+                                       index_col=0,
+                                       parse_dates=['ts'])
+        inputpath = self.input()['user_groups'].path
+        user_kmind  = pd.read_hdf(inputpath, 'individuals')
+        elem_md = utils.extract_elem_metadata(osm_elements, user_kmind,
+                                              drop_ts=False)
+        with self.output().open('w') as outputflow:
+            elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
 
 ### OSM Editor analysis ####################################
 class TopMostUsedEditors(luigi.Task):
