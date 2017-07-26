@@ -377,6 +377,23 @@ current user himself?)
 #+END_SRC
 
 #+RESULTS:
+#+begin_example
+                                   1620248
+type                                  node
+id                              1751399951
+version                                  1
+visible                               True
+ts               2012-05-13 17:53:14+00:00
+uid                                 260584
+chgset                            11588470
+ts_round         2012-05-14 00:00:00+00:00
+vmin                                     1
+vmax                                     1
+init                                  True
+up_to_date                            True
+willbe_corr                          False
+willbe_autocorr                      False
+#+end_example
 
 Here is a short example of new enriched element definition: now we know that
 the node of ID 1751399951 has only one version, so this version of course
