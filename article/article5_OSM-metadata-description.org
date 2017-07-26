@@ -54,9 +54,9 @@ given area within the OSM API.
 
 If you read the previous article, this parsing class should be familiar to
 you. Let's briefly recall its meaning: we read a native OSM file
-`bordeaux-metropole.osh.pbf` with the help of the =pyosmium= library, we store
+=bordeaux-metropole.osh.pbf= with the help of the =pyosmium= library, we store
 elements and basic information like versions, timestamps, user ids (and so
-on...) into a simple Python structure. In the end, using a Pandas data frame is
+on...) into a simple Python structure. In the end, using a Pandas DataFrame is
 even clearer. This structure can be saved on the disk, or handled directly
 within the Python workspace.
 
@@ -71,13 +71,13 @@ that, we choose to analyse metadata associated to OSM elements instead of data
 themselves.
 
 Some data agregation operations are needed in this way, to better describe the
-objects within the API.
+evolution of the OSM objects and its contributors.
 
 * What do we mean by metadata?
 
 Here we plan to go deeper than just consider the geometric data: some
 additional information is available if we check the history of contributions,
-and if we focus on different change sets, users, or even on meta-information
+and if we focus on different changesets, users, or even on meta-information
 about OSM elements themselves.
 
 ** Element metadata
@@ -93,23 +93,23 @@ the OSM elements? Two major drawbacks prevent us to work with such objects:
   millions OSM elements only for the Bordeaux area, we let you imagine for a
   whole country, a continent or even for the entire world...
 
-** Change set metadata
+** Changeset metadata
 
-To investigate change sets could provide an additional information source. We
-know that elements are modified in the context of an opened change set.
+To investigate changesets could provide an additional information source. We
+know that elements are modified in the context of an opened changeset.
 
 We can count the number of modifications, assessing if some new elements have
-been created during a given change set, or count the amount of elements that
+been created during a given changeset, or count the amount of elements that
 have been modified or even deleted.
 
-Classify change sets is possible: we could hypothesize that there are
-"productive" change sets, where a large amount of nodes, ways and/or relations
+Classify changesets is possible: we could hypothesize that there are
+"productive" changesets, where a large amount of nodes, ways and/or relations
 are modified, and where modifications are durable from one hand; and less
 productive ones (we don't say "useless"!) with less creations, less
 modifications and less durable elements.
 
 However the information may be gathered more efficiently by considering those
-who produce change sets: the contributors themselves.
+who produce changesets: the contributors themselves.
 
 ** User metadata
 
@@ -118,7 +118,7 @@ elements, and whose contributions stay valid for a long time (or even: are
 still valid!) is an experienced user; and the elements on which he has
 contributed are well-represented.
 
-The link between users and elements is more natural than between change sets
+The link between users and elements is more natural than between changesets
 and elements : it is possible to characterize OSM data quality by considering
 which type of user contributes the most to each node, way or relation. In a
 more simple way, we can consider the most experienced user who've contributed
@@ -168,11 +168,11 @@ We begin with the time they've spent on OSM.
                                       / pd.Timedelta('1d'))
     elements['ts_round'] = elements.ts.apply(lambda x: x.round('d'))
     user_md['n_activity_days'] = (elements
-                                   .groupby('uid')['ts_round']
-                                   .nunique()
-                                   .reset_index())['ts_round']
+                                  .groupby('uid')['ts_round']
+                                  .nunique()
+                                  .reset_index())['ts_round']
     user_md.sort_values(by=['first_at'])
-    user_md.query('uid==4074141').T
+    user_md.query('uid == 4074141').T
 #+END_SRC
 
 #+RESULTS:
@@ -187,14 +187,14 @@ We begin with the time they've spent on OSM.
 With these short code lines, we have gathered some temporal features in order
 to know how each user contributes through time. In the provided example, the
 user with the /ID=4074141/ is registered as an OSM contributor for 258 days;
-its lifespan on the API is almost 3 days; he /(or she!)/ made modifications at
+its lifespan on the OSM Website is almost 3 days; he /(or she!)/ made modifications at
 two different days.
 
 ** Change-set-related features
 
 Then we can focus on change-set-related information. By definition, each user
-have opened open at least one change set /(yes, even you, if you've
-contributed!)/! Let's construct a small change set metadata data frame:
+have opened at least one changeset /(yes, even you, if you've
+contributed!)/! Let's construct a small changeset metadata DataFrame:
 
 #+BEGIN_SRC ipython :session osm :exports both
   chgset_md = (elements.groupby('chgset')['ts']
@@ -217,9 +217,9 @@ contributed!)/! Let's construct a small change set metadata data frame:
 : duration                          0
 : uid                         2418116
 
-Each change set is associated with its starting and ending time, its duration
-and the responsible user. We then may associate a change set quantity and mean
-duration time for each user.
+Each changeset is associated with its starting and ending time, its duration
+(in minute) and the responsible user. We then may associate a changeset
+quantity and mean duration time for each user.
 
 #+BEGIN_SRC ipython :session osm :exports both
   user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
@@ -228,7 +228,7 @@ duration time for each user.
   user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration']
                              .mean()
                              .reset_index())['duration']
-  user_md.query('uid==4074141').T
+  user_md.query('uid == 4074141').T
 #+END_SRC
 
 #+RESULTS:
@@ -243,8 +243,8 @@ duration time for each user.
 : dmean_chgset                          22.2778
 
 Wow, there are some new interesting information there: we know that user
-4074141 had produced three change sets during its lifespan, and the mean
-duration of these change sets is around 22 minutes.
+4074141 had produced three changesets during its lifespan, and the mean
+duration of these changesets is around 22 minutes.
 
 ** Contribution intensity
 
@@ -260,7 +260,7 @@ information as follows:
     user_md['nmean_modif_byelem'] = (contrib_byelem.groupby('uid')['version']
                                      .mean()
                                      .reset_index())['version']
-    user_md.query('uid==4074141').T
+    user_md.query('uid == 4074141').T
 #+END_SRC
 
 #+RESULTS:
@@ -294,19 +294,19 @@ modifications.
                   .fillna(0))
     newfeature.columns = ['uid', "n_total_modif"]
     user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
-    newfeature = (elements.query('type=="node"').groupby(['uid'])['id']
+    newfeature = (elements.query('type == "node"').groupby(['uid'])['id']
                   .count()
                   .reset_index()
                   .fillna(0))
     newfeature.columns = ['uid', "n_total_modif_node"]
     user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
-    newfeature = (elements.query('type=="way"').groupby(['uid'])['id']
+    newfeature = (elements.query('type == "way"').groupby(['uid'])['id']
                   .count()
                   .reset_index()
                   .fillna(0))
     newfeature.columns = ['uid', "n_total_modif_way"]
     user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
-    newfeature = (elements.query('type=="relation"').groupby(['uid'])['id']
+    newfeature = (elements.query('type == "relation"').groupby(['uid'])['id']
                   .count()
                   .reset_index()
                   .fillna(0))
@@ -339,10 +339,15 @@ modifications, amongst which 1783, 46 and 3 were respectively dedicated to
 nodes, ways and relations. However the amount of modificated elements should be
 smaller, as this user made several contributions per element, on average...
 
+Here you can see a difference between the number of unique contributions,
+i.e. the number of changesets, and the number of OSM element modifications. A
+changeset can include several modifications, e.g. 10 nodes, 2 ways and 1
+relation. See [[https://wiki.openstreetmap.org/wiki/Changeset][the OSM changeset]] description on the official OSM wiki.
+
 The number of modifications can be described even more finely! Why don't we
 consider if modifications are still valid, or if other modifications arise
 after the user action? What about elements that have been deleted since
-(we consider than working on a useless element is not so valuable for the API)?
+(we consider than working on a useless element is not so valuable for the community)?
 
 ** Modification-related features
 
@@ -359,16 +364,16 @@ current user himself?)
                 .reset_index())
     osmelem_versioning.columns = ['type', 'id', 'vmin', 'vmax']
 
-    elements = pd.merge(elements, osmelem_versioning, on=['type','id'])
+    elements = pd.merge(elements, osmelem_versioning, on=['type', 'id'])
     elements['init'] = elements.version == elements.vmin
     elements['up_to_date'] = elements.version == elements.vmax
-    elements['willbe_corr'] = np.logical_and(elements.id.diff(-1)==0,
-                                              elements.uid.diff(-1)!=0)
-    elements['willbe_autocorr'] = np.logical_and(elements.id.diff(-1)==0,
-                                                     elements.uid
-                                                     .diff(-1)==0)
+    # note that the 'elements' DataFrame have been sorted by type, id, ts
+    elements['willbe_corr'] = np.logical_and(elements.id.diff(-1) == 0,
+                                             elements.uid.diff(-1) != 0)
+    elements['willbe_autocorr'] = np.logical_and(elements.id.diff(-1) == 0,
+                                                 elements.uid.diff(-1) == 0)
 
-    elements.query("id==1751399951").T
+    elements.query("id == 1751399951").T
 #+END_SRC
 
 #+RESULTS:
@@ -418,7 +423,7 @@ user_md = extract_modif_features(user_md, elements, 'node')
 user_md = extract_modif_features(user_md, elements, 'way')
 user_md = extract_modif_features(user_md, elements, 'relation')
 user_md = user_md.set_index('uid')
-user_md.query("uid==4074141").T
+user_md.query("uid == 4074141").T
 #+END_SRC
 
 #+RESULTS:
@@ -467,6 +472,9 @@ up-to-date node! We can draw a comparable picture for ways and relations. As a
 result, we have identified a user that contributes a lot to improve OSM
 elements; however his contributions are never enough to complete the element
 representation.
+
+We can also add some information about the [[https://wiki.openstreetmap.org/wiki/Editors][OSM editors]] used by each contributor,
+not shown here but in the next article.
 
 By considering every single user that has contributed on a given area, we can
 easily imagine that some groups could arise.
