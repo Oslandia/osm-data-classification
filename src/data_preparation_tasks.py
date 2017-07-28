@@ -88,5 +88,5 @@ class OSMElementEnrichment(luigi.Task):
         osm_elements.sort_values(by=['elem','id','version'])
         osm_elements = utils.enrich_osm_elements(osm_elements)
         with self.output().open('w') as outputflow:
-            osm_elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+            osm_elements.to_csv(outputflow, date_format='%Y-%m-%d')
 
