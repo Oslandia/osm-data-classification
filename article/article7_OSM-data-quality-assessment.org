@@ -11,7 +11,142 @@ dedicated to the OSM data quality evaluation, through production of new maps.
 
 ** Element metadata extraction
 
-What is an OSM element: element metadata extraction
+As mentionned in a previous article dedicated to [[http://oslandia.com/en/2017/07/24/osm-metadata-description-the-data-behind-the-data/][metadata extraction]], we have
+to focus on element metadata itself if we want to produce valuable information
+about quality. The first questions to answer here are straightforward: /what is
+an OSM element?/ and /how to extract its associated metadata?/.
+
+Well, OK, we have two questions here.
+
+We know from previous analysis that an element is created during a change set
+by a given contributor, may be modified several times by whoever, and may be
+deleted as well. This kind of object may be either a "node", a "way" or a
+"relation". We also know that there may be a set of different tags associated
+with the element. Of course the list of every operations associated to each
+element is recorded in the OSM data history, so we have to begin with this
+structure (let's consider data around Bordeaux, as in previous blog posts):
+
+#+BEGIN_SRC ipython :session osm
+import pandas as pd
+elements = pd.read_table('../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-enriched-elements.csv', parse_dates=['ts'], index_col=0, sep=",")
+elements.sample().T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+                              923311
+elem                            node
+id                        1667029828
+version                            1
+visible                         True
+ts               2012-03-09 00:00:00
+uid                           219843
+chgset                      10918216
+first_uid                     219843
+vmax                               1
+last_uid                      219843
+available                       True
+open                            True
+init                            True
+up_to_date                      True
+created                         True
+willbe_corr                    False
+willbe_autocorr                False
+nextmodif_in                     NaN
+nextcorr_in             -9.22337e+18
+nextauto_in             -9.22337e+18
+#+end_example
+
+This short description helps us to identify some basic features, which are
+built in the following snippets. First we recover the temporal features:
+
+#+BEGIN_SRC ipython :session osm
+elem_md = (elements.groupby(['elem', 'id'])['ts']
+            .agg(["min", "max"])
+            .reset_index())
+elem_md.columns = ['elem', 'id', 'first_at', 'last_at']
+elem_md['lifespan'] = (elem_md.last_at - elem_md.first_at)/pd.Timedelta('1D')
+extraction_date = elements.ts.max()
+elem_md['n_inscription_days'] = ((extraction_date - elem_md.first_at)
+                                  / pd.Timedelta('1d'))
+#elements['ts_round'] = elements.ts.apply(lambda x: x.round('d'))
+elem_md['n_activity_days'] = (elements
+                              .groupby('uid')['ts']
+                              .nunique()
+                              .reset_index())['ts']
+elem_md.sort_values(by=['first_at'])
+elem_md.sample().T
+#+END_SRC
+
+#+RESULTS:
+:                                 1609498
+: elem                               node
+: id                           1841935578
+: first_at            2012-07-28 00:00:00
+: last_at             2012-07-28 00:00:00
+: lifespan                              0
+: n_inscription_days                 1667
+: n_activity_days                     NaN
+
+#+BEGIN_SRC ipython :session osm
+elements.head()
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+   elem        id  version  visible         ts    uid  chgset  first_uid  \
+0  node  21457126        2    False 2008-01-17  24281  653744      24281   
+1  node  21457126        3    False 2008-01-17  24281  653744      24281   
+2  node  21457126        4    False 2008-01-17  24281  653744      24281   
+3  node  21457126        5    False 2008-01-17  24281  653744      24281   
+4  node  21457126        6    False 2008-01-17  24281  653744      24281   
+
+   vmax  last_uid    ...       open   init  up_to_date  created  willbe_corr  \
+0    48     24281    ...      False   True       False     True        False   
+1    48     24281    ...      False  False       False     True        False   
+2    48     24281    ...      False  False       False     True        False   
+3    48     24281    ...      False  False       False     True        False   
+4    48     24281    ...      False  False       False     True        False   
+
+   willbe_autocorr  nextmodif_in   nextcorr_in  nextauto_in   ts_round  
+0             True           0.0 -9.223372e+18          0.0 2008-01-17  
+1             True           0.0 -9.223372e+18          0.0 2008-01-17  
+2             True           0.0 -9.223372e+18          0.0 2008-01-17  
+3             True           0.0 -9.223372e+18          0.0 2008-01-17  
+4             True           0.0 -9.223372e+18          0.0 2008-01-17  
+
+[5 rows x 21 columns]
+#+end_example
+
+Then the remainder of the variables, /e.g./ how many versions, contributors,
+changesets per elements:
+
+#+BEGIN_SRC ipython :session osm
+    elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
+                          .max()
+                          .reset_index())['version']
+    elem_md['n_chgset'] = (osm_elements.groupby(['elem', 'id'])['chgset']
+                           .nunique()
+                           .reset_index())['chgset']
+    elem_md['n_user'] = (osm_elements.groupby(['elem', 'id'])['uid']
+                         .nunique()
+                         .reset_index())['uid']
+    elem_md['n_autocorr'] = (osm_elements
+                             .groupby(['elem','id'])['willbe_autocorr']
+                             .sum()
+                             .reset_index()['willbe_autocorr']
+                             .astype('int'))
+    elem_md['n_corr'] = (osm_elements
+                             .groupby(['elem','id'])['willbe_corr']
+                             .sum()
+                             .reset_index()['willbe_corr']
+                             .astype('int'))
+    elem_md = pd.merge(elem_md, osm_elements[['elem', 'id',
+                                              'version', 'visible']],
+                       on=['elem', 'id', 'version'])
+    elem_md = elem_md.set_index(['elem', 'id'])
+
+#+END_SRC
 
 ** Characterize OSM elements with user classification
 
