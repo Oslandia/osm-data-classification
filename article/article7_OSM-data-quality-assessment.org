@@ -14,9 +14,8 @@ dedicated to the OSM data quality evaluation, through production of new maps.
 As mentionned in a previous article dedicated to [[http://oslandia.com/en/2017/07/24/osm-metadata-description-the-data-behind-the-data/][metadata extraction]], we have
 to focus on element metadata itself if we want to produce valuable information
 about quality. The first questions to answer here are straightforward: /what is
-an OSM element?/ and /how to extract its associated metadata?/.
-
-Well, OK, we have two questions here.
+an OSM element?/ and /how to extract its associated metadata?/. This part is
+relatively similar to the job already done with users.
 
 We know from previous analysis that an element is created during a change set
 by a given contributor, may be modified several times by whoever, and may be
@@ -28,34 +27,10 @@ structure (let's consider data around Bordeaux, as in previous blog posts):
 
 #+BEGIN_SRC ipython :session osm
 import pandas as pd
-elements = pd.read_table('../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-enriched-elements.csv', parse_dates=['ts'], index_col=0, sep=",")
-elements.sample().T
+elements = pd.read_table('../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-elements.csv', parse_dates=['ts'], index_col=0, sep=",")
 #+END_SRC
 
 #+RESULTS:
-#+begin_example
-                              923311
-elem                            node
-id                        1667029828
-version                            1
-visible                         True
-ts               2012-03-09 00:00:00
-uid                           219843
-chgset                      10918216
-first_uid                     219843
-vmax                               1
-last_uid                      219843
-available                       True
-open                            True
-init                            True
-up_to_date                      True
-created                         True
-willbe_corr                    False
-willbe_autocorr                False
-nextmodif_in                     NaN
-nextcorr_in             -9.22337e+18
-nextauto_in             -9.22337e+18
-#+end_example
 
 This short description helps us to identify some basic features, which are
 built in the following snippets. First we recover the temporal features:
@@ -67,99 +42,75 @@ elem_md = (elements.groupby(['elem', 'id'])['ts']
 elem_md.columns = ['elem', 'id', 'first_at', 'last_at']
 elem_md['lifespan'] = (elem_md.last_at - elem_md.first_at)/pd.Timedelta('1D')
 extraction_date = elements.ts.max()
-elem_md['n_inscription_days'] = ((extraction_date - elem_md.first_at)
+elem_md['n_days_since_creation'] = ((extraction_date - elem_md.first_at)
                                   / pd.Timedelta('1d'))
-#elements['ts_round'] = elements.ts.apply(lambda x: x.round('d'))
-elem_md['n_activity_days'] = (elements
-                              .groupby('uid')['ts']
+elem_md['n_days_of_activity'] = (elements
+                              .groupby(['elem', 'id'])['ts']
                               .nunique()
                               .reset_index())['ts']
-elem_md.sort_values(by=['first_at'])
-elem_md.sample().T
+elem_md = elem_md.sort_values(by=['first_at'])
 #+END_SRC
 
 #+RESULTS:
-:                                 1609498
-: elem                               node
-: id                           1841935578
-: first_at            2012-07-28 00:00:00
-: last_at             2012-07-28 00:00:00
-: lifespan                              0
-: n_inscription_days                 1667
-: n_activity_days                     NaN
-
-#+BEGIN_SRC ipython :session osm
-elements.head()
-#+END_SRC
-
-#+RESULTS:
-#+begin_example
-   elem        id  version  visible         ts    uid  chgset  first_uid  \
-0  node  21457126        2    False 2008-01-17  24281  653744      24281   
-1  node  21457126        3    False 2008-01-17  24281  653744      24281   
-2  node  21457126        4    False 2008-01-17  24281  653744      24281   
-3  node  21457126        5    False 2008-01-17  24281  653744      24281   
-4  node  21457126        6    False 2008-01-17  24281  653744      24281   
-
-   vmax  last_uid    ...       open   init  up_to_date  created  willbe_corr  \
-0    48     24281    ...      False   True       False     True        False   
-1    48     24281    ...      False  False       False     True        False   
-2    48     24281    ...      False  False       False     True        False   
-3    48     24281    ...      False  False       False     True        False   
-4    48     24281    ...      False  False       False     True        False   
-
-   willbe_autocorr  nextmodif_in   nextcorr_in  nextauto_in   ts_round  
-0             True           0.0 -9.223372e+18          0.0 2008-01-17  
-1             True           0.0 -9.223372e+18          0.0 2008-01-17  
-2             True           0.0 -9.223372e+18          0.0 2008-01-17  
-3             True           0.0 -9.223372e+18          0.0 2008-01-17  
-4             True           0.0 -9.223372e+18          0.0 2008-01-17  
-
-[5 rows x 21 columns]
-#+end_example
 
 Then the remainder of the variables, /e.g./ how many versions, contributors,
 changesets per elements:
 
 #+BEGIN_SRC ipython :session osm
-    elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
+    elem_md['version'] = (elements.groupby(['elem','id'])['version']
                           .max()
                           .reset_index())['version']
-    elem_md['n_chgset'] = (osm_elements.groupby(['elem', 'id'])['chgset']
+    elem_md['n_chgset'] = (elements.groupby(['elem', 'id'])['chgset']
                            .nunique()
                            .reset_index())['chgset']
-    elem_md['n_user'] = (osm_elements.groupby(['elem', 'id'])['uid']
+    elem_md['n_user'] = (elements.groupby(['elem', 'id'])['uid']
                          .nunique()
                          .reset_index())['uid']
-    elem_md['n_autocorr'] = (osm_elements
-                             .groupby(['elem','id'])['willbe_autocorr']
-                             .sum()
-                             .reset_index()['willbe_autocorr']
-                             .astype('int'))
-    elem_md['n_corr'] = (osm_elements
-                             .groupby(['elem','id'])['willbe_corr']
-                             .sum()
-                             .reset_index()['willbe_corr']
-                             .astype('int'))
-    elem_md = pd.merge(elem_md, osm_elements[['elem', 'id',
-                                              'version', 'visible']],
+    elem_md = pd.merge(elem_md, elements[['elem', 'id', 'version', 'visible']],
                        on=['elem', 'id', 'version'])
     elem_md = elem_md.set_index(['elem', 'id'])
-
+    elem_md.sample().T
 #+END_SRC
+
+#+RESULTS:
+#+begin_example
+elem                                  node
+id                               278128672
+first_at               2008-07-13 00:00:00
+last_at                2008-07-13 00:00:00
+lifespan                                 0
+n_days_since_creation                 3143
+n_days_of_activity                       1
+version                                  1
+n_chgset                                 1
+n_user                                   1
+visible                               True
+#+end_example
+
+As an illustration we have above an old one-versionned node, still visible on
+the OSM website.
 
 ** Characterize OSM elements with user classification
 
-As a recall, we have seen in the last post that OSM metadata, and especially
-user metadata allow us to produce user clusters. These clusters give a roughly
-faithful picture of the user ability to make OSM trustworthy.
+This set of features is only descriptive, we have to add more information to be
+able to characterize OSM data quality. That is the moment to exploit the user
+classification produced in the last blog post!
 
-Starting from previous observations, we can deduce a little bit more
-information. Each OSM entity have received one or more contributions by listed
-users. These users are either beginners, or intermediate users, or even OSM
-experts, according to previous classification. Let's say the entity quality is
-good if at least one experienced user contributes to it. That leads us to
-classify the OSM entities themselves in return!
+As a recall, we hypothesized that clustering the users permits to evaluate
+their trustworthiness as OSM contributors. They are either beginners, or
+intermediate users, or even OSM experts, according to previous classification.
+
+Each OSM entity may have received one or more contributions by users of each
+group. Let's say the entity quality is good if its last contributor is
+experienced. That leads us to classify the OSM entities themselves in return!
+
+/How to include this information into element metadata?/
+
+That's the crucial question, and let's give an answer in this snippet:
+
+#+BEGIN_SRC ipython :session osm
+
+#+END_SRC
 
 ** Recover the geometry information
 
