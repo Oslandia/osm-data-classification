@@ -180,10 +180,13 @@ important one, when dealing with geospatial data: the location itself!
 Even if =Pyosmium= library is able to retrieve OSM element geometries, we
 realized some test with an other OSM data parser here: =osm2pgsql=.
 
-As the main operations, we must:
-- build an OSM element metadata table from OSM data history
-- parse a geometry-oriented extraction of OSM data with =osm2pgsql=
-- merge both tables
+We can recover geometries from standard OSM data
+
+#+BEGIN_SRC sh
+osm2pgsql ../src/data/raw/
+#+END_SRC
+
+#+RESULTS:
 
 * Keep it visual, man!
 
