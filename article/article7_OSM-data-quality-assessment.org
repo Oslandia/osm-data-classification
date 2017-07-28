@@ -28,9 +28,16 @@ structure (let's consider data around Bordeaux, as in previous blog posts):
 #+BEGIN_SRC ipython :session osm
 import pandas as pd
 elements = pd.read_table('../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-elements.csv', parse_dates=['ts'], index_col=0, sep=",")
+elements.head()
 #+END_SRC
 
 #+RESULTS:
+:    elem        id  version  visible         ts    uid  chgset
+: 0  node  21457126        2    False 2008-01-17  24281  653744
+: 1  node  21457126        3    False 2008-01-17  24281  653744
+: 2  node  21457126        4    False 2008-01-17  24281  653744
+: 3  node  21457126        5    False 2008-01-17  24281  653744
+: 4  node  21457126        6    False 2008-01-17  24281  653744
 
 This short description helps us to identify some basic features, which are
 built in the following snippets. First we recover the temporal features:
@@ -66,7 +73,16 @@ changesets per elements:
     elem_md['n_user'] = (elements.groupby(['elem', 'id'])['uid']
                          .nunique()
                          .reset_index())['uid']
-    elem_md = pd.merge(elem_md, elements[['elem', 'id', 'version', 'visible']],
+    osmelem_last_user = (elements
+                         .groupby(['elem','id'])['uid']
+                         .last()
+                         .reset_index())
+    osmelem_last_user = osmelem_last_user.rename(columns={'uid':'last_uid'})
+    elements = pd.merge(elements, osmelem_last_user,
+                       on=['elem', 'id'])
+#    elements = elements.join(osmelem_last_user.set_index(['elem', 'id']))
+    elem_md = pd.merge(elem_md,
+                       elements[['elem', 'id', 'version', 'visible', 'last_uid']],
                        on=['elem', 'id', 'version'])
     elem_md = elem_md.set_index(['elem', 'id'])
     elem_md.sample().T
@@ -75,16 +91,17 @@ changesets per elements:
 #+RESULTS:
 #+begin_example
 elem                                  node
-id                               278128672
-first_at               2008-07-13 00:00:00
-last_at                2008-07-13 00:00:00
+id                              1261182084
+first_at               2011-04-26 00:00:00
+last_at                2011-04-26 00:00:00
 lifespan                                 0
-n_days_since_creation                 3143
+n_days_since_creation                 2126
 n_days_of_activity                       1
 version                                  1
 n_chgset                                 1
 n_user                                   1
 visible                               True
+last_uid                            354363
 #+end_example
 
 As an illustration we have above an old one-versionned node, still visible on
@@ -106,16 +123,62 @@ experienced. That leads us to classify the OSM entities themselves in return!
 
 /How to include this information into element metadata?/
 
-That's the crucial question, and let's give an answer in this snippet:
+We first need to recover the results of our clustering process.
 
 #+BEGIN_SRC ipython :session osm
-
+user_groups = pd.read_hdf("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-user-kmeans.h5", "/individuals")
+user_groups.head()
 #+END_SRC
+
+#+RESULTS:
+:            PC1       PC2       PC3       PC4       PC5       PC6  Xclust
+: uid                                                                     
+: 1626 -0.035154  1.607427  0.399929 -0.808851 -0.152308 -0.753506       2
+: 1399 -0.295486 -0.743364  0.149797 -1.252119  0.128276 -0.292328       0
+: 2488  0.003268  1.073443  0.738236 -0.534716 -0.489454 -0.333533       2
+: 5657 -0.889706  0.986024  0.442302 -1.046582 -0.118883 -0.408223       4
+: 3980 -0.115455 -0.373598  0.906908  0.252670  0.207824 -0.575960       5
+
+As a remark, there were several important results to save after the clustering
+process; we decided to serialize them into a single binary file. =Pandas= knows
+how to manage such file, that would be a pity not to take advantage of it!
+
+We recover the individuals groups in the eponym binary file tab (column
+=Xclust=), and only have to join it to element metadata as follows:
+
+#+BEGIN_SRC ipython :session osm
+    elem_md = elem_md.join(user_groups.Xclust, on='last_uid')
+    elem_md = elem_md.rename(columns={'Xclust':'last_uid_group'})
+    elem_md.sample().T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+elem                                  node
+id                               283046043
+first_at               2008-08-03 00:00:00
+last_at                2008-08-03 00:00:00
+lifespan                                 0
+n_days_since_creation                 3122
+n_days_of_activity                       1
+version                                  1
+n_chgset                                 1
+n_user                                   1
+visible                               True
+last_uid                             53048
+last_uid_group                           2
+#+end_example
+
+From now, we can use the last contributor cluster as an additional information
+to generate maps, so as to study data quality...
+
+/Wait... There miss another information, isn't it?/ Well yes, maybe the most
+important one, when dealing with geospatial data: the location itself!
 
 ** Recover the geometry information
 
 Even if =Pyosmium= library is able to retrieve OSM element geometries, we
-realized some test with an other OSM data parser here: =osm2pgsql=
+realized some test with an other OSM data parser here: =osm2pgsql=.
 
 As the main operations, we must:
 - build an OSM element metadata table from OSM data history
