@@ -1,32 +1,40 @@
-#+TITLE: OSM data quality assessment: is the OSM data quality "good"?
+#+TITLE: OSM data quality assessment: producing map to illustrate data quality
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
-projects and handling Open (geospatial) Data. In this article series, we will
-play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
-subsequent data. Here comes the seventh article of this series, dedicated to
-the OSM data quality evaluation.
+At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with the [[https://www.openstreetmap.org/][OpenStreetMap]]
+(/OSM/) map and subsequent data. Here comes the eighth article of this series,
+dedicated to the OSM data quality evaluation, through production of new maps.
 
-* Introduction...
+* Description of OSM element
 
-Introduction of the article
+** Element metadata extraction
 
-* Capitalize from clustering on metadata...
+What is an OSM element: element metadata extraction
+
+** Characterize OSM elements with user classification
 
 As a recall, we have seen in the last post that OSM metadata, and especially
 user metadata allow us to produce user clusters. These clusters give a roughly
 faithful picture of the user ability to make OSM trustworthy.
 
-* Characterize OSM entities from user classification...
-
 Starting from previous observations, we can deduce a little bit more
 information. Each OSM entity have received one or more contributions by listed
 users. These users are either beginners, or intermediate users, or even OSM
-experts, according to previous classification. It is possible to design a
-synthetic score applied to each entity by using this fact. Let's say the entity
-quality is good if at least one experienced user contributes to it. That leads
-us to classify the OSM entities themselves in return!
+experts, according to previous classification. Let's say the entity quality is
+good if at least one experienced user contributes to it. That leads us to
+classify the OSM entities themselves in return!
+
+** Recover the geometry information
+
+Even if =Pyosmium= library is able to retrieve OSM element geometries, we
+realized some test with an other OSM data parser here: =osm2pgsql=
+
+As the main operations, we must:
+- build an OSM element metadata table from OSM data history
+- parse a geometry-oriented extraction of OSM data with =osm2pgsql=
+- merge both tables
 
 * Keep it visual, man!
 
@@ -35,3 +43,21 @@ on hypothesis on entity quality. If each OSM entities (*e.g.* roads) can be
 characterized in terms of quality, by the way of a synthetic score for example,
 then we can draw quality maps by highlighting the most trustworthy entities, as
 well as those with which we have to stay cautious.
+
+** First step: simple metadata plotting
+
+Number of user per roads, number of tags per roads, and so on, within PostGIS
+
+** More complex: OSM data merging with alternative geospatial representations
+
+Use the INSEE carroyed data to provide an alternative way of OSM data
+representation: 200-meter squared tiles, within which OSM element statistics
+are aggregated
+
+** The cherry on the cake: representation of OSM elements with respect to quality
+
+Design similar map than in previous section, with user classification
+information: /e.g./ last contributor group
+
+Idea: identify questionable OSM elements, that should be verified (they are not
+necessarily of low quality!)
