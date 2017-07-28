@@ -46,13 +46,12 @@ class GeometryHandler(osm.SimpleHandler):
             if not n.location.valid():
                 validway = False
                 break
-        if validway and len(w.nodes) > 1:
-            if not w.is_closed():
-                self.geometries.append(["way",
-                                        w.id,
-                                        w.version,
-                                        w.visible,
-                                        wkb_factory.create_linestring(w.nodes)])
+        if validway and len(w.nodes) > 1 and not w.is_closed():
+            self.geometries.append(["way",
+                                    w.id,
+                                    w.version,
+                                    w.visible,
+                                    wkb_factory.create_linestring(w.nodes)])
         else:
             self.geometries.append(["way", w.id, w.version, w.visible, ""])
 
