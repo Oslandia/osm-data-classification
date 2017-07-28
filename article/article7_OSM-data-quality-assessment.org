@@ -91,17 +91,17 @@ changesets per elements:
 #+RESULTS:
 #+begin_example
 elem                                  node
-id                              1261182084
-first_at               2011-04-26 00:00:00
-last_at                2011-04-26 00:00:00
+id                              2501524262
+first_at               2013-10-19 00:00:00
+last_at                2013-10-19 00:00:00
 lifespan                                 0
-n_days_since_creation                 2126
+n_days_since_creation                 1219
 n_days_of_activity                       1
 version                                  1
 n_chgset                                 1
 n_user                                   1
 visible                               True
-last_uid                            354363
+last_uid                             53048
 #+end_example
 
 As an illustration we have above an old one-versionned node, still visible on
@@ -149,23 +149,27 @@ We recover the individuals groups in the eponym binary file tab (column
 #+BEGIN_SRC ipython :session osm
     elem_md = elem_md.join(user_groups.Xclust, on='last_uid')
     elem_md = elem_md.rename(columns={'Xclust':'last_uid_group'})
+    elem_md.reset_index().to_csv("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-element-metadata.csv")
     elem_md.sample().T
+#+END_SRC
+
+#+BEGIN_SRC ipython :session osm
 #+END_SRC
 
 #+RESULTS:
 #+begin_example
 elem                                  node
-id                               283046043
-first_at               2008-08-03 00:00:00
-last_at                2008-08-03 00:00:00
+id                              1841951307
+first_at               2012-07-28 00:00:00
+last_at                2012-07-28 00:00:00
 lifespan                                 0
-n_days_since_creation                 3122
+n_days_since_creation                 1667
 n_days_of_activity                       1
 version                                  1
 n_chgset                                 1
 n_user                                   1
 visible                               True
-last_uid                             53048
+last_uid                            152665
 last_uid_group                           2
 #+end_example
 
@@ -180,13 +184,83 @@ important one, when dealing with geospatial data: the location itself!
 Even if =Pyosmium= library is able to retrieve OSM element geometries, we
 realized some test with an other OSM data parser here: =osm2pgsql=.
 
-We can recover geometries from standard OSM data
+We can recover geometries from standard OSM data with this tool, by assuming
+the existence of a =osm= database, owned by =user=:
 
 #+BEGIN_SRC sh
-osm2pgsql ../src/data/raw/
+osm2pgsql -E 27572 -d osm -U user -p bordeaux_metropole --hstore ../src/data/raw/bordeaux-metropole.osm.pbf
+#+END_SRC
+
+We specify a France-focused SRID (27572), and a prefix for naming output
+databases =point=, =line=, =polygon= and =roads=.
+
+We can work with the =line= subset, that contains the physical roads, among
+other structures (it roughly corresponds to the OSM ways), and build an
+enriched version of element metadata, with geometries.
+
+First we can create the table =bordeaux_metropole_geomelements=, that will
+contain our metadata...
+
+#+BEGIN_SRC sql :engine postgresql :cmdline "-U rde -d osm"
+DROP TABLE IF EXISTS bordeaux_metropole_elements;
+DROP TABLE IF EXISTS bordeaux_metropole_geomelements;
+CREATE TABLE bordeaux_metropole_elements(
+       id int,
+       elem varchar,
+       osm_id bigint,
+       first_at varchar,
+       last_at varchar,
+       lifespan float,
+       n_days_since_creation float,
+       n_days_of_activity float,
+       version int,
+       n_chgsets int,
+       n_users int,
+       visible boolean,
+       last_uid int,
+       last_user_group int
+);
 #+END_SRC
 
 #+RESULTS:
+| DROP TABLE   |
+|--------------|
+| DROP TABLE   |
+| CREATE TABLE |
+
+...then, populate it with the data accurate =.csv= file...
+
+#+BEGIN_SRC sql :engine postgresql :cmdline "-U rde -d osm"
+COPY bordeaux_metropole_elements
+FROM '/home/rde/data/osm-history/output-extracts/bordeaux-metropole/bordeaux-metropole-element-metadata.csv'
+WITH(FORMAT CSV, HEADER, QUOTE '"');
+#+END_SRC
+
+#+RESULTS:
+| COPY 2760999 |
+|--------------|
+
+...and finally, merge the metadata with the data gathered with =osm2pgsql=,
+that contains geometries.
+
+#+BEGIN_SRC sql :engine postgresql :cmdline "-U rde -d osm"
+SELECT l.osm_id, h.lifespan, h.n_days_since_creation,
+h.version, h.visible, h.n_users, h.n_chgsets,
+h.last_user_group, l.way AS geom
+INTO bordeaux_metropole_geomelements
+FROM bordeaux_metropole_elements as h
+INNER JOIN bordeaux_metropole_line as l
+ON h.osm_id = l.osm_id 
+WHERE l.highway IS NOT NULL AND h.elem = 'way'
+ORDER BY l.osm_id;
+#+END_SRC
+
+#+RESULTS:
+| SELECT 108116 |
+|---------------|
+
+Wow, this is wonderful, we have everything we need in order to produce new
+maps, so let's do it!
 
 * Keep it visual, man!
 
