@@ -4,6 +4,7 @@
 """
 
 import os.path as osp
+import random
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
@@ -15,6 +16,7 @@ import numpy as np
 from sklearn.preprocessing import RobustScaler
 from sklearn.decomposition import PCA
 from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
 import data_preparation_tasks
 from extract_user_editor import editor_count, get_top_editor, editor_name
@@ -23,98 +25,6 @@ import unsupervised_learning as ul
 import utils
 
 OUTPUT_DIR = 'output-extracts'
-
-### OSM Editor analysis ####################################
-class TopMostUsedEditors(luigi.Task):
-    """Compute the most used editor. Transform the editor name such as JOSM/1.2.3
-    into josm in order to have
-    """
-    datarep = luigi.Parameter("data")
-    fname = 'most-used-editor'
-    editor_fname = 'all-editors-by-user.csv'
-
-    def output(self):
-        return luigi.LocalTarget(
-            osp.join(self.datarep, OUTPUT_DIR, self.fname + ".csv"),
-            format=UTF8)
-
-    def run(self):
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
-            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
-        # extract the unique editor name aka fullname
-        user_editor['fullname'] = user_editor['value'].apply(editor_name)
-        editor = editor_count(user_editor)
-        top_editor = get_top_editor(editor)
-        with self.output().open('w') as fobj:
-            top_editor.to_csv(fobj, index=False)
-
-
-class EditorCountByUser(luigi.Task):
-    datarep = luigi.Parameter("data")
-    # take first 15th most used editors
-    n_top_editor = luigi.IntParameter(default=15)
-    editor_fname = 'all-editors-by-user.csv'
-    fname = 'editors-count-by-user.csv'
-
-    def output(self):
-        return luigi.LocalTarget(osp.join(self.datarep, OUTPUT_DIR, self.fname),
-                                 format=UTF8)
-
-    def requires(self):
-        return TopMostUsedEditors(self.datarep)
-
-    def run(self):
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
-            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
-        # extract the unique editor name aka fullname
-        user_editor['fullname'] = user_editor['value'].apply(editor_name)
-        with self.input().open('r') as fobj:
-            top_editor = pd.read_csv(fobj)
-        selection = top_editor.fullname[:self.n_top_editor + 1].tolist() + ['other']
-        # Set the 'other' label for editors which are not in the top selection
-        other_mask = np.logical_not(user_editor['fullname'].isin(selection))
-        user_editor.loc[other_mask, 'fullname'] = 'other'
-        data = (user_editor.groupby(["uid", "fullname"])["num"].sum()
-                .unstack()
-                .reset_index()
-                .fillna(0))
-        data.columns.values[1:] = ['n_total_chgset_'+name.replace(' ', '_')
-                            for name in data.columns.values[1:]]
-        with self.output().open("w") as fobj:
-            data.to_csv(fobj, index=False)
-
-class AddExtraInfoUserMetadata(luigi.Task):
-    """Add extra info to User metadata such as used editor and total number of
-    changesets
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    n_top_editor = luigi.IntParameter(default=15)
-    editor_fname = 'editor-counts-by-user.csv'
-    total_user_changeset_fname = 'all-changesets-by-user.csv'
-
-    def output(self):
-        return luigi.LocalTarget(
-            osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                     self.dsname + "-user-md-extra.csv"), format=UTF8)
-
-    def requires(self):
-        return {'editor_count_by_user': EditorCountByUser(self.datarep, self.n_top_editor),
-                'user_metadata': UserMetadataExtract(self.datarep, self.dsname)}
-
-    def run(self):
-        with self.input()['user_metadata'].open() as fobj:
-            users = pd.read_csv(fobj, index_col=0)
-        with self.input()['editor_count_by_user'].open() as fobj:
-            user_editor = pd.read_csv(fobj)
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
-            changeset_count_users = pd.read_csv(fobj, header=None,
-                                                names=['uid', 'num'])
-        users = utils.add_chgset_metadata(users, changeset_count_users)
-        users = utils.add_editor_metadata(users, user_editor)
-        users = utils.transform_editor_features(users)
-        with self.output().open('w') as fobj:
-            users.to_csv(fobj)
 
 ### OSM Evolution through time ####################################
 class OSMChronology(luigi.Task):
@@ -291,33 +201,6 @@ class OSMTagValueFreq(luigi.Task):
 
             
 ### OSM Metadata Extraction ####################################
-class ElementMetadataExtract(luigi.Task):
-    """ Luigi task: extraction of metadata for each OSM element
-    """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-
-    def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-elem-md.csv")
-
-    def output(self):
-        return luigi.LocalTarget(self.outputpath())
-
-    def requires(self):
-        return data_preparation_tasks.OSMElementEnrichment(self.datarep,
-                                                         self.dsname)
-
-    def run(self):
-        with self.input().open('r') as inputflow:
-            osm_elements = pd.read_csv(inputflow,
-                                       index_col=0,
-                                       parse_dates=['ts'])
-        elem_md = utils.extract_elem_metadata(osm_elements)
-        with self.output().open('w') as outputflow:
-            elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
-
-
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
     """
@@ -379,8 +262,190 @@ class UserMetadataExtract(luigi.Task):
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
+class ElementMetadataExtract(luigi.Task):
+    """ Luigi task: extraction of metadata for each OSM element
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+
+    def outputpath(self):
+        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
+                self.dsname + "-elem-md.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return {'osm_elements':
+        data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+                'user_groups': MetadataKmeans(self.datarep, self.dsname,
+                                              'user', 'manual')}
+
+    def run(self):
+        with self.input()['osm_elements'].open('r') as inputflow:
+            osm_elements = pd.read_csv(inputflow,
+                                       index_col=0,
+                                       parse_dates=['ts'])
+        inputpath = self.input()['user_groups'].path
+        user_kmind  = pd.read_hdf(inputpath, 'individuals')
+        elem_md = utils.extract_elem_metadata(osm_elements, user_kmind,
+                                              drop_ts=False)
+        with self.output().open('w') as outputflow:
+            elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+
+
+### OSM Editor analysis ####################################
+class TopMostUsedEditors(luigi.Task):
+    """Compute the most used editor. Transform the editor name such as JOSM/1.2.3
+    into josm in order to have
+    """
+    datarep = luigi.Parameter("data")
+    fname = 'most-used-editor'
+    editor_fname = 'all-editors-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(
+            osp.join(self.datarep, OUTPUT_DIR, self.fname + ".csv"),
+            format=UTF8)
+
+    def run(self):
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+            user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
+        # extract the unique editor name aka fullname
+        user_editor['fullname'] = user_editor['value'].apply(editor_name)
+        editor = editor_count(user_editor)
+        top_editor = get_top_editor(editor)
+        with self.output().open('w') as fobj:
+            top_editor.to_csv(fobj, index=False)
+
+class EditorCountByUser(luigi.Task):
+    datarep = luigi.Parameter("data")
+    # take first 5th most used editors
+    n_top_editor = luigi.IntParameter(default=5)
+    editor_fname = 'all-editors-by-user.csv'
+    fname = 'editors-count-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(osp.join(self.datarep, OUTPUT_DIR, self.fname),
+                                 format=UTF8)
+
+    def requires(self):
+        return TopMostUsedEditors(self.datarep)
+
+    def run(self):
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+            user_editor = pd.read_csv(fobj, header=None,
+                                      names=['uid', 'value', 'num'])
+        # extract the unique editor name aka fullname
+        user_editor['fullname'] = user_editor['value'].apply(editor_name)
+        with self.input().open('r') as fobj:
+            top_editor = pd.read_csv(fobj)
+        selection = (top_editor.fullname[:self.n_top_editor].tolist()
+                     + ['other'])
+        # Set the 'other' label for editors which are not in the top selection
+        other_mask = np.logical_not(user_editor['fullname'].isin(selection))
+        user_editor.loc[other_mask, 'fullname'] = 'other'
+        data = (user_editor.groupby(["uid", "fullname"])["num"].sum()
+                .unstack()
+                .reset_index()
+                .fillna(0))
+        data['known'] = data.iloc[:,1:].apply(lambda x: x.sum(), axis=1)
+        data.columns.values[1:] = ['n_total_chgset_'+name.replace(' ', '_')
+                            for name in data.columns.values[1:]]
+        with self.output().open("w") as fobj:
+            data.to_csv(fobj, index=False)
+
+class AddExtraInfoUserMetadata(luigi.Task):
+    """Add extra info to User metadata such as used editor and total number of
+    changesets
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    n_top_editor = luigi.IntParameter(default=5)
+    editor_fname = 'editor-counts-by-user.csv'
+    total_user_changeset_fname = 'all-changesets-by-user.csv'
+
+    def output(self):
+        return luigi.LocalTarget(
+            osp.join(self.datarep, OUTPUT_DIR, self.dsname,
+                     self.dsname + "-user-md-extra.csv"), format=UTF8)
+
+    def requires(self):
+        return {'editor_count_by_user': EditorCountByUser(self.datarep, self.n_top_editor),
+                'user_metadata': UserMetadataExtract(self.datarep, self.dsname)}
+
+    def run(self):
+        with self.input()['user_metadata'].open() as fobj:
+            users = pd.read_csv(fobj, index_col=0)
+        with self.input()['editor_count_by_user'].open() as fobj:
+            user_editor = pd.read_csv(fobj)
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
+            changeset_count_users = pd.read_csv(fobj, header=None,
+                                                names=['uid', 'num'])
+        users = utils.add_chgset_metadata(users, changeset_count_users)
+        users = utils.add_editor_metadata(users, user_editor)
+        with self.output().open('w') as fobj:
+            users.to_csv(fobj)
+
 
 ### OSM Metadata analysis with unsupervised learning tool #########
+class MetadataNormalization(luigi.Task):
+    """ Luigi task: normalize every features into metadata, so as to apply PCA
+    and Kmeans
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    
+    def outputpath(self):
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
+                        self.dsname+"-"+self.metadata_type+"-md-norm.csv")
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+    
+    def requires(self):
+        if self.metadata_type == "chgset":
+            return {'osmelem': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+                    'metadata': ChangeSetMetadataExtract(self.datarep, self.dsname)}
+        elif self.metadata_type == "user":
+            return {'osmelem': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+                    'metadata': AddExtraInfoUserMetadata(self.datarep, self.dsname)}
+        else:
+            raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
+
+    def run(self):
+        with self.input()['osmelem'].open('r') as inputflow:
+            osm_elements  = pd.read_csv(inputflow, index_col=0,
+                                        parse_dates=['ts'])
+        with self.input()['metadata'].open('r') as inputflow:
+            metadata  = pd.read_csv(inputflow, index_col=0)
+        timehorizon = ((osm_elements.ts.max() - osm_elements.ts.min())
+                       / pd.Timedelta('1d'))
+        if self.metadata_type == "chgset":
+            # By definition, a change set takes 24h max
+            utils.normalize_temporal_features(metadata,
+                                              24*60, timehorizon)
+        else:
+            utils.normalize_temporal_features(metadata,
+                                              timehorizon, timehorizon)
+        if self.metadata_type == "chgset":
+            self.metadata_type # TODO - chgset normalization
+        else:
+            utils.normalize_features(metadata, 'n_total_modif')
+            utils.normalize_features(metadata, 'n_node_modif')
+            utils.normalize_features(metadata, 'n_way_modif')
+            utils.normalize_features(metadata, 'n_relation_modif')
+            metadata = utils.ecdf_transform(metadata, 'nmean_modif_byelem')
+            metadata = utils.ecdf_transform(metadata, 'n_total_modif')
+            metadata = utils.ecdf_transform(metadata, 'n_node_modif')
+            metadata = utils.ecdf_transform(metadata, 'n_way_modif')
+            metadata = utils.ecdf_transform(metadata, 'n_relation_modif')
+            metadata = utils.transform_editor_features(metadata)
+        with self.output().open('w') as fobj:
+            metadata.to_csv(fobj)
+        
+
 class MetadataPCA(luigi.Task):
     """ Luigi task: compute PCA for any metadata
     """
@@ -400,12 +465,8 @@ class MetadataPCA(luigi.Task):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
 
     def requires(self):
-        if self.metadata_type == "chgset":
-            return ChangeSetMetadataExtract(self.datarep, self.dsname)
-        elif self.metadata_type == "user":
-            return AddExtraInfoUserMetadata(self.datarep, self.dsname)
-        else:
-            raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
+        return MetadataNormalization(self.datarep, self.dsname,
+                                     self.metadata_type)
         
     def compute_nb_dimensions(self, var_analysis):
         """Return a number of components that is supposed to be optimal,
@@ -475,6 +536,8 @@ class MetadataKmeans(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
     metadata_type = luigi.Parameter("user")
     select_param_mode = luigi.Parameter("auto")
+    use_elbow = luigi.parameter.BoolParameter(True)
+    use_silhouette = luigi.parameter.BoolParameter(True)
     nbmin_clusters = luigi.parameter.IntParameter(3)
     nbmax_clusters = luigi.parameter.IntParameter(8)
     
@@ -490,19 +553,45 @@ class MetadataKmeans(luigi.Task):
                            self.metadata_type, self.select_param_mode)
 
     def compute_nb_clusters(self, Xpca):
-        """Compute kmeans for each cluster number (until nbmax_clusters+1) to
-        find the optimal number of clusters; if
-        self.select_param_mode=="manual", the user must enter its preferred
-        number of clusters based on the elbow plot
-        
+        """Compute kmeans for each cluster number until nbmax_clusters+1 to find the
+        optimal number of clusters; if self.select_param_mode=="manual", the
+        user must enter its preferred number of clusters based on the elbow
+        plot: the visual selection criteria are elbow and/or silhouette methods,
+        according to Luigi parameters
+
         """
-        scores = []
+        if not self.use_elbow and not self.use_silhouette:
+            self.select_param_mode = "auto"
+        if self.use_elbow:
+            scores = []
+        if self.use_silhouette:
+            silhouette = []
         for i in range(1, self.nbmax_clusters + 1):
             kmeans = KMeans(n_clusters=i, n_init=100, max_iter=1000)
             kmeans.fit(Xpca)
-            scores.append(kmeans.inertia_)
+            if self.use_elbow:
+                scores.append(kmeans.inertia_)
+            if self.use_silhouette:
+                Xclust = kmeans.fit_predict(Xpca)
+                silhouette_avg = []
+                if i == 1:
+                    silhouette.append(np.repeat(1,1000))
+                    continue
+                for k in range(10):
+                    s = random.sample(range(len(Xpca)), 2000)
+                    Xsampled = Xpca[s]
+                    Csampled = Xclust[s]
+                    while(len(np.unique(Csampled))==1):
+                        s = random.sample(range(len(Xpca)), 2000)
+                        Xsampled = Xpca[s]
+                        Csampled = Xclust[s]
+                    silhouette_avg.append(silhouette_score(X=Xsampled,
+                                                           labels=Csampled))
+                silhouette.append(silhouette_avg)
         if self.select_param_mode == "manual":
-            ul.plot_elbow(range(1, self.nbmax_clusters+1), scores)
+            ul.plot_cluster_decision(range(1, self.nbmax_clusters+1),
+                                     scores,
+                                     silhouette)
             nb_clusters = input("# \n# Enter the number of clusters: \n# ")
             return int(nb_clusters)
         elbow_deriv = ul.elbow_derivation(scores, self.nbmin_clusters)

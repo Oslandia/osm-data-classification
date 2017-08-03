@@ -57,7 +57,6 @@ def osm_stats(osm_history, timestamp):
         date at which OSM elements are evaluated
     """
     osmdata = datedelems(osm_history, timestamp)
-#    nb_nodes, nb_ways, nb_relations = list(osm_data.elem.value_counts())
     nb_nodes = len(osmdata.query('elem=="node"'))
     nb_ways = len(osmdata.query('elem=="way"'))
     nb_relations = len(osmdata.query('elem=="relation"'))
@@ -176,8 +175,7 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     md_ext.columns = [grp_feat, *colnames]
     return pd.merge(metadata, md_ext, on=grp_feat, how='outer').fillna(0)
 
-def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
-                  timeunit='day', drop_ts=True):
+def init_metadata(osm_elements, init_feat, timeunit='1d'):
     """ This function produces an init metadata table based on 'init_feature'
     in table 'osm_elements'. The intialization consider timestamp measurements
     (generated for each metadata tables, i.e. elements, change sets and users).
@@ -186,38 +184,26 @@ def init_metadata(osm_elements, init_feat, duration_feat='activity_d',
     ----------
     osm_elements: pd.DataFrame
         OSM history data
-    init_feat: object
-        metadata basic feature name in string format
     duration_feat: object
         metadata duration feature name in string format
     timeunit: object
         time unit in which 'duration_feature' will be expressed
 
-    Return
-    ------
-    metadata: pd.DataFrame
-    metadata table with following features:
-    init_feature (int) -- initializing feature ID
-    first_at (datetime) -- first timestamp
-    last_at (datetime) -- last timestamp
-    activity (int) -- activity (in 'timeunit' format)
-    drop_ts (boolean) -- if true, drop timestamp features
-
     """
-    timehorizon = (osm_elements.ts.max() - osm_elements.ts.min())
-    if init_feat == ['chgset']: # by change set definition, time horizon=24h
-        timehorizon = pd.Timedelta('24h')
     metadata = (osm_elements.groupby(init_feat)['ts']
                 .agg(["min", "max"])
                 .reset_index())
     metadata.columns = [*init_feat, 'first_at', 'last_at']
-    metadata[duration_feat] = metadata.last_at - metadata.first_at
-    metadata[duration_feat] = metadata[duration_feat] / timehorizon
-    metadata = metadata.sort_values(by=['first_at'])
-    if drop_ts:
-        return drop_features(metadata, '_at')
-    else:
-        return metadata
+    metadata['lifespan'] = ((metadata.last_at - metadata.first_at)
+                            / pd.Timedelta(timeunit))
+    extraction_date = osm_elements.ts.max()
+    metadata['n_inscription_days'] = ((extraction_date - metadata.first_at)
+                                      / pd.Timedelta('1d'))
+    metadata['n_activity_days'] = (osm_elements
+                                   .groupby(init_feat)['ts']
+                                   .nunique()
+                                   .reset_index())['ts']
+    return metadata.sort_values(by=['first_at'])
 
 def enrich_osm_elements(osm_elements):
     """Enrich OSM history data by computing additional features
@@ -305,7 +291,7 @@ def enrich_osm_elements(osm_elements):
 
     return osm_elements
 
-def extract_elem_metadata(osm_elements):
+def extract_elem_metadata(osm_elements, user_groups, drop_ts=True):
     """ Extract element metadata from OSM history data
 
     Parameters
@@ -320,7 +306,7 @@ def extract_elem_metadata(osm_elements):
     and number of unique change sets (resp. users)
 
     """
-    elem_md = init_metadata(osm_elements, ['elem','id'], 'lifecycle_d')
+    elem_md = init_metadata(osm_elements, ['elem','id'])
     elem_md['version'] = (osm_elements.groupby(['elem','id'])['version']
                           .max()
                           .reset_index())['version']
@@ -341,12 +327,21 @@ def extract_elem_metadata(osm_elements):
                              .reset_index()['willbe_corr']
                              .astype('int'))
     elem_md = pd.merge(elem_md, osm_elements[['elem', 'id',
-                                              'version', 'visible']],
+                                              'version', 'visible',
+                                              'first_uid', 'last_uid']],
                        on=['elem', 'id', 'version'])
     elem_md = elem_md.set_index(['elem', 'id'])
-    return elem_md
+    elem_md = elem_md.join(user_groups.Xclust, on='first_uid')
+    elem_md = elem_md.rename(columns={'Xclust':'first_ug'})
+    elem_md = elem_md.join(user_groups.Xclust, on='last_uid')
+    elem_md = elem_md.rename(columns={'Xclust':'last_ug'})
+    elem_md = elem_md.reset_index()
+    if drop_ts:
+        return drop_features(elem_md, '_at')
+    else:
+        return elem_md
 
-def extract_chgset_metadata(osm_elements):
+def extract_chgset_metadata(osm_elements, drop_ts=True):
     """ Extract change set metadata from OSM history data
 
     Parameters
@@ -361,8 +356,7 @@ def extract_chgset_metadata(osm_elements):
     and other features describing modification and OSM elements themselves
 
     """
-    chgset_md = init_metadata(osm_elements, ['chgset'], 'duration_m', 'minute',
-                              drop_ts=False)
+    chgset_md = init_metadata(osm_elements, ['chgset'], '1m')
     # User-related features
     chgset_md = pd.merge(chgset_md,
                          osm_elements[['chgset','uid']].drop_duplicates(),
@@ -389,7 +383,10 @@ def extract_chgset_metadata(osm_elements):
     chgset_md = extract_element_features(chgset_md, osm_elements,
                                        'relation', 'chgset')
     chset_md = chgset_md.set_index('chgset')
-    return chgset_md
+    if drop_ts:
+        return drop_features(chgset_md, '_at')
+    else:
+        return chgset_md
 
 def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
     """Compute the version-related features of metadata and append them into
@@ -419,7 +416,7 @@ def metadata_version(metadata, osmelem, grp_feat, res_feat, feature_suffix):
                               'v', '_relation'+feature_suffix)
     return metadata
 
-def extract_user_metadata(osm_elements, chgset_md):
+def extract_user_metadata(osm_elements, chgset_md, drop_ts=True):
     """ Extract user metadata from OSM history data
 
     Parameters
@@ -441,9 +438,9 @@ def extract_user_metadata(osm_elements, chgset_md):
     user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
                            .count()
                            .reset_index())['chgset']
-    user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration_m']
+    user_md['dmean_chgset'] = (chgset_md.groupby('uid')['lifespan']
                                .mean()
-                               .reset_index())['duration_m']
+                               .reset_index())['lifespan']
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'uid'])['version']
                       .count()
@@ -452,15 +449,15 @@ def extract_user_metadata(osm_elements, chgset_md):
                                     .mean()
                                      .reset_index())['version']
     # Modification-related features
+    user_md = extract_generic_modif_features(user_md, osm_elements, 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'node', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'way', 'uid')
     user_md = extract_modif_features(user_md, osm_elements, 'relation', 'uid')
-    user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
-    user_md = ecdf_transform(user_md, 'n_node_modif')
-    user_md = ecdf_transform(user_md, 'n_way_modif')
-    user_md = ecdf_transform(user_md, 'n_relation_modif')
     user_md = user_md.set_index('uid')
-    return user_md
+    if drop_ts:
+        return drop_features(user_md, '_at')
+    else:
+        return user_md
 
 def add_chgset_metadata(metadata, total_change_sets):
     """Add total change set count to user metadata
@@ -473,8 +470,10 @@ def add_chgset_metadata(metadata, total_change_sets):
         total number of change sets by user; must contain columns 'uid' and 'num'
 
     """
-    return (metadata.join(total_change_sets.set_index('uid'))
+    metadata = (metadata.join(total_change_sets.set_index('uid'))
                 .rename_axis({'num': 'n_total_chgset'}, axis=1))
+    metadata['p_local_chgset'] = metadata.n_chgset / metadata.n_total_chgset
+    return metadata
 
 def add_editor_metadata(metadata, top_editors):
     """Add editor information to each metadata recordings; use an outer join to
@@ -491,7 +490,12 @@ def add_editor_metadata(metadata, top_editors):
     N most popular editors; must contain a column 'uid'
 
     """
-    return metadata.join(top_editors.set_index('uid'), how='left').fillna(0)
+    metadata = (metadata
+                .join(top_editors.set_index('uid'), how='left')
+                .fillna(0))
+    metadata['n_total_chgset_unknown'] = (metadata['n_total_chgset']
+                                          - metadata['n_total_chgset_known'])
+    return drop_features(metadata, 'n_total_chgset_known')
 
 def transform_editor_features(metadata):
     """Transform editor-related features into metadata; editor uses are expressed
@@ -507,7 +511,6 @@ def transform_editor_features(metadata):
 
     """
     normalize_features(metadata, 'n_total_chgset')
-    metadata['p_local_chgset'] = metadata.n_chgset / metadata.n_total_chgset
     metadata = ecdf_transform(metadata, 'n_chgset')
     metadata = ecdf_transform(metadata, 'n_total_chgset')
     return metadata
@@ -533,6 +536,48 @@ def ecdf_transform(metadata, feature):
     metadata[feature] = ecdf(metadata[feature])
     new_feature_name = 'u_' + feature.split('_', 1)[1]
     return metadata.rename(columns={feature: new_feature_name})
+
+def extract_generic_modif_features(metadata, data, grp_feat):
+    """Extract generic features about modifications done by each individuals: number
+    of modifications, number of modifications per element type
+    
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        metadata table
+    data: pd.DataFrame
+        original data
+    grp_feat: ojbect
+        string designing the grouping feature: it characterizes the metadata
+    ("chgset", or "user")
+    
+    """
+    newfeature = (data.groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    newfeature = (data.query('elem=="node"').groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif_node"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    newfeature = (data.query('elem=="way"').groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif_way"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    newfeature = (data.query('elem=="relation"').groupby([grp_feat])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, "n_total_modif_relation"]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+
+    return metadata
 
 def extract_modif_features(metadata, data, element_type, grp_feat):
     """Extract a set of metadata features corresponding to a specific element
@@ -572,7 +617,6 @@ def extract_modif_features(metadata, data, element_type, grp_feat):
     metadata = create_count_features(metadata, element_type,
                                typed_data.query("willbe_autocorr"),
                                grp_feat, 'id', "_autocor")
-    normalize_features(metadata, 'n_'+element_type+'_modif')
     return metadata
 
 def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
@@ -713,6 +757,26 @@ def drop_features(data, pattern, copy=True):
     else:
         return data[[col for col in data.columns
                      if re.search(pattern, col) is None]]
+
+def normalize_temporal_features(metadata, max_lifespan, timehorizon,
+                                duration_feats=['lifespan',
+                                               'n_inscription_days',
+                                               'n_activity_days']):
+    """Transform metadata features that are linked with temporal information
+
+    Parameters
+    ----------
+    metadata: pd.DataFrame
+        Metadata table, must contains temporal features
+    timehorizon: pd.TimeDelta
+        time horizon, used to normalize the temporal feature
+    duration_feats: list of objects
+        strings designing the name of the individuals activity duration
+    
+    """
+    metadata[duration_feats[0]] = metadata[duration_feats[0]] / max_lifespan
+    metadata[duration_feats[1]] = metadata[duration_feats[1]] / timehorizon
+    metadata = ecdf_transform(metadata, duration_feats[2])
 
 def normalize_features(metadata, total_column):
     """Transform values of metadata located in cols columns into percentages of

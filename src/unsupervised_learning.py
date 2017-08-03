@@ -58,19 +58,24 @@ def plot_pca_variance(varmat):
     ax[1].legend(loc="best")
     f.show()
 
-def plot_elbow(x, y):
-    """Plot a range of kmeans inertia scores, so as to identify the best cluster
-    quantity according to elbow method; overwriting of basic plot method
+def plot_cluster_decision(x, y1, y2):
+    """Plot a range of kmeans inertia scores and silhouette boxplots, so as to
+    identify the best cluster quantity according to elbow method; overwriting
+    of basic plot method
 
     Parameters
     ----------
     x: list
         units; typically from 1 to the max number of clusters
-    y: list
+    y1: list
         inertia scores
-    
+    y2: list of lists
+        silhouette samples
     """
-    plt.plot(x, y)
+    f, ax = plt.subplots(2, 1)
+    ax[0].plot(x, y1)
+    ax[1].boxplot(y2)
+    plt.tight_layout()
     plt.show()
     
 def elbow_derivation(elbow, nbmin_clusters):
@@ -302,9 +307,6 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
         x_column = 'PC'+str(1+comp[0])
         y_column = 'PC'+str(1+comp[1])
         if cluster is not None:
-            data.Xclust.replace(to_replace={0:'Cluster_0',
-                                            1:'Cluster_1',
-                                            2:'Cluster_2'}, inplace=True)
             for name, group in data.groupby('Xclust'):
                 ax_.plot(group[x_column], group[y_column], marker='.',
                          linestyle='', ms=10, label=name)

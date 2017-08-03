@@ -62,7 +62,7 @@ class OSMHistoryParsing(luigi.Task):
         elements = pd.DataFrame(tlhandler.elemtimeline, columns=colnames)
         elements = elements.sort_values(by=['elem', 'id', 'version'])
         with self.output().open('w') as outputflow:
-            elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+            elements.to_csv(outputflow, date_format='%Y-%m-%d')
 
 class OSMElementEnrichment(luigi.Task):
     """ Luigi task: building of new features for OSM element history
@@ -88,5 +88,5 @@ class OSMElementEnrichment(luigi.Task):
         osm_elements.sort_values(by=['elem','id','version'])
         osm_elements = utils.enrich_osm_elements(osm_elements)
         with self.output().open('w') as outputflow:
-            osm_elements.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+            osm_elements.to_csv(outputflow, date_format='%Y-%m-%d')
 
