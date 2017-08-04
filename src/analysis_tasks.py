@@ -627,6 +627,104 @@ class AutoPCA(luigi.Task):
         pca_ind.to_hdf(path, '/individuals')
 
 
+class KMeansFromPCA(luigi.Task):
+    """Simple KMeans according to some metadata: user or changeset
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    # for the underlying PCA. Put 0 if you don't want to choose a number of
+    # components (an optimal way does it for you!)
+    n_components = luigi.IntParameter(default=6)
+    nb_clusters = luigi.IntParameter(default=5)
+
+    def outputpath(self):
+        if self.n_components == 0:
+            n_components = 'auto'
+        else:
+            n_components = str(self.n_components)
+        fname = "-".join([self.metadata_type, "metadata",
+                          "pca", n_components,
+                          "clusters", str(self.nb_clusters),
+                          "kmeans.h5"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        if self.n_components == 0:
+            return AutoPCA(self.datarep, self.dsname, self.metadata_type)
+        return SinglePCA(self.datarep, self.dsname, self.metadata_type, self.n_components)
+
+    def run(self):
+        inputpath = self.input().path
+        pca_ind  = pd.read_hdf(inputpath, 'individuals')
+        kmeans = KMeans(n_clusters=self.nb_clusters,
+                        n_init=100, max_iter=1000)
+        kmeans_ind = pca_ind.copy()
+        kmeans_ind['Xclust'] = kmeans.fit_predict(pca_ind.values)
+        kmeans_centroids = pd.DataFrame(kmeans.cluster_centers_,
+                                        columns=pca_ind.columns)
+        kmeans_centroids['n_individuals'] = (kmeans_ind
+                                             .groupby('Xclust')
+                                             .count())['PC1']
+        # Save the kmeans results into a hdf5 file
+        path = self.output().path
+        kmeans_ind.to_hdf(path, '/individuals')
+        kmeans_centroids.to_hdf(path, '/centroids')
+
+class KMeansFromRaw(luigi.Task):
+    """Simple KMeans according to some metadata: user or changeset. Take normalized
+    raw features instead of the results of a PCA.
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    scaled = luigi.BoolParameter(default=True)
+    nb_clusters = luigi.IntParameter(default=5)
+
+    def outputpath(self):
+        if self.scaled:
+            label = 'scaled'
+        else:
+            label = 'raw'
+        fname = "-".join([self.metadata_type, "metadata",
+                          label, "data", "clusters",
+                          str(self.nb_clusters), "kmeans.h5"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath())
+
+    def requires(self):
+        return MetadataNormalization(self.datarep, self.dsname,
+                                     self.metadata_type)
+    def run(self):
+        with self.input().open('r') as inputflow:
+            features  = pd.read_csv(inputflow, index_col=0)
+        kmeans = KMeans(n_clusters=self.nb_clusters,
+                        n_init=100, max_iter=1000)
+        # each individual
+        kmeans_ind = features.copy()
+        # Data normalization
+        if self.scaled:
+            scaler = RobustScaler(quantile_range=(0.0, 100.0)) # = Min scaler
+            X = scaler.fit_transform(features.values)
+            kmeans_ind['Xclust'] = kmeans.fit_predict(X)
+        else:
+            kmeans_ind['Xclust'] = kmeans.fit_predict(features.values)
+        kmeans_centroids = pd.DataFrame(kmeans.cluster_centers_,
+                                        columns=features.columns)
+        kmeans_centroids['n_individuals'] = (kmeans_ind
+                                             .groupby('Xclust')
+                                             .count())['u_total_modif'] # arbitrary column name
+        # Save the kmeans results into a hdf5 file
+        path = self.output().path
+        kmeans_ind.to_hdf(path, '/individuals')
+        kmeans_centroids.to_hdf(path, '/centroids')
+
+
 class MetadataKmeans(luigi.Task):
     """Luigi task: classify any metadata with a kmeans algorithm; a PCA procedure
     is a prerequisite for this task
