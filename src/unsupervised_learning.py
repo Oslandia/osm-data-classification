@@ -6,11 +6,16 @@ Some utility functions designed for machine learning algorithm exploitation
 
 import math
 import re
+
 import pandas as pd
 import numpy as np
+
+from sklearn.metrics import silhouette_score
+
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
+
 
 def compute_pca_variance(X):
     """Compute the covariance matrix of X and the associated eigen values to
@@ -364,3 +369,29 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
         ax_.set_ylabel(y_column)
     plt.tight_layout()
     plt.show()
+
+
+def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
+    """Try to find the optimal number of KMeans clusters.
+
+    Compute KMeans inertia for each cluster number until nbmax_clusters+1 to
+    find the optimal number of clusters. Use the elbow method
+
+    features: list of nd.array
+        shape (Nrows, Ncols)
+    centers: list of nd.array
+        shape (Nclusters, Ncols)
+    labels: list of nd.array
+        shape (Nrows, )
+
+    Return the "optimal" number of clusters
+    """
+    scores = []
+    for feature, center, label in zip(features, centers, labels):
+        # compute the inertia
+        inertia = np.sum((feature - center[label]) ** 2, dtype=np.float64)
+        scores.append(inertia)
+    elbow_deriv = elbow_derivation(scores, nbmin_clusters)
+    return 1 + elbow_deriv.index(max(elbow_deriv))
+
+

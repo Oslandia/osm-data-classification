@@ -725,6 +725,62 @@ class KMeansFromRaw(luigi.Task):
         kmeans_centroids.to_hdf(path, '/centroids')
 
 
+class KMeansReport(luigi.Task):
+    """Full automatic KMeans with a report.
+
+    Generated report gives the number of components for the PCA and the number
+    of clusters for the KMeans.
+
+    As you need to compute all KMeans between 'nbmin_clusters' and
+    'nbmax_clusters' (luigi parameters), this task can be used to make several
+    KMeans with a different number of clusters.
+
+    Features are normalized, scaled and then reduced by PCA before running a few
+    KMeans.
+
+    Select the number of components for the PCA, compute N KMeans and choose the
+    optimal number of clusters according to the elbow method.
+
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nbmin_clusters = luigi.parameter.IntParameter(3)
+    nbmax_clusters = luigi.parameter.IntParameter(8)
+
+    def outputpath(self):
+        fname = "-".join([self.metadata_type, "metadata",
+                          "auto-kmeans-report.txt"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=UTF8)
+
+    def requires(self):
+        # Note: n_components=0 for the automatic selection of the number of PCA components
+        return {k: KMeansFromPCA(self.datarep, self.dsname, self.metadata_type,
+                                 n_components=0, nb_clusters=k)
+                for k in range(self.nbmin_clusters, self.nbmax_clusters + 1)}
+
+    def run(self):
+        centers = []
+        features = []
+        labels = []
+        for k in range(self.nbmin_clusters, self.nbmax_clusters + 1):
+            fpath = self.input()[k].path
+            print(fpath)
+            df = pd.read_hdf(fpath, "/individuals")
+            center = pd.read_hdf(fpath, "/centroids")
+            centers.append(center.drop("n_individuals", axis=1).values)
+            features.append(df.drop("Xclust", axis=1).values)
+            labels.append(df['Xclust'].copy().values)
+        res = ul.compute_nb_clusters(features, centers,  labels, self.nbmin_clusters)
+        with self.output().open('w') as fobj:
+            fobj.write("For *{}* metadata\n\n".format(self.metadata_type))
+            fobj.write("- PCA components: {}\n".format(df.shape[1] - 1))
+            fobj.write("- Nclusters: {}\n".format(res))
+
+
 class MetadataKmeans(luigi.Task):
     """Luigi task: classify any metadata with a kmeans algorithm; a PCA procedure
     is a prerequisite for this task
