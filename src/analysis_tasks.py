@@ -36,8 +36,7 @@ class OSMChronology(luigi.Task):
     end_date = luigi.Parameter('2017-01-01')
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-chronology.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "chronology.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -64,8 +63,7 @@ class OSMTagCount(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-tagcount.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "tagcount.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -91,8 +89,7 @@ class OSMTagKeyCount(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-tagkeycount.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "tagkey-count.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -123,8 +120,7 @@ class OSMTagFreq(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-tagfreq.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "tag-freq.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -156,8 +152,7 @@ class OSMTagValue(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-tagvalue.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "tag-value.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -181,8 +176,7 @@ class OSMTagValueFreq(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-tagvalue-freq.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "tag-value-freq.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -208,8 +202,7 @@ class ChangeSetMetadataExtract(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-chgset-md.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "changeset-metadata.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -234,8 +227,7 @@ class UserMetadataExtract(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-user-md.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "user-metadata.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -269,17 +261,15 @@ class ElementMetadataExtract(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return (self.datarep + "/output-extracts/" + self.dsname + "/" +
-                self.dsname + "-elem-md.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "element-metadata.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return {'osm_elements':
-        data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
-                'user_groups': MetadataKmeans(self.datarep, self.dsname,
-                                              'user', 'manual')}
+        return {
+            'osm_elements': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
+            'user_groups': MetadataKmeans(self.datarep, self.dsname, 'user', 'manual')}
 
     def run(self):
         with self.input()['osm_elements'].open('r') as inputflow:
@@ -367,8 +357,7 @@ class AddExtraInfoUserMetadata(luigi.Task):
 
     def output(self):
         return luigi.LocalTarget(
-            osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                     self.dsname + "-user-md-extra.csv"), format=UTF8)
+            osp.join(self.datarep, OUTPUT_DIR, self.dsname, "user-metadata-extra.csv"), format=UTF8)
 
     def requires(self):
         return {'editor_count_by_user': EditorCountByUser(self.datarep, self.n_top_editor),
@@ -398,8 +387,7 @@ class MetadataNormalization(luigi.Task):
     metadata_type = luigi.Parameter("user")
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-"+self.metadata_type+"-md-norm.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, self.metadata_type + "-metadata-norm.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -459,8 +447,7 @@ class SinglePCA(luigi.Task):
     features = luigi.Parameter('')
 
     def outputpath(self):
-        fname = "-".join([self.dsname,
-                          self.metadata_type, "metadata",
+        fname = "-".join([self.metadata_type, "metadata",
                           "n_components", str(self.n_components),
                           "pca.h5"])
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
@@ -514,8 +501,7 @@ class VarianceAnalysisTask(luigi.Task):
     features = luigi.Parameter('')
 
     def outputpath(self):
-        fname = "-".join([self.dsname,
-                          self.metadata_type, "metadata",
+        fname = "-".join([self.metadata_type, "metadata",
                           "variance-analysis",
                           "min", str(self.nb_mindimensions),
                           "max", str(self.nb_maxdimensions) + ".csv"])
@@ -590,8 +576,7 @@ class AutoPCA(luigi.Task):
     features = luigi.Parameter('')
 
     def outputpath(self):
-        fname = "-".join([self.dsname,
-                          self.metadata_type, "metadata",
+        fname = "-".join([self.metadata_type, "metadata",
                           "auto-n_components",
                           "min", str(self.nb_min_dim),
                           "max", str(self.nb_max_dim),
@@ -650,7 +635,7 @@ class MetadataKmeans(luigi.Task):
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
     metadata_type = luigi.Parameter("user")
-    select_param_mode = luigi.Parameter("auto")
+    # select_param_mode = luigi.Parameter("auto")
     use_elbow = luigi.parameter.BoolParameter(True)
     use_silhouette = luigi.parameter.BoolParameter(True)
     nbmin_clusters = luigi.parameter.IntParameter(3)
@@ -658,14 +643,13 @@ class MetadataKmeans(luigi.Task):
 
     def outputpath(self):
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-"+self.metadata_type+"-kmeans.h5")
+                        self.metadata_type + "-metadata-kmeans.h5")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return MetadataPCA(self.datarep, self.dsname,
-                           self.metadata_type, self.select_param_mode)
+        return AutoPCA(self.datarep, self.dsname, self.metadata_type)
 
     def compute_nb_clusters(self, Xpca):
         """Compute kmeans for each cluster number until nbmax_clusters+1 to find the
