@@ -233,19 +233,18 @@ class UserMetadataExtract(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        return {'chgsets': ChangeSetMetadataExtract(self.datarep, self.dsname),
+        return {'changeset': ChangeSetMetadataExtract(self.datarep, self.dsname),
                 'enrichhist': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
-                'chgset_kmeans': MetadataKmeans(self.datarep, self.dsname,
-                                                "chgset", "auto", 3, 10)}
+                'changeset_kmeans': KMeansTask(self.datarep, self.dsname, "changeset", 6)}
 
     def run(self):
-        with self.input()['chgsets'].open('r') as inputflow:
+        with self.input()['changeset'].open('r') as inputflow:
             chgset_md = pd.read_csv(inputflow, index_col=0)
         with self.input()['enrichhist'].open('r') as inputflow:
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-        inputpath = self.input()['chgset_kmeans'].path
+        inputpath = self.input()['changeset_kmeans'].path
         chgset_kmeans = pd.read_hdf(inputpath, 'individuals')
         chgset_md = pd.merge(chgset_md,
                              chgset_kmeans.reset_index()[['chgset', 'Xclust']],
@@ -393,14 +392,14 @@ class MetadataNormalization(luigi.Task):
         return luigi.LocalTarget(self.outputpath())
 
     def requires(self):
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             return {'osmelem': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
                     'metadata': ChangeSetMetadataExtract(self.datarep, self.dsname)}
         elif self.metadata_type == "user":
             return {'osmelem': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
                     'metadata': AddExtraInfoUserMetadata(self.datarep, self.dsname)}
         else:
-            raise ValueError("Metadata type '{}' not known. Please use 'user' or 'chgset'".format(self.metadata_type))
+            raise ValueError("Metadata type '{}' not known. Please use 'user' or 'changeset'".format(self.metadata_type))
 
     def run(self):
         with self.input()['osmelem'].open('r') as inputflow:
@@ -410,14 +409,14 @@ class MetadataNormalization(luigi.Task):
             metadata  = pd.read_csv(inputflow, index_col=0)
         timehorizon = ((osm_elements.ts.max() - osm_elements.ts.min())
                        / pd.Timedelta('1d'))
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             # By definition, a change set takes 24h max
             utils.normalize_temporal_features(metadata,
                                               24*60, timehorizon)
         else:
             utils.normalize_temporal_features(metadata,
                                               timehorizon, timehorizon)
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             self.metadata_type # TODO - chgset normalization
         else:
             utils.normalize_features(metadata, 'n_total_modif')
@@ -601,7 +600,7 @@ class AutoPCA(luigi.Task):
         n_components = ul.optimal_PCA_components(variance, self.nb_min_dim,
                                                  self.nb_max_dim)
         # Data preparation
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             metadata = metadata.set_index(['chgset', 'uid'])
         metadata = utils.drop_features(metadata, '_at')
         if self.features != '':
@@ -616,7 +615,7 @@ class AutoPCA(luigi.Task):
         pca_cols = ['PC' + str(i + 1) for i in range(n_components)]
         pca_var = pd.DataFrame(pca.components_, index=pca_cols,
                                columns=metadata.columns).T
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
                                    index=(metadata.index
                                           .get_level_values('chgset')))
