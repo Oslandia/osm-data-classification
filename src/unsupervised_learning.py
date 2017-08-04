@@ -34,6 +34,28 @@ def compute_pca_variance(X):
                            'cumvar': cumvarexp})[['eig','varexp','cumvar']]
     return varmat
 
+def optimal_PCA_components(variance, nb_min_dim, nb_max_dim):
+    """Return a number of components that is supposed to be optimal,
+    regarding the variance matrix (low eigenvalues, sufficient explained
+    variance threshold)
+
+    varaince: nd.array
+    nb_dim_min: int
+    nb_dim_max: int
+
+    Return the "optimal" number or PCA components
+    """
+    candidate_npc = 0
+    for i in range(len(variance)):
+        if variance.iloc[i, 0] < 1 or variance.iloc[i, 2] > 80:
+            candidate_npc = i + 1
+            break
+    if candidate_npc < nb_min_dim:
+        candidate_npc = nb_min_dim
+    if candidate_npc > nb_max_dim:
+        candidate_npc = nb_max_dim
+    return candidate_npc
+
 def plot_pca_variance(varmat):
     """Plot the PCA variance analysis: cumulated sum of explained variance as
     well as eigenvalues
@@ -57,6 +79,7 @@ def plot_pca_variance(varmat):
     ax[1].axhline(1, color="red", linestyle="dotted")
     ax[1].legend(loc="best")
     f.show()
+    return f
 
 def plot_cluster_decision(x, y1, y2):
     """Plot a range of kmeans inertia scores and silhouette boxplots, so as to

@@ -174,7 +174,7 @@ class OSMTagValue(luigi.Task):
             tagvalue.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
 class OSMTagValueFreq(luigi.Task):
-    """Luigi task: Analyse of tag value frequency 
+    """Luigi task: Analyse of tag value frequency
     (amongst all tagged element), with a specific tag key (e.g. 'highway')
     """
     datarep = luigi.Parameter("data")
@@ -199,7 +199,7 @@ class OSMTagValueFreq(luigi.Task):
         with self.output().open('w') as outputflow:
             tagvalue_freq.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
 
-            
+
 ### OSM Metadata Extraction ####################################
 class ChangeSetMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM change set
@@ -396,14 +396,14 @@ class MetadataNormalization(luigi.Task):
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
     metadata_type = luigi.Parameter("user")
-    
+
     def outputpath(self):
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-"+self.metadata_type+"-md-norm.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
-    
+
     def requires(self):
         if self.metadata_type == "chgset":
             return {'osmelem': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
@@ -444,22 +444,26 @@ class MetadataNormalization(luigi.Task):
             metadata = utils.transform_editor_features(metadata)
         with self.output().open('w') as fobj:
             metadata.to_csv(fobj)
-        
 
-class MetadataPCA(luigi.Task):
-    """ Luigi task: compute PCA for any metadata
+class SinglePCA(luigi.Task):
+    """Compute a PCA for a type of metadata according to a number of components (6 by default).
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
+    # can be 'chgset' for changesets
+    # XXX Raise an error if it's neither 'user' or 'chgset'
     metadata_type = luigi.Parameter("user")
-    select_param_mode = luigi.Parameter("auto")
-    nb_mindimensions = luigi.parameter.IntParameter(3)
-    nb_maxdimensions = luigi.parameter.IntParameter(12)
+    n_components = luigi.IntParameter(default=6)
+    # Keep only this feature
+    # XXX Make it more modular/robust
     features = luigi.Parameter('')
 
     def outputpath(self):
-        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
-                        self.dsname+"-"+self.metadata_type+"-pca.h5")
+        fname = "-".join([self.dsname,
+                          self.metadata_type, "metadata",
+                          "n_components", str(self.n_components),
+                          "pca.h5"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
 
     def output(self):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
@@ -467,30 +471,62 @@ class MetadataPCA(luigi.Task):
     def requires(self):
         return MetadataNormalization(self.datarep, self.dsname,
                                      self.metadata_type)
-        
-    def compute_nb_dimensions(self, var_analysis):
-        """Return a number of components that is supposed to be optimal,
-        regarding the variance matrix (low eigenvalues, sufficient explained
-        variance threshold); if
-        self.select_param_mode=="manual", the user must enter its preferred
-        number of components based on variance-related barplots
-        
-        """
-        if self.select_param_mode == "manual":
-            ul.plot_pca_variance(var_analysis)
-            plt.show()
-            nb_components = input("# \n# Enter the number of components: \n# ")
-            return int(nb_components)
-        candidate_npc = 0
-        for i in range(len(var_analysis)):
-            if var_analysis.iloc[i,0] < 1 or var_analysis.iloc[i,2] > 80:
-                candidate_npc = i+1
-                break
-        if candidate_npc < self.nb_mindimensions:
-            candidate_npc = self.nb_mindimensions
-        if candidate_npc > self.nb_maxdimensions:
-            candidate_npc = self.nb_maxdimensions
-        return candidate_npc
+
+    def run(self):
+        with self.input().open('r') as inputflow:
+            metadata  = pd.read_csv(inputflow, index_col=0)
+        # Data preparation
+        if self.metadata_type == "chgset":
+            metadata = metadata.set_index(['chgset', 'uid'])
+        metadata = utils.drop_features(metadata, '_at')
+        if self.features != '':
+            for pattern in ['elem', 'node', 'way', 'relation']:
+                if pattern != self.features:
+                    metadata = utils.drop_features(metadata, pattern)
+        # Data normalization
+        scaler = RobustScaler(quantile_range=(0.0, 100.0)) # = Min scaler
+        X = scaler.fit_transform(metadata.values)
+        pca = PCA(n_components=self.n_components)
+        Xpca = pca.fit_transform(X)
+        pca_cols = ['PC' + str(i+1) for i in range(self.n_components)]
+        pca_var = pd.DataFrame(pca.components_, index=pca_cols,
+                               columns=metadata.columns).T
+        if self.metadata_type == "chgset":
+            pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
+                                   index=(metadata.index
+                                          .get_level_values('chgset')))
+        else:
+            pca_ind = pd.DataFrame(Xpca, columns=pca_cols, index=metadata.index)
+        # Save the PCA results into a hdf5 (binary) file
+        path = self.output().path
+        pca_var.to_hdf(path, '/features')
+        pca_ind.to_hdf(path, '/individuals')
+
+
+class VarianceAnalysisTask(luigi.Task):
+    """Dedicated to analyze the variance of some metadata
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_mindimensions = luigi.parameter.IntParameter(3)
+    nb_maxdimensions = luigi.parameter.IntParameter(12)
+    features = luigi.Parameter('')
+
+    def outputpath(self):
+        fname = "-".join([self.dsname,
+                          self.metadata_type, "metadata",
+                          "variance-analysis",
+                          "min", str(self.nb_mindimensions),
+                          "max", str(self.nb_maxdimensions) + ".csv"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=UTF8)
+
+    def requires(self):
+        return MetadataNormalization(self.datarep, self.dsname,
+                                     self.metadata_type)
 
     def run(self):
         with self.input().open('r') as inputflow:
@@ -509,11 +545,90 @@ class MetadataPCA(luigi.Task):
         X = scaler.fit_transform(metadata.values)
         # Select the most appropriate dimension quantity
         var_analysis = ul.compute_pca_variance(X)
-        # Run the PCA
-        npc = self.compute_nb_dimensions(var_analysis)
-        pca = PCA(n_components=npc)
+        with self.output().open("w") as fobj:
+            var_analysis.to_csv(fobj, index=False)
+
+class PlottingVarianceAnalysis(luigi.Task):
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_min_dim = luigi.parameter.IntParameter(3)
+    nb_max_dim = luigi.parameter.IntParameter(12)
+    features = luigi.Parameter('')
+
+    def outputpath(self):
+        fname = "-".join([self.metadata_type, "metadata",
+                          "variance-analysis",
+                          "min", str(self.nb_min_dim),
+                          "max", str(self.nb_max_dim) + ".png"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        return VarianceAnalysisTask(self.datarep, self.dsname,
+                                    self.metadata_type, self.nb_min_dim,
+                                    self.nb_max_dim, self.features)
+
+    def run(self):
+        with self.input().open() as fobj:
+            variance = pd.read_csv(fobj)
+        fig = ul.plot_pca_variance(variance)
+        fig.savefig(self.output().path)
+
+
+class AutoPCA(luigi.Task):
+    """Compute the optimal number of components for the PCA before carrying out the
+    PCA for the user or changeset metadata
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_min_dim = luigi.parameter.IntParameter(3)
+    nb_max_dim = luigi.parameter.IntParameter(12)
+    features = luigi.Parameter('')
+
+    def outputpath(self):
+        fname = "-".join([self.dsname,
+                          self.metadata_type, "metadata",
+                          "auto-n_components",
+                          "min", str(self.nb_min_dim),
+                          "max", str(self.nb_max_dim),
+                          "pca.h5"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        return {'variance': VarianceAnalysisTask(self.datarep, self.dsname,
+                                                 self.metadata_type, self.nb_min_dim,
+                                                 self.nb_max_dim, self.features),
+                "metadata": MetadataNormalization(self.datarep, self.dsname,
+                                                  self.metadata_type)}
+
+    def run(self):
+        with self.input()['metadata'].open('r') as inputflow:
+            metadata  = pd.read_csv(inputflow, index_col=0)
+        with self.input()['variance'].open() as fobj:
+            variance = pd.read_csv(fobj)
+        n_components = ul.optimal_PCA_components(variance, self.nb_min_dim,
+                                                 self.nb_max_dim)
+        # Data preparation
+        if self.metadata_type == "chgset":
+            metadata = metadata.set_index(['chgset', 'uid'])
+        metadata = utils.drop_features(metadata, '_at')
+        if self.features != '':
+            for pattern in ['elem', 'node', 'way', 'relation']:
+                if pattern != self.features:
+                    metadata = utils.drop_features(metadata, pattern)
+        # Data normalization
+        scaler = RobustScaler(quantile_range=(0.0, 100.0)) # = Min scaler
+        X = scaler.fit_transform(metadata.values)
+        pca = PCA(n_components=n_components)
         Xpca = pca.fit_transform(X)
-        pca_cols = ['PC' + str(i+1) for i in range(npc)]
+        pca_cols = ['PC' + str(i + 1) for i in range(n_components)]
         pca_var = pd.DataFrame(pca.components_, index=pca_cols,
                                columns=metadata.columns).T
         if self.metadata_type == "chgset":
@@ -522,11 +637,11 @@ class MetadataPCA(luigi.Task):
                                           .get_level_values('chgset')))
         else:
             pca_ind = pd.DataFrame(Xpca, columns=pca_cols, index=metadata.index)
-        # Save the PCA results into a binary file
+        # Save the PCA results into a hdf5 (binary) file
         path = self.output().path
         pca_var.to_hdf(path, '/features')
         pca_ind.to_hdf(path, '/individuals')
-        var_analysis.to_hdf(path, '/variance')
+
 
 class MetadataKmeans(luigi.Task):
     """Luigi task: classify any metadata with a kmeans algorithm; a PCA procedure
@@ -540,7 +655,7 @@ class MetadataKmeans(luigi.Task):
     use_silhouette = luigi.parameter.BoolParameter(True)
     nbmin_clusters = luigi.parameter.IntParameter(3)
     nbmax_clusters = luigi.parameter.IntParameter(8)
-    
+
     def outputpath(self):
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
                         self.dsname+"-"+self.metadata_type+"-kmeans.h5")
@@ -597,7 +712,7 @@ class MetadataKmeans(luigi.Task):
         elbow_deriv = ul.elbow_derivation(scores, self.nbmin_clusters)
         nbc =  1 + elbow_deriv.index(max(elbow_deriv))
         return nbc
-    
+
     def run(self):
         inputpath = self.input().path
         pca_ind  = pd.read_hdf(inputpath, 'individuals')
@@ -613,5 +728,4 @@ class MetadataKmeans(luigi.Task):
         # Save the kmeans results into a binary file
         path = self.output().path
         kmeans_ind.to_hdf(path, '/individuals')
-        kmeans_centroids.to_hdf(path, '/centroids')        
-    
+        kmeans_centroids.to_hdf(path, '/centroids')
