@@ -110,7 +110,7 @@ def plot_cluster_decision(x, y1, y2):
     ax[1].set_ylabel("silhouette")
     ax[0].set_title("Elbow and silhoutte for KMeans")
     plt.tight_layout()
-    plt.show()
+    return f
 
 def elbow_derivation(elbow, nbmin_clusters):
     """Compute a proxy of the elbow function derivative to automatically

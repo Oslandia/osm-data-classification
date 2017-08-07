@@ -766,7 +766,6 @@ class KMeansReport(luigi.Task):
         labels = []
         for k in range(self.nbmin_clusters, self.nbmax_clusters + 1):
             fpath = self.input()[k].path
-            print(fpath)
             df = pd.read_hdf(fpath, "/individuals")
             center = pd.read_hdf(fpath, "/centroids")
             centers.append(center.drop("n_individuals", axis=1).values)
@@ -777,6 +776,47 @@ class KMeansReport(luigi.Task):
             fobj.write("For *{}* metadata\n\n".format(self.metadata_type))
             fobj.write("- PCA components: {}\n".format(df.shape[1] - 1))
             fobj.write("- Nclusters: {}\n".format(res))
+
+
+class KMeansAnalaysis(luigi.Task):
+    """Some KMeans analysis
+
+    Inertia, elbow and silhouette computations in order to choose the number of clusters.
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nbmin_clusters = luigi.parameter.IntParameter(3)
+    nbmax_clusters = luigi.parameter.IntParameter(8)
+
+    def outputpath(self):
+        fname = "-".join([self.metadata_type, "metadata",
+                          "kmeans-analysis-elbow-silhouette.png"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        # Note: n_components=0 for the automatic selection of the number of PCA components
+        return {k: KMeansFromPCA(self.datarep, self.dsname, self.metadata_type,
+                                 n_components=0, nb_clusters=k)
+                for k in range(self.nbmin_clusters, self.nbmax_clusters + 1)}
+
+    def run(self):
+        centers = []
+        features = []
+        labels = []
+        for k in range(self.nbmin_clusters, self.nbmax_clusters + 1):
+            fpath = self.input()[k].path
+            df = pd.read_hdf(fpath, "/individuals")
+            center = pd.read_hdf(fpath, "/centroids")
+            centers.append(center.drop("n_individuals", axis=1).values)
+            features.append(df.drop("Xclust", axis=1).values)
+            labels.append(df['Xclust'].copy().values)
+        fig = ul.kmeans_elbow_silhouette(features, centers, labels,
+                                         self.nbmin_clusters, self.nbmax_clusters)
+        fig.savefig(self.output().path)
 
 
 class MetadataKmeans(luigi.Task):
