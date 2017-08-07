@@ -3,7 +3,9 @@
 """Module dedicated write some Luigi tasks for analysis purposes
 """
 
+import json
 import os.path as osp
+from datetime import datetime
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
@@ -726,7 +728,7 @@ class KMeansFromRaw(luigi.Task):
 class KMeansReport(luigi.Task):
     """Full automatic KMeans with a report.
 
-    Generated report gives the number of components for the PCA and the number
+    Generated a JSON report which gives the number of components for the PCA and the number
     of clusters for the KMeans.
 
     As you need to compute all KMeans between 'nbmin_clusters' and
@@ -748,7 +750,7 @@ class KMeansReport(luigi.Task):
 
     def outputpath(self):
         fname = "-".join([self.metadata_type, "metadata",
-                          "auto-kmeans-report.txt"])
+                          "auto-kmeans-report.json"])
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
 
     def output(self):
@@ -764,8 +766,10 @@ class KMeansReport(luigi.Task):
         centers = []
         features = []
         labels = []
+        filelist = {}
         for k in range(self.nbmin_clusters, self.nbmax_clusters + 1):
             fpath = self.input()[k].path
+            filelist[k] = fpath
             df = pd.read_hdf(fpath, "/individuals")
             center = pd.read_hdf(fpath, "/centroids")
             if "n_individuals" in center:
@@ -773,11 +777,13 @@ class KMeansReport(luigi.Task):
             centers.append(center.values)
             features.append(df.drop("Xclust", axis=1).values)
             labels.append(df['Xclust'].copy().values)
-        res = ul.compute_nb_clusters(features, centers,  labels, self.nbmin_clusters)
+        n_clusters = ul.compute_nb_clusters(features, centers,  labels, self.nbmin_clusters)
         with self.output().open('w') as fobj:
-            fobj.write("For *{}* metadata\n\n".format(self.metadata_type))
-            fobj.write("- PCA components: {}\n".format(df.shape[1] - 1))
-            fobj.write("- Nclusters: {}\n".format(res))
+            content = {"date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
+                       "pca_components": df.shape[1] - 1,
+                       "n_clusters": n_clusters,
+                       "filelist": filelist}
+            json.dump(content, fobj)
 
 
 class KMeansAnalaysis(luigi.Task):
