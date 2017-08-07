@@ -108,7 +108,7 @@ def plot_cluster_decision(x, y1, y2):
     ax[1].boxplot(y2, labels=x)
     ax[1].set_xlabel('clusters number')
     ax[1].set_ylabel("silhouette")
-    ax[0].set_title("Elbow and silhoutte for KMeans")
+    ax[0].set_title("Elbow and silhouette for KMeans")
     plt.tight_layout()
     return f
 
