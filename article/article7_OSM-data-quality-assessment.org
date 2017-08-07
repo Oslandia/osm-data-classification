@@ -91,11 +91,11 @@ changesets per elements:
 #+RESULTS:
 #+begin_example
 elem                                  node
-id                              2501524262
-first_at               2013-10-19 00:00:00
-last_at                2013-10-19 00:00:00
+id                              2478535444
+first_at               2013-10-01 00:00:00
+last_at                2013-10-01 00:00:00
 lifespan                                 0
-n_days_since_creation                 1219
+n_days_since_creation                 1237
 n_days_of_activity                       1
 version                                  1
 n_chgset                                 1
@@ -159,17 +159,17 @@ We recover the individuals groups in the eponym binary file tab (column
 #+RESULTS:
 #+begin_example
 elem                                  node
-id                              1841951307
-first_at               2012-07-28 00:00:00
-last_at                2012-07-28 00:00:00
+id                              2279987440
+first_at               2013-04-24 00:00:00
+last_at                2013-04-24 00:00:00
 lifespan                                 0
-n_days_since_creation                 1667
+n_days_since_creation                 1397
 n_days_of_activity                       1
 version                                  1
 n_chgset                                 1
 n_user                                   1
 visible                               True
-last_uid                            152665
+last_uid                            706229
 last_uid_group                           2
 #+end_example
 
@@ -266,13 +266,22 @@ maps, so let's do it!
 
 From the last conclusions, we are able to produce some customized maps, based
 on hypothesis on entity quality. If each OSM entities (*e.g.* roads) can be
-characterized in terms of quality, by the way of a synthetic score for example,
-then we can draw quality maps by highlighting the most trustworthy entities, as
-well as those with which we have to stay cautious.
+characterized, then we can draw quality maps by highlighting the most
+trustworthy entities, as well as those with which we have to stay cautious.
+
+In this post we will continue to focus on the Bordeaux area, and especially on
+the OSM ways, that contain roads. The different maps will be produced with the
+help of Qgis.
 
 ** First step: simple metadata plotting
 
-Number of user per roads, number of tags per roads, and so on, within PostGIS
+As a first insight on OSM elements, we can plot each OSM ways regarding simple
+features like the number of users who have contributed, the number of version
+or the element anteriority.
+
+#+CAPTION: Number of active contributors per OSM way in Bordeaux
+#+NAME:   fig:bm_nusers
+[[../figs/bordeaux-metropole-qgis-nusers.png]]
 
 ** More complex: OSM data merging with alternative geospatial representations
 
