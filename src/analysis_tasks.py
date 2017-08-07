@@ -806,17 +806,17 @@ class KMeansAnalaysis(luigi.Task):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
 
     def requires(self):
-        # Note: n_components=0 for the automatic selection of the number of PCA components
-        return {k: KMeansFromPCA(self.datarep, self.dsname, self.metadata_type,
-                                 n_components=0, nb_clusters=k)
-                for k in range(self.nbmin_clusters, self.nbmax_clusters + 1)}
+        return KMeansReport(self.datarep, self.dsname, self.metadata_type,
+                            self.nbmin_clusters, self.nbmax_clusters)
 
     def run(self):
         centers = []
         features = []
         labels = []
+        with self.input().open() as fobj:
+            report = json.load(fobj)
         for k in range(self.nbmin_clusters, self.nbmax_clusters + 1):
-            fpath = self.input()[k].path
+            fpath = report['filelist'][str(k)]
             df = pd.read_hdf(fpath, "/individuals")
             center = pd.read_hdf(fpath, "/centroids")
             centers.append(center.drop("n_individuals", axis=1).values)
