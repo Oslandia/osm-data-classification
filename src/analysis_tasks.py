@@ -437,8 +437,8 @@ class SinglePCA(luigi.Task):
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
-    # can be 'chgset' for changesets
-    # XXX Raise an error if it's neither 'user' or 'chgset'
+    # can be 'changeset' for changesets
+    # XXX Raise an error if it's neither 'user' or 'changeset'
     metadata_type = luigi.Parameter("user")
     n_components = luigi.IntParameter(default=6)
     # Keep only this feature
@@ -462,7 +462,7 @@ class SinglePCA(luigi.Task):
         with self.input().open('r') as inputflow:
             metadata  = pd.read_csv(inputflow, index_col=0)
         # Data preparation
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             metadata = metadata.set_index(['chgset', 'uid'])
         metadata = utils.drop_features(metadata, '_at')
         if self.features != '':
@@ -477,7 +477,7 @@ class SinglePCA(luigi.Task):
         pca_cols = ['PC' + str(i+1) for i in range(self.n_components)]
         pca_var = pd.DataFrame(pca.components_, index=pca_cols,
                                columns=metadata.columns).T
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             pca_ind = pd.DataFrame(Xpca, columns=pca_cols,
                                    index=(metadata.index
                                           .get_level_values('chgset')))
@@ -518,7 +518,7 @@ class VarianceAnalysisTask(luigi.Task):
             metadata  = pd.read_csv(inputflow,
                                        index_col=0)
         # Data preparation
-        if self.metadata_type == "chgset":
+        if self.metadata_type == "changeset":
             metadata = metadata.set_index(['chgset', 'uid'])
         metadata = utils.drop_features(metadata, '_at')
         if self.features != '':
