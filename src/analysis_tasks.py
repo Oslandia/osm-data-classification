@@ -854,11 +854,14 @@ class AutoKMeans(luigi.Task):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
 
     def requires(self):
-        return KMeansReport(self.datarep, self.dsname, self.metadata_type,
-                            self.nbmin_clusters, self.nbmax_clusters)
+        # Note: don't use the data from the figure, just want to have it!
+        return {'report': KMeansReport(self.datarep, self.dsname, self.metadata_type,
+                                       self.nbmin_clusters, self.nbmax_clusters),
+                'figure': KMeansAnalysis(self.datarep, self.dsname, self.metadata_type,
+                                       self.nbmin_clusters, self.nbmax_clusters)}
 
     def run(self):
-        with self.input().open() as fobj:
+        with self.input()['report'].open() as fobj:
             report = json.load(fobj)
         n_clusters = report['n_clusters']
         fpath = report['filelist'][str(n_clusters)]
