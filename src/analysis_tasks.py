@@ -4,12 +4,10 @@
 """
 
 import os.path as osp
-import random
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
 
-import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
 
