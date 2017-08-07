@@ -786,7 +786,7 @@ class KMeansReport(luigi.Task):
             json.dump(content, fobj)
 
 
-class KMeansAnalaysis(luigi.Task):
+class KMeansAnalysis(luigi.Task):
     """Some KMeans analysis
 
     Inertia, elbow and silhouette computations in order to choose the number of clusters.
