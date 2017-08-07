@@ -768,7 +768,9 @@ class KMeansReport(luigi.Task):
             fpath = self.input()[k].path
             df = pd.read_hdf(fpath, "/individuals")
             center = pd.read_hdf(fpath, "/centroids")
-            centers.append(center.drop("n_individuals", axis=1).values)
+            if "n_individuals" in center:
+                center = center.drop("n_individuals", axis=1)
+            centers.append(center.values)
             features.append(df.drop("Xclust", axis=1).values)
             labels.append(df['Xclust'].copy().values)
         res = ul.compute_nb_clusters(features, centers,  labels, self.nbmin_clusters)
