@@ -268,7 +268,7 @@ class ElementMetadataExtract(luigi.Task):
     def requires(self):
         return {
             'osm_elements': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
-            'user_groups': MetadataKmeans(self.datarep, self.dsname, 'user', 'manual')}
+            'user_groups': AutoKMeans(self.datarep, self.dsname, 'user')}
 
     def run(self):
         with self.input()['osm_elements'].open('r') as inputflow:
