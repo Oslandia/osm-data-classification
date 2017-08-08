@@ -6,11 +6,18 @@ Some utility functions designed for machine learning algorithm exploitation
 
 import math
 import re
+import random
+
 import pandas as pd
 import numpy as np
+
+from sklearn.metrics import silhouette_score
+
+import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-import seaborn as sns
+sns.set_context('talk')
+
 
 def compute_pca_variance(X):
     """Compute the covariance matrix of X and the associated eigen values to
@@ -33,6 +40,28 @@ def compute_pca_variance(X):
                            'varexp': varexp,
                            'cumvar': cumvarexp})[['eig','varexp','cumvar']]
     return varmat
+
+def optimal_PCA_components(variance, nb_min_dim, nb_max_dim):
+    """Return a number of components that is supposed to be optimal,
+    regarding the variance matrix (low eigenvalues, sufficient explained
+    variance threshold)
+
+    varaince: nd.array
+    nb_dim_min: int
+    nb_dim_max: int
+
+    Return the "optimal" number or PCA components
+    """
+    candidate_npc = 0
+    for i in range(len(variance)):
+        if variance.iloc[i, 0] < 1 or variance.iloc[i, 2] > 80:
+            candidate_npc = i + 1
+            break
+    if candidate_npc < nb_min_dim:
+        candidate_npc = nb_min_dim
+    if candidate_npc > nb_max_dim:
+        candidate_npc = nb_max_dim
+    return candidate_npc
 
 def plot_pca_variance(varmat):
     """Plot the PCA variance analysis: cumulated sum of explained variance as
@@ -57,6 +86,7 @@ def plot_pca_variance(varmat):
     ax[1].axhline(1, color="red", linestyle="dotted")
     ax[1].legend(loc="best")
     f.show()
+    return f
 
 def plot_cluster_decision(x, y1, y2):
     """Plot a range of kmeans inertia scores and silhouette boxplots, so as to
@@ -74,10 +104,14 @@ def plot_cluster_decision(x, y1, y2):
     """
     f, ax = plt.subplots(2, 1)
     ax[0].plot(x, y1)
-    ax[1].boxplot(y2)
+    ax[0].set_ylabel("inertia")
+    ax[1].boxplot(y2, labels=x)
+    ax[1].set_xlabel('clusters number')
+    ax[1].set_ylabel("silhouette")
+    ax[0].set_title("Elbow and silhouette for KMeans")
     plt.tight_layout()
-    plt.show()
-    
+    return f
+
 def elbow_derivation(elbow, nbmin_clusters):
     """Compute a proxy of the elbow function derivative to automatically
     extract the optimal number of cluster; this number must be higher that nbmin_clusters
@@ -341,3 +375,64 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
         ax_.set_ylabel(y_column)
     plt.tight_layout()
     plt.show()
+
+
+def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
+    """Try to find the optimal number of KMeans clusters.
+
+    Compute KMeans inertia for each cluster number until nbmax_clusters+1 to
+    find the optimal number of clusters. Use the elbow method
+
+    features: list of nd.array
+        shape (Nrows, Ncols)
+    centers: list of nd.array
+        shape (Nclusters, Ncols)
+    labels: list of nd.array
+        shape (Nrows, )
+
+    Return the "optimal" number of clusters
+    """
+    scores = []
+    for feature, center, label in zip(features, centers, labels):
+        # compute the inertia
+        inertia = np.sum((feature - center[label]) ** 2, dtype=np.float64)
+        scores.append(inertia)
+    elbow_deriv = elbow_derivation(scores, nbmin_clusters)
+    return 1 + elbow_deriv.index(max(elbow_deriv))
+
+
+def kmeans_elbow_silhouette(features, centers, labels,
+                            nbmin_clusters, nbmax_clusters):
+    """Compute the KMeans elbow and silhouette scores and plot them
+
+    features: list of nd.array
+        shape (Nrows, Ncols)
+    centers: list of nd.array
+        shape (Nclusters, Ncols)
+    labels: list of nd.array
+        shape (Nrows, )
+    nbmin_clusters: int
+    nbmax_clusters: int
+
+    Return a figure. Two subplots: Elbow and Silhouette
+    """
+    # scores for elbow
+    scores = []
+    silhouette = []
+    for feature, center, label in zip(features, centers, labels):
+        inertia = np.sum((feature - center[label]) ** 2, dtype=np.float64)
+        scores.append(inertia)
+        silhouette_avg = []
+        for k in range(10):
+            s = random.sample(range(len(feature)), 2000)
+            Xsampled = feature[s]
+            Csampled = label[s]
+            while(len(np.unique(Csampled)) == 1):
+                s = random.sample(range(len(feature)), 2000)
+                Xsampled = feature[s]
+                Csampled = label[s]
+            silhouette_avg.append(silhouette_score(X=Xsampled,
+                                                   labels=Csampled))
+        silhouette.append(silhouette_avg)
+    return plot_cluster_decision(range(nbmin_clusters, nbmax_clusters + 1),
+                                 scores, silhouette)

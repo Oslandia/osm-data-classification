@@ -14,16 +14,18 @@ import matplotlib.pyplot as plt
 import osmparsing
 import utils
 
-class OSMTagParsing(luigi.Task):
 
+OUTPUT_DIR = 'output-extracts'
+
+
+class OSMTagParsing(luigi.Task):
     """ Luigi task : parse OSM tag genome from a .pbf file
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-tag-genome.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "tag-genome.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -40,15 +42,13 @@ class OSMTagParsing(luigi.Task):
             tag_genome.to_csv(outputflow)
 
 class OSMHistoryParsing(luigi.Task):
-
     """ Luigi task : parse OSM data history from a .pbf file
     """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-elements.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "element.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
@@ -71,8 +71,8 @@ class OSMElementEnrichment(luigi.Task):
     dsname = luigi.Parameter("bordeaux-metropole")
 
     def outputpath(self):
-        return osp.join(self.datarep, "output-extracts", self.dsname,
-                        self.dsname+"-enriched-elements.csv")
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname,
+                        "enriched-element.csv")
 
     def output(self):
         return luigi.LocalTarget(self.outputpath())
