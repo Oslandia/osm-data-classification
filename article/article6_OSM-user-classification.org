@@ -2,50 +2,468 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
-projects and handling Open (geospatial) Data. In this article series, we will
-play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
-subsequent data. Here comes the sixth article of this series, dedicated to user
-classification using the power of machine learning algorithms
+At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with the [[https://www.openstreetmap.org/][OpenStreetMap]]
+(/OSM/) map and subsequent data. Here comes the sixth article of this series,
+dedicated to user classification using the power of machine learning algorithms
 
-* Introduction...
+* Let's remind the user metadata
 
-Introduction of the article
+After the previous blog post, we got a set of features aiming to describe how
+OSM users contribute to the mapping effort. That is our raw materials towards
+the clustering process.
 
-* Recall of the user metadata...
+** Metadata recovery
 
-Present the perimeter of user metadata, by restraining the selected
-features. Give some arguments to justify this limitation.
+If we saved the user metadata in a dedicated =.csv= file, it can be recovered
+easily:
 
-Typically, we will keep only element-related features (*i.e.* the sum of node-,
-way- and relation counters) to make the analysis simpler.
+#+BEGIN_SRC ipython :session osm :exports both
+import pandas as pd
+user_md = pd.read_csv("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-user-md-extra.csv", index_col=0)
+user_md.query('uid==24664').T
+#+END_SRC
 
-:warning: some tests still have to be undertaken to verify that this step is
-necessary, or if the following section (PCA) addresses the dimensionality issue
+#+RESULTS:
+#+begin_example
+uid                                   24664
+lifespan                        2449.000000
+n_inscription_days              3318.000000
+n_activity_days                   35.000000
+n_chgset                          69.000000
+dmean_chgset                       0.000000
+nmean_modif_byelem                 1.587121
+n_total_modif                   1676.000000
+n_total_modif_node              1173.000000
+n_total_modif_way                397.000000
+n_total_modif_relation           106.000000
+n_node_modif                    1173.000000
+n_node_modif_cr                  597.000000
+n_node_modif_imp                 360.000000
+n_node_modif_del                 216.000000
+n_node_modif_utd                 294.000000
+n_node_modif_cor                 544.000000
+n_node_modif_autocor             335.000000
+n_way_modif                      397.000000
+n_way_modif_cr                    96.000000
+n_way_modif_imp                  258.000000
+n_way_modif_del                   43.000000
+n_way_modif_utd                   65.000000
+n_way_modif_cor                  152.000000
+n_way_modif_autocor              180.000000
+n_relation_modif                 106.000000
+n_relation_modif_cr                8.000000
+n_relation_modif_imp              98.000000
+n_relation_modif_del               0.000000
+n_relation_modif_utd               2.000000
+n_relation_modif_cor              15.000000
+n_relation_modif_autocor          89.000000
+n_total_chgset                   153.000000
+p_local_chgset                     0.450980
+n_total_chgset_id                 55.000000
+n_total_chgset_josm                0.000000
+n_total_chgset_maps.me_android     0.000000
+n_total_chgset_maps.me_ios         0.000000
+n_total_chgset_other               1.000000
+n_total_chgset_potlatch           57.000000
+n_total_chgset_unknown            40.000000
+#+end_example
 
-* Develop a Principle Component Analysis (PCA)...
+/Hum... It seems that some unknown features have been added in this table,
+isn't it?/
 
-If we keep every single
-[previously-computed](https://git.oslandia.net/Oslandia/osland-ia/blob/master/article/article5_OSM-metadata-description.org)
-features, we will have to cope with more than 140 variables. Reducing the
-dimensionality of the problem appears as a unavoidable pre-requisite before
-undertaking any classification effort.
+Well yes! We had some more variables to make the analysis finer. We propose you
+to focus on the total number of change sets that each user has opened, and the
+corresponding ratio between change set amount around Bordeaux and this
+quantity. Then we studied the editors each user have used: JOSM? iD? Potlatch?
+Maps me? Another one? Maybe this will give a useful extra-information to design
+user groups.
 
-** Design the PCA...
+As a total, we have 40 features that describe user behavior, and 2073 users.
 
-Choose the number of dimension according to the explained variance.
+** Feature normalization
 
-** Describe some individuals positioning after dimensionality reduction...
+*** It's normal not to be Gaussian!
 
-Can we interpret the dimension meaning, starting from some examples?
+We plan to reduce the number of variables, to keep the analysis readable and
+interpretable; and run a k-means clustering to group similar users together.
 
-* Cluster the user starting from their past activity...
+Unfortunately we can't proceed directly to such machine learning procedures:
+they need as input gaussian-distributed features. As illustrated by the
+following histograms, focused on some available features, it is not the case
+here; moreover the features are highly-skewed, that leading us to consider an
+alternative normalization scheme.
+
+#+BEGIN_SRC ipython :session osm :exports both :file ../figs/bordeaux-metropole-skewed-histograms.png
+import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+
+%matplotlib inline
+f, ax = plt.subplots(1,3, figsize=(12,4))
+ax[0].hist(user_md.n_node_modif, bins=np.linspace(0,500, 25), color='r', normed=True)
+ax[0].set_xlabel('Number of node modifications')
+ax[0].set_ylabel('Frequency')
+ax[0].set_ylim(0,0.05)
+ax[1].hist(user_md.n_way_modif, bins=np.linspace(0,500, 25), normed=True)
+ax[1].set_xlabel('Number of way modifications')
+ax[1].set_ylim(0,0.05)
+ax[2].hist(user_md.n_relation_modif, bins=np.linspace(0,500, 25), color='g', normed=True)
+ax[2].set_xlabel('Number of relation modifications')
+ax[2].set_ylim(0,0.05)
+plt.tight_layout()
+sns.set_context("paper")
+#+END_SRC
+
+#+RESULTS:
+[[file:../figs/bordeaux-metropole-skewed-histograms.png]]
+
+*** Feature engineering
+
+The basic idea we want you to keep in mind is the following one: if we find
+some mathematical tricks to express our variables between simple bounds (/e.g./
+0 and 100, or -1 and 1), we could have smarter way to represent the user
+characteristics.
+
+First of all you should notice that a lot of variables can be expressed as percentages of other variables:
+
+- the number of node/way/relation modifications amongst all modifications;
+- the number of created/improved/deleted elements amongst all modifications,
+  for each element type;
+- the number of change sets opened with a given editor, amongst all change sets.
+
+#+BEGIN_SRC ipython :session osm :exports both
+def normalize_features(metadata, total_column):
+    transformed_columns = metadata.columns[metadata.columns.to_series()
+                                           .str.contains(total_column)]
+    metadata[transformed_columns[1:]] = metadata[transformed_columns].apply(lambda x: (x[1:]/x[0]).fillna(0), axis=1)
+
+normalize_features(user_md, 'n_total_modif')
+normalize_features(user_md, 'n_node_modif')
+normalize_features(user_md, 'n_way_modif')
+normalize_features(user_md, 'n_relation_modif')
+normalize_features(user_md, 'n_total_chgset')
+#+END_SRC
+
+#+RESULTS:
+
+Other features can be normalized starting from their definition: we know that
+=lifespan= and =n_inscription_days= can't be larger than the OSM lifespan
+itself (we consider the OSM lifespan as the difference between the first year
+of modification within the area and the extraction date).
+
+#+BEGIN_SRC ipython :session osm :exports both
+timehorizon = (pd.Timestamp("2017-02-19") - pd.Timestamp("2007-01-01"))/pd.Timedelta('1d')
+user_md['lifespan'] = user_md['lifespan'] / timehorizon
+user_md['n_inscription_days'] = user_md['n_inscription_days'] / timehorizon
+#+END_SRC
+
+#+RESULTS:
+
+Finally we have to consider the remainder of features that can't be normalized
+as percentages of other variables, or as percentages of meaningful
+quantities. How can we treat them?
+
+We choose to transform these features by comparing users between each other:
+knowing that a user did 100 modifications is interesting, however we could also
+compare it with other users, /e.g./ by answering the question "how many users
+did less modifications?". That's typically the definition of the empirical
+cumulative distribution function.
+
+#+BEGIN_SRC ipython :session osm :exports both
+import statsmodels.api as sm
+
+def ecdf_transform(metadata, feature):
+    ecdf = sm.distributions.ECDF(metadata[feature])
+    metadata[feature] = ecdf(metadata[feature])
+    new_feature_name = 'u_' + feature.split('_', 1)[1]
+    return metadata.rename(columns={feature: new_feature_name})
+
+user_md = ecdf_transform(user_md, 'n_activity_days')
+user_md = ecdf_transform(user_md, 'n_chgset')
+user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
+user_md = ecdf_transform(user_md, 'n_total_modif')
+user_md = ecdf_transform(user_md, 'n_node_modif')
+user_md = ecdf_transform(user_md, 'n_way_modif')
+user_md = ecdf_transform(user_md, 'n_relation_modif')
+user_md = ecdf_transform(user_md, 'n_total_chgset')
+#+END_SRC
+
+#+RESULTS:
+
+Consequently we can characterize a user with such new dashboard:
+
+#+BEGIN_SRC ipython :session osm :exports both
+user_md.query("uid==24664").T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+uid                                24664
+lifespan                        0.661534
+n_inscription_days              0.896272
+u_activity_days                 0.971539
+u_chgset                        0.969609
+dmean_chgset                    0.000000
+u_modif_byelem                  0.838881
+u_total_modif                   0.966715
+n_total_modif_node              0.699881
+n_total_modif_way               0.236874
+n_total_modif_relation          0.063246
+u_node_modif                    0.967680
+n_node_modif_cr                 0.508951
+n_node_modif_imp                0.306905
+n_node_modif_del                0.184143
+n_node_modif_utd                0.250639
+n_node_modif_cor                0.463768
+n_node_modif_autocor            0.285592
+u_way_modif                     0.971539
+n_way_modif_cr                  0.241814
+n_way_modif_imp                 0.649874
+n_way_modif_del                 0.108312
+n_way_modif_utd                 0.163728
+n_way_modif_cor                 0.382872
+n_way_modif_autocor             0.453401
+u_relation_modif                0.984563
+n_relation_modif_cr             0.075472
+n_relation_modif_imp            0.924528
+n_relation_modif_del            0.000000
+n_relation_modif_utd            0.018868
+n_relation_modif_cor            0.141509
+n_relation_modif_autocor        0.839623
+u_total_chgset                  0.485769
+p_local_chgset                  0.450980
+n_total_chgset_id               0.359477
+n_total_chgset_josm             0.000000
+n_total_chgset_maps.me_android  0.000000
+n_total_chgset_maps.me_ios      0.000000
+n_total_chgset_other            0.006536
+n_total_chgset_potlatch         0.372549
+n_total_chgset_unknown          0.261438
+#+end_example
+
+We then know that the user with ID 24664 did more node, way and relation
+modifications than respectively 96.7, 97.2 and 98.5% of other users, or that
+amongst his node modifications, 50.9% were creations, and so on...
+
+In order to complete the normalization procedure, we add a final step that
+consists in scaling the features, to ensure that all of them have the same
+/min/ and /max/ values. As the features are still skewed, we do it according to
+a simple Min-Max rule, so as to avoid too much distorsion of our data:
+
+#+BEGIN_SRC ipython :session osm :exports both
+from sklearn.preprocessing import RobustScaler
+
+scaler = RobustScaler(quantile_range=(0.0,100.0)) # = Min-max scaler
+X = scaler.fit_transform(user_md.values)
+#+END_SRC
+
+#+RESULTS:
+
+* Develop a Principle Component Analysis (PCA)
+
+From now we can try to add some intelligence into the data by using well-known
+machine learning tools.
+
+Reduce the dimensionality of a problem often appears as a unavoidable
+pre-requisite before undertaking any classification effort.
+
+As developped previously, we have 40 variables. That seems quite small for
+implementing a PCA (we could apply directly a clustering algorithm on our
+normalized data); however for a sake of clarity regarding result
+interpretation, we decide to add this step into the analysis.
+
+** PCA design
+
+Summarize the complete user table by just a few synthetic components is
+appealing; however you certainly want to ask "how many components?"! The
+principle component analysis is a linear projection of individuals on a smaller
+dimension space. It provides uncorrelated components, dropping redundant
+information given by subsets of initial dataset.
+
+Actually there is no ideal component number, it can depend on modeller wishes;
+however in general this quantity is chosen according to the explained variance
+proportion, and/or according to eigen values of components. There are some rule
+of thumbs for such a situation: we can choose to take components to cover at
+least 70% of the variance, or to consider components that have an eigen value
+larger than 1.
+
+#+BEGIN_SRC ipython :session osm :exports both :file ../figs/bordeaux-metropole-varmat.png
+cov_mat = np.cov(X.T)
+eig_vals, eig_vecs = np.linalg.eig(cov_mat)
+eig_vals = sorted(eig_vals, reverse=True)
+tot = sum(eig_vals)
+varexp = [(i/tot)*100 for i in eig_vals]
+cumvarexp = np.cumsum(varexp)
+varmat = pd.DataFrame({'eig': eig_vals,
+                       'varexp': varexp,
+                       'cumvar': cumvarexp})[['eig','varexp','cumvar']]
+f, ax = plt.subplots(1, 2, figsize=(12,6))
+ax[0].bar(range(1,1+len(varmat)), varmat['varexp'].values, alpha=0.25, 
+        align='center', label='individual explained variance', color = 'g')
+ax[0].step(range(1,1+len(varmat)), varmat['cumvar'].values, where='mid',
+         label='cumulative explained variance')
+ax[0].axhline(70, color="blue", linestyle="dotted")
+ax[0].legend(loc='best')
+ax[1].bar(range(1,1+len(varmat)), varmat['eig'].values, alpha=0.25,
+          align='center', label='eigenvalues', color='r')
+ax[1].axhline(1, color="red", linestyle="dotted")
+ax[1].legend(loc="best")
+#+END_SRC
+
+#+RESULTS:
+[[file:../figs/bordeaux-metropole-varmat.png]]
+
+Here the second rule of thumb fails, as we do not use a standard scaling
+process (/e.g./ less mean, divided by standard deviation), however the first
+one makes us consider 6 components (that explain around 72% of the total
+variance). The exact figures can be checked in the =varmat= data frame:
+
+#+BEGIN_SRC ipython :session osm :exports both
+varmat.head(6)
+#+END_SRC
+
+#+RESULTS:
+:         eig     varexp     cumvar
+: 0  1.084392  28.527196  28.527196
+: 1  0.551519  14.508857  43.036053
+: 2  0.346005   9.102373  52.138426
+: 3  0.331242   8.714022  60.852448
+: 4  0.261060   6.867738  67.720186
+: 5  0.181339   4.770501  72.490687
+
+
+** PCA running
+
+The PCA algorithm is loaded from a =sklearn= module, we just have to run it by
+giving a number of components as a parameter, and to apply the =fit_transform=
+procedure to get the new linear projection. Moreover the contribution of each
+feature to the new components is straightforwardly accessible with the
+=sklearn= API.
+
+#+BEGIN_SRC ipython :session osm :exports both
+from sklearn.decomposition import PCA
+model = PCA(n_components=6)
+Xpca = model.fit_transform(X)
+pca_cols = ['PC' + str(i+1) for i in range(6)]
+pca_ind = pd.DataFrame(Xpca, columns=pca_cols, index=user_md.index)
+pca_var = pd.DataFrame(model.components_, index=pca_cols,
+                       columns=user_md.columns).T
+pca_ind.query("uid==24664").T
+#+END_SRC
+
+#+RESULTS:
+: uid     24664
+: PC1 -0.358475
+: PC2  1.671158
+: PC3  0.121610
+: PC4 -0.139444
+: PC5 -0.983182
+: PC6  0.409357
+
+Oh yeah, after running the PCA, the information about the user is summarized
+with these 6 cryptic values. It could be largely better to know which meaning
+these 6 components have.
+
+** Component interpretation
+
+By taking advantage of =seaborn= capability, we can plot the feature
+contributions to each components. All these contributions are comprised between
+-1 (a strong negative contribution) and 1 (a strong positive
+contribution). Additionnally there is a mathematical relation between all
+contributions to a given component: the sum of squares equals to 1! As a
+consequence we can really consider that features can be ranked by order of
+importance in the component definition.
+
+#+BEGIN_SRC ipython :session osm :exports both :file ../figs/bordeaux-metropole-feature-contrib.png
+f, ax = plt.subplots(figsize=(12,12))
+sns.heatmap(pca_var, annot=True, fmt='.3f', ax=ax)
+plt.yticks(rotation=0)
+plt.tight_layout()
+sns.set_context('paper')
+#+END_SRC
+
+#+RESULTS:
+[[file:../figs/bordeaux-metropole-feature-contrib.png]]
+
+Here our six components may be described as follows:
+
++ PC1 (28.5% of total variance) is really impacted by relation modifications,
+  this component will be high if user did a lot of relation improvements (and
+  very few node and way modifications), and if these improvements have been
+  corrected by other users since. It is the sign of an specialization to
+  complex structures. This component also refers to contributions from foreign
+  users (/i.e./ not from the area of interest, here the Bordeaux area),
+  familiar with /JOSM/.
++ PC2 (14.5% of total variance) characterizes how experienced and versatile are
+  users: this component will be high for users with a high number of activity
+  days, a lot of local as well as total change sets, and high numbers of node,
+  way and relation modifications. This second component highlights /JOSM/ too.
++ PC3 (9.1% of total variance) describes way-focused contributions by old users
+  (but not really productive since their inscription). A high value is
+  synonymous of corrected contributions, however that's quite mechanical: if
+  you contributed a long time ago, your modifications would probably not be
+  up-to-date any more. This component highlights /Potlatch/ and /JOSM/ as the
+  most used editors.
++ PC4 (8.7% of total variance) looks like PC3, in the sense that it is strongly
+  correlated with way modifications. However it will concern newer users: a
+  more recent inscription date, contributions that are less corrected, and more
+  often up-to-date. As the preferred editor, this component is associated with
+  /iD/.
++ PC5 (6.9% of total variance) refers to a node specialization, from very
+  productive users. The associated modifications are overall improvements that
+  are still up-to-date. However, PC5 is linked with users that are not at ease
+  in our area of interest, even if they produced a lot of change sets
+  elsewhere. /JOSM/ is clearly the corresponding editor.
++ PC6 (4.8% of total variance) is strongly impacted by node improvements, by
+  opposition to node creations (a similar behavior tends to emerge for
+  ways). This less important component highlights local specialists: a fairly
+  high quantity of local change sets, but a small total change set
+  quantity. Like for PC4, the editor used for such contributions is /iD/.
+
+** Describe individuals positioning after dimensionality reduction
+
+As a recall, we can print the previous user characteristics:
+
+#+BEGIN_SRC ipython :session osm :exports both
+pca_ind.query("uid==24664").T
+#+END_SRC
+
+#+RESULTS:
+: uid     24664
+: PC1 -0.358475
+: PC2  1.671158
+: PC3  0.121610
+: PC4 -0.139444
+: PC5 -0.983182
+: PC6  0.409357
+
+From the previous lightings, we can conclude that this user is really
+experienced (high value of PC2), even if this experience tends to be local
+(high negative value for PC5). The fairly good value for PC6 enforces the
+hypothesis credibility.
+
+From the different component values, we can imagine that the user is versatile;
+there is no strong trend to characterize its specialty. The node creation
+activity seems high, even if the last component shades a bit the
+conclusion.
+
+Regarding the editors this contributor used, the answer is quite hard to
+provide only by considering the six components! /JOSM/ is favored by PC2, but
+handicaped by PC1 and PC5; that is the contrary with /iD/; Potlatch is the best
+candidate as it is favored by PC3, PC4 and PC5.
+
+By the way, this interpretation exercise may look quite abstract, but just
+consider the description at the beginning of the post, and compare it with this
+interpretation... It is not so bad, isn't it?
+
+* Cluster the user starting from their past activity
 
 At this point, we have a set of active users (those who have contributed to the
 focused area). We propose now to classify each of them without any knowledge on
 their identity or experience with geospatial data or OSM API, by the way of
 unsupervised learning. Indeed we will design clusters with the k-means
-algorithm, and the only input we have are the synthetic dimensions given by
+algorithm, and the only input we have are the synthetic dimensions given by the
 previous PCA. These dimensions contain information about the past contributions
 of each user.
 
@@ -54,18 +472,151 @@ an absolute answer, especially without any trustworthy "ground truth". Here we
 hypothesize that typical groups of users (*e.g.* beginners, intermediate,
 advanced, experts...) will arise from the classification algorithm.
 
-** k-means design: how many cluster may we expect from the OSM metadata?...
+** k-means design: how many cluster may we expect from the OSM metadata?
 
-Investigate on the optimal number of clusters: we only have access to soft
-recommendation given by state-of-the-art procedure, namely elbow method,
-clustering silhouette and so on... How many clusters can be identified?
+Like for the PCA, the k-means algorithm is characterized by a parameter that we
+must tune, /i.e./ the cluster number.
 
-:warning: Some methods are still in a draft state, for now. They have to be
-enhanced, or deleted from the analysis.
+#+BEGIN_SRC ipython :session osm :exports both :file ../figs/bordeaux-metropole-cluster-number.png
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
 
-** k-means running: OSM contributor classification...
+scores = []
+silhouette = []
+for i in range(1, 11):
+    model = KMeans(n_clusters=i, n_init=100, max_iter=1000)
+    Xclust = model.fit_predict(Xpca)
+    scores.append(model.inertia_)
+    if i == 1:
+        continue
+    else:
+        silhouette.append(silhouette_score(X=Xpca, labels=Xclust))
 
-From a OSM data sample (we do not use full-planet data at this point...),
-several kind of users arise. Here we will describe them, and interpret the
-result in terms of API using: how does the API works? How is it fulfilled by
-contributors?
+f, ax = plt.subplots(1, 2, figsize=(12,6))
+ax[0].plot(range(1,11), scores, linewidth=3)
+ax[0].set_xlabel("Number of clusters")
+ax[0].set_ylabel("Unexplained variance")
+ax[1].plot(range(2,11), silhouette, linewidth=3, color='g')
+ax[1].set_xlabel("Number of clusters")
+ax[1].set_ylabel("Silhouette")
+ax[1].set_xlim(1, 10)
+ax[1].set_ylim(0.2, 0.5)
+plt.tight_layout()
+sns.set_context('paper')
+#+END_SRC
+
+#+RESULTS:
+[[file:../figs/bordeaux-metropole-cluster-number.png]]
+
+How many clusters can be identified? We only have access to soft
+recommendations given by state-of-the-art procedures. As an illustration here,
+we use elbow method, and clustering silhouette.
+
+The former represents the intra-cluster variance, /i.e./ the sparsity of
+observations within clusters. It obviously decreases when the cluster number
+increases. To keep the model simple and do not overfit it, this quantity has to
+be as small as possible. That's why we evoke an "elbow": we are looking for a
+bending point designing a drop of the explained variance marginal gain. The
+latter is a synthetic metric that indicates how well each individuals is
+represented by its cluster. It is comprised between 0 (bad clustering
+representation) and 1 (perfect clustering).
+
+The first criterion suggests to take either 2 or 6 clusters, whilst the second
+criterion is larger with 6 or 7 clusters. We then decide to take on 6 clusters.
+
+** k-means running: OSM contributor classification
+
+We hypothesize that several kinds of users will be highlighted by the
+clustering process. How to interpret the six chosen clusters starting from the
+Bordeaux area dataset?
+
+#+BEGIN_SRC ipython :session osm :exports both
+model = KMeans(n_clusters=6, n_init=100, max_iter=1000)
+kmeans_ind = pca_ind.copy()
+kmeans_ind['Xclust'] = model.fit_predict(pca_ind.values)
+kmeans_centroids = pd.DataFrame(model.cluster_centers_,
+                                columns=pca_ind.columns)
+kmeans_centroids['n_individuals'] = (kmeans_ind
+                                     .groupby('Xclust')
+                                     .count())['PC1']
+kmeans_centroids
+#+END_SRC
+
+#+RESULTS:
+:         PC1       PC2       PC3       PC4       PC5       PC6  n_individuals
+: 0 -0.109548  1.321479  0.081621  0.010533  0.117827 -0.024927            317
+: 1 -0.901269  0.034717  0.594161 -0.395587 -0.323128 -0.167016            272
+: 2 -1.077956  0.027944 -0.595769  0.365233 -0.005821 -0.022297            353
+: 3 -0.345311 -0.618197  0.842708  0.872649  0.180997 -0.004846            228
+: 4  1.509024 -0.137856 -0.142929  0.032841 -0.120934 -0.031571            585
+: 5 -0.451754 -0.681200 -0.269507 -0.763656  0.258092  0.254010            318
+
+The k-means algorithm makes six relatively well-balanced groups (the group 4 is
+larger than the others, however the difference is not so high):
+
++ Group 0 (15.3% of users): high positive PC2 value, other components are
+  closed to 0; this group represents most experienced and versatile users. The
+  users are seen as OSM key contributors.
++ Group 1 (13.2% of users): medium negative PC1 value, small positive PC3
+  value, small negative PC4 and PC5 values; this cluster refers to old one-shot
+  contributors, mainly interested in way modifications.
++ Group 2 (17.0% of users): medium negative PC1 value, small negative PC3
+  value, small positive PC4 value; this category of user is very close to the
+  previous one, the difference being the more recent period during which they
+  have contributed.
++ Group 3 (11.0% of users): medium positive PC3 and PC4 values, small negative
+  PC1 and PC2 values; this user cluster contains contributors that are locally
+  unexperienced, they have proposed mainly way modifications.
++ Group 4 (28.2% of users): high positive PC1 value, other components are
+  closed to 0; this cluster refers to relation specialists, users that are
+  fairly productive on OSM.
++ Group 5 (15.3% of users): medium negative PC1, PC2 and PC4 values, small
+  negative PC3 value, small positive PC5 and PC6 values; this last cluster
+  gathers very unexperienced users, that comes just a few times on OSM to
+  modify mostly nodes.
+
+To complete this overview, we can plot individuals according to their group,
+with respect to the most important components:
+
+#+BEGIN_SRC ipython :session osm :exports both :file ../figs/bordeaux-metropole-kmeans-plot.png
+    SUBPLOT_LAYERS = pd.DataFrame({'x':[0,2,4],
+                                   'y':[1,3,5]})
+    f, ax = plt.subplots(1, 3, figsize=(12,4))
+    for i in range(3):
+        ax_ = ax[i]
+        comp = SUBPLOT_LAYERS.iloc[i][['x', 'y']]
+        x_column = 'PC'+str(1+comp[0])
+        y_column = 'PC'+str(1+comp[1])
+        for name, group in kmeans_ind.groupby('Xclust'):
+            ax_.plot(group[x_column], group[y_column], marker='.',
+                     linestyle='', ms=10, label=name)
+            if i == 0:
+                ax_.legend(loc=0)
+        ax_.plot(kmeans_centroids[[x_column]],
+                 kmeans_centroids[[y_column]],
+                 'kD', markersize=10)
+        for i, point in kmeans_centroids.iterrows():
+            ax_.text(point[x_column]-0.2, point[y_column]-0.2,
+                     ('C'+str(i)+' (n='
+                      +str(int(point['n_individuals']))+')'),
+                      weight='bold', fontsize=14)
+        ax_.set_xlabel(x_column + ' ({:.2f}%)'.format(varexp[comp[0]]))
+        ax_.set_ylabel(y_column + ' ({:.2f}%)'.format(varexp[comp[1]]))
+    plt.tight_layout()
+
+#+END_SRC
+
+#+RESULTS:
+[[file:../figs/bordeaux-metropole-kmeans-plot.png]] 
+
+It appears that the first two components allow to discriminate clearly C0 and
+C4. We need the third and the fourth components to differentiate C1 and C2 on
+the first hand, and C3 and C5 on the other hand. The last two components do not
+provide any additional information.
+
+* Conclusion
+
+"Voilà"! We have proposed here a user classification, without any preliminar
+knowledge about who they are, and which skills they have. That's an
+illustration of the power of unsupervised learning; we will try to apply this
+clustering in OSM data quality assessment in a next blog post!
