@@ -17,7 +17,7 @@ about quality. The first questions to answer here are straightforward: /what is
 an OSM element?/ and /how to extract its associated metadata?/. This part is
 relatively similar to the job already done with users.
 
-We know from previous analysis that an element is created during a change set
+We know from previous analysis that an element is created during a changeset
 by a given contributor, may be modified several times by whoever, and may be
 deleted as well. This kind of object may be either a "node", a "way" or a
 "relation". We also know that there may be a set of different tags associated
@@ -25,7 +25,7 @@ with the element. Of course the list of every operations associated to each
 element is recorded in the OSM data history, so we have to begin with this
 structure (let's consider data around Bordeaux, as in previous blog posts):
 
-#+BEGIN_SRC ipython :session osm
+#+BEGIN_SRC ipython :session osm :exports both
 import pandas as pd
 elements = pd.read_table('../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-elements.csv', parse_dates=['ts'], index_col=0, sep=",")
 elements.head()
@@ -42,7 +42,7 @@ elements.head()
 This short description helps us to identify some basic features, which are
 built in the following snippets. First we recover the temporal features:
 
-#+BEGIN_SRC ipython :session osm
+#+BEGIN_SRC ipython :session osm :exports both
 elem_md = (elements.groupby(['elem', 'id'])['ts']
             .agg(["min", "max"])
             .reset_index())
@@ -56,14 +56,23 @@ elem_md['n_days_of_activity'] = (elements
                               .nunique()
                               .reset_index())['ts']
 elem_md = elem_md.sort_values(by=['first_at'])
+elem_md.sample().T
 #+END_SRC
 
 #+RESULTS:
+:                                    2630157
+: elem                                   way
+: id                               164320886
+: first_at               2012-05-20 00:00:00
+: last_at                2012-05-21 00:00:00
+: lifespan                                 1
+: n_days_since_creation                 1736
+: n_days_of_activity                       2
 
 Then the remainder of the variables, /e.g./ how many versions, contributors,
 changesets per elements:
 
-#+BEGIN_SRC ipython :session osm
+#+BEGIN_SRC ipython :session osm :exports both
     elem_md['version'] = (elements.groupby(['elem','id'])['version']
                           .max()
                           .reset_index())['version']
@@ -80,7 +89,6 @@ changesets per elements:
     osmelem_last_user = osmelem_last_user.rename(columns={'uid':'last_uid'})
     elements = pd.merge(elements, osmelem_last_user,
                        on=['elem', 'id'])
-#    elements = elements.join(osmelem_last_user.set_index(['elem', 'id']))
     elem_md = pd.merge(elem_md,
                        elements[['elem', 'id', 'version', 'visible', 'last_uid']],
                        on=['elem', 'id', 'version'])
@@ -91,11 +99,11 @@ changesets per elements:
 #+RESULTS:
 #+begin_example
 elem                                  node
-id                              2478535444
-first_at               2013-10-01 00:00:00
-last_at                2013-10-01 00:00:00
+id                              1165812316
+first_at               2011-02-21 00:00:00
+last_at                2011-02-21 00:00:00
 lifespan                                 0
-n_days_since_creation                 1237
+n_days_since_creation                 2190
 n_days_of_activity                       1
 version                                  1
 n_chgset                                 1
@@ -125,7 +133,7 @@ experienced. That leads us to classify the OSM entities themselves in return!
 
 We first need to recover the results of our clustering process.
 
-#+BEGIN_SRC ipython :session osm
+#+BEGIN_SRC ipython :session osm :exports both
 user_groups = pd.read_hdf("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-user-kmeans.h5", "/individuals")
 user_groups.head()
 #+END_SRC
@@ -146,30 +154,27 @@ how to manage such file, that would be a pity not to take advantage of it!
 We recover the individuals groups in the eponym binary file tab (column
 =Xclust=), and only have to join it to element metadata as follows:
 
-#+BEGIN_SRC ipython :session osm
+#+BEGIN_SRC ipython :session osm :exports both
     elem_md = elem_md.join(user_groups.Xclust, on='last_uid')
     elem_md = elem_md.rename(columns={'Xclust':'last_uid_group'})
     elem_md.reset_index().to_csv("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-element-metadata.csv")
     elem_md.sample().T
 #+END_SRC
 
-#+BEGIN_SRC ipython :session osm
-#+END_SRC
-
 #+RESULTS:
 #+begin_example
 elem                                  node
-id                              2279987440
-first_at               2013-04-24 00:00:00
-last_at                2013-04-24 00:00:00
+id                              1684392517
+first_at               2012-03-21 00:00:00
+last_at                2012-03-21 00:00:00
 lifespan                                 0
-n_days_since_creation                 1397
+n_days_since_creation                 1796
 n_days_of_activity                       1
 version                                  1
 n_chgset                                 1
 n_user                                   1
 visible                               True
-last_uid                            706229
+last_uid                            219843
 last_uid_group                           2
 #+end_example
 
@@ -250,14 +255,14 @@ h.last_user_group, l.way AS geom
 INTO bordeaux_metropole_geomelements
 FROM bordeaux_metropole_elements as h
 INNER JOIN bordeaux_metropole_line as l
-ON h.osm_id = l.osm_id 
+ON h.osm_id = l.osm_id AND h.version = l.osm_version
 WHERE l.highway IS NOT NULL AND h.elem = 'way'
 ORDER BY l.osm_id;
 #+END_SRC
 
 #+RESULTS:
-| SELECT 108116 |
-|---------------|
+| SELECT 29427 |
+|--------------|
 
 Wow, this is wonderful, we have everything we need in order to produce new
 maps, so let's do it!
@@ -269,9 +274,8 @@ on hypothesis on entity quality. If each OSM entities (*e.g.* roads) can be
 characterized, then we can draw quality maps by highlighting the most
 trustworthy entities, as well as those with which we have to stay cautious.
 
-In this post we will continue to focus on the Bordeaux area, and especially on
-the OSM ways, that contain roads. The different maps will be produced with the
-help of Qgis.
+In this post we will continue to focus on roads within the Bordeaux area. The
+different maps will be produced with the help of Qgis.
 
 ** First step: simple metadata plotting
 
@@ -281,18 +285,120 @@ or the element anteriority.
 
 #+CAPTION: Number of active contributors per OSM way in Bordeaux
 #+NAME:   fig:bm_nusers
-[[../figs/bordeaux-metropole-qgis-nusers.png]]
+#+ATTR_HTML: width="30px"
+[[../figs/bordeaux-metropole-nb-users-100dpi.png]]
+
+#+CAPTION: Number of versions per OSM way in Bordeaux
+#+NAME:   fig:bm_nversions
+#+ATTR_HTML: width="30px"
+[[../figs/bordeaux-metropole-nb-versions-100dpi.png]]
+
+With the first two maps, we see that the ring around Bordeaux is the most
+intensively modified part of the road network: more unique contributors are
+implied in the way completion, and more versions are designed for each
+element. Some major roads within the city center that present the
+same characteristics.
+
+#+CAPTION: Anteriority of each OSM way in Bordeaux, in years
+#+NAME:   fig:bm_ndays
+#+ATTR_HTML: width="30px"
+[[../figs/bordeaux-metropole-nb-days-100dpi.png]]
+
+If we consider the anteriority of OSM roads, we have a different but
+interesting insight of the area. The oldest roads are mainly located within the
+city center, even if there are some exceptions. It is also interesting to
+notice that some spatial patterns arise with temporality: entire neighborhoods
+are mapped within the same anteriority.
 
 ** More complex: OSM data merging with alternative geospatial representations
 
-Use the INSEE carroyed data to provide an alternative way of OSM data
-representation: 200-meter squared tiles, within which OSM element statistics
-are aggregated
+To go deeper into the mapping analysis, we can use the INSEE carroyed data,
+that divides France into 200-meter squared tiles. As a corollary OSM element
+statistics may be aggregated into each tiles, to produce additional
+maps. Unfortunately an information loss will occur, as such tiles are only
+defined where people lives. However it can provides an interesting alternative
+information.
+
+To exploit such new data set, we have to merge the previous table with the
+accurate INSEE table. Creating indexes on these tables is of great interest
+before running such a merging operation:
+
+#+BEGIN_SRC sql :engine postgresql :cmdline "-U rde -d osm"
+CREATE INDEX insee_geom_gist
+ON open_data.insee_200_carreau USING GIST(wkb_geometry);
+CREATE INDEX osm_geom_gist
+ON bordeaux_metropole_geomelements USING GIST(geom);
+
+DROP TABLE IF EXISTS bordeaux_metropole_carroyed_ways;
+CREATE TABLE bordeaux_metropole_carroyed_ways AS (
+SELECT insee.ogc_fid, count(*) AS nb_ways,
+avg(bm.version) AS avg_version, avg(bm.lifespan) AS avg_lifespan,
+avg(bm.n_days_since_creation) AS avg_anteriority,
+avg(bm.n_users) AS avg_n_users, avg(bm.n_chgsets) AS avg_n_chgsets,
+insee.wkb_geometry AS geom
+FROM open_data.insee_200_carreau AS insee
+JOIN bordeaux_metropole_geomelements AS bm
+ON ST_Intersects(insee.wkb_geometry, bm.geom)
+GROUP BY insee.ogc_fid
+);
+#+END_SRC
+
+#+RESULTS:
+| CREATE INDEX |
+|--------------|
+| DROP TABLE   |
+| SELECT 5468  |
+
+As a consequence, we get only 5468 individuals (tiles), a quantity that must be
+compared to the 29427 roads previously handled... This operation will also
+simplify the map analysis!
+
+We can propose another version of previous maps by using Qgis, let's consider
+the average number of contributors per OSM roads, for each tile:
+
+#+CAPTION: Number of contributors per OSM roads, aggregated by INSEE tile
+#+NAME:   fig:bm_car_days
+#+ATTR_HTML: width="30px"
+[[../figs/bordeaux-metropole-carroyed-users-100dpi.png]]
 
 ** The cherry on the cake: representation of OSM elements with respect to quality
 
-Design similar map than in previous section, with user classification
-information: /e.g./ last contributor group
+Last but not least, the information about last user cluster can shed some light
+on OSM data quality: by plotting each roads according to the last user who has
+contributed, we might identify questionable OSM elements!
 
-Idea: identify questionable OSM elements, that should be verified (they are not
-necessarily of low quality!)
+We simply have to design similar map than in previous section, with user
+classification information:
+
+#+CAPTION: OSM roads around Bordeaux, according to the last user cluster (1: C1, relation experts; 2: C0, versatile expert contributors; 3: C4, recent one-shot way contributors; 4: C3, old one-shot way contributors; 5: C5, locally-unexperienced way specialists)
+#+NAME:   fig:bm_clusters
+#+ATTR_HTML: width="30px"
+[[../figs/bordeaux-metropole-user-clusters-100dpi.png]]
+
+According to the clustering done in the [[http://oslandia.com/en/2017/08/06/osm-user-classification-lets-use-machine-learning/][previous article]] (be careful, the
+legend is not the same here...), we can make some additional hypothesis:
+
++ Light-blue roads are OK, they correspond to the most trustful cluster of
+  contributors (91.4%)
++ There is no group-0 road (that corresponds to cluster C2 in the previous
+  article)... And that's comforting! It seems that "untrustworthy" users do not
+  contribute to road or -more probably- that their contributions are quickly
+  amended.
++ Other contributions are made by intermediate users: a finer analysis should
+  be undertaken to decide if the corresponding elements are valid. For now, we
+  can consider everything is OK, even if local patterns seem strong. Areas of
+  interest should be verified (they are not necessarily of low quality!)
+
+For sure, it gives a fairly new picture of OSM data quality!
+
+* Conclusion
+
+In this last article, we have designed new maps on a small area, starting from
+element metadata. You have seen the conclusion of our analysis: characterizing
+the OSM data quality starting from the user contribution history.
+
+Of course some works still have to be done, however we detailed a whole
+methodology to tackle the problem. We hope you will be able to reproduce it,
+and to design your own maps!
+
+Feel free to contact us if you are interested in this topic!
