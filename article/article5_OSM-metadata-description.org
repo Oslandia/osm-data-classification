@@ -2,27 +2,508 @@
 #+AUTHOR: Damien Garaud <damien.garaud@oslandia.com>, Raphaël Delhome <raphael.delhome@oslandia.com>
 
 # Common introduction for articles of the OSM-data-quality series
-At [Oslandia](http://oslandia.com/), we like workingg with Open Source tool
-projects and handling Open (geospatial) Data. In this article series, we will
-play with the [OpenStreetMap](https://www.openstreetmap.org/) (/OSM/) map and
-subsequent data. Here comes the fifth article of this series, dedicated to the
-extraction of OSM metadata starting from the OSM history data.
+At [[http://oslandia.com/][Oslandia]], we like working with Open Source tool projects and handling Open
+(geospatial) Data. In this article series, we will play with the [[https://www.openstreetmap.org/][OpenStreetMap]]
+(/OSM/) map and subsequent data. Here comes the fifth article of this series,
+dedicated to the extraction of OSM metadata starting from the OSM history data.
 
-* Introduction...
+* Extract OSM data history
 
-Introduction of the article
+** An air of "deja vu"
 
-* Extract OSM data history...
+In previous articles, dedicated to [[http://oslandia.com/en/2017/07/03/openstreetmap-data-analysis-how-to-parse-the-data-with-python/][OSM chronological evolution]] and [[http://oslandia.com/en/2017/07/10/osm-tag-genome-how-are-osm-objects-tagged/][OSM tag set
+analysis]], we saw examples of OSM data parsing. Here we will use a similar
+parser to get the OSM history, /i.e./ every versions of every objects for a
+given area within the OSM API.
 
-Develop the algorithm that aims to get the OSM history data, *i.e.* every
-versions of every objects within the OSM API.
+#+BEGIN_SRC ipython :session osm :exports both
+  import osmium as osm
+  import pandas as pd
 
-* Extract metadata features...
+  class TimelineHandler(osm.SimpleHandler):
+      def __init__(self):
+          osm.SimpleHandler.__init__(self)
+          self.elements = []
 
-** Change set metadata...
+      def add_elements(self, e, elem_type):
+          self.elements.append([elem_type,
+                                e.id,
+                                e.version,
+                                e.visible,
+                                pd.Timestamp(e.timestamp),
+                                e.uid,
+                                e.changeset])
 
-Describe the features that will be used to characterize each change sets
+      def node(self, n):
+          self.add_elements(n, 'node')
 
-** User metadata...
+      def way(self, w):
+          self.add_elements(w, 'way')
 
-Describe the features that will be used to characterize each users
+      def relation(self, r):
+          self.add_elements(r, 'relation')
+
+  tlhandler = TimelineHandler()
+  tlhandler.apply_file("../src/data/raw/bordeaux-metropole.osh.pbf")
+  colnames = ['type', 'id', 'version', 'visible', 'ts', 'uid', 'chgset']
+  elements = pd.DataFrame(tlhandler.elements, columns=colnames)
+  elements = elements.sort_values(by=['type', 'id', 'ts'])
+#+END_SRC
+
+#+RESULTS:
+
+If you read the previous article, this parsing class should be familiar to
+you. Let's briefly recall its meaning: we read a native OSM file
+=bordeaux-metropole.osh.pbf= with the help of the =pyosmium= library, we store
+elements and basic information like versions, timestamps, user ids (and so
+on...) into a simple Python structure. In the end, using a Pandas DataFrame is
+even clearer. This structure can be saved on the disk, or handled directly
+within the Python workspace.
+
+** Towards the metadata
+
+Here we have the OSM data history corresponding to the area of Bordeaux. It is
+largely descriptive, however it says nothing about data quality in itself.
+
+We could compare the OSM data with some alternative data source, however there
+is no real consensus about the perfectness of any alternative data set. Knowing
+that, we choose to analyse metadata associated to OSM elements instead of data
+themselves.
+
+Some data agregation operations are needed in this way, to better describe the
+evolution of the OSM objects and its contributors.
+
+* What do we mean by metadata?
+
+Here we plan to go deeper than just consider the geometric data: some
+additional information is available if we check the history of contributions,
+and if we focus on different changesets, users, or even on meta-information
+about OSM elements themselves.
+
+** Element metadata
+
+That's sound quite evident on the first sight, but why don't we just look at
+the OSM elements? Two major drawbacks prevent us to work with such objects:
+
+- in reality, no real add-on is made in terms of quality assessment: variables
+  associated to elements are number of versions, of tags, of contributors and
+  so on... It provides a very interesting picture of OSM data, but stay largely
+  descriptive.
+- it's fairly intensive in terms of computing resources! We got around 3
+  millions OSM elements only for the Bordeaux area, we let you imagine for a
+  whole country, a continent or even for the entire world...
+
+** Changeset metadata
+
+To investigate changesets could provide an additional information source. We
+know that elements are modified in the context of an opened changeset.
+
+We can count the number of modifications, assessing if some new elements have
+been created during a given changeset, or count the amount of elements that
+have been modified or even deleted.
+
+Classify changesets is possible: we could hypothesize that there are
+"productive" changesets, where a large amount of nodes, ways and/or relations
+are modified, and where modifications are durable from one hand; and less
+productive ones (we don't say "useless"!) with less creations, less
+modifications and less durable elements.
+
+However the information may be gathered more efficiently by considering those
+who produce changesets: the contributors themselves.
+
+** User metadata
+
+We can hypothesize that a user who contributes a lot, on every kind of OSM
+elements, and whose contributions stay valid for a long time (or even: are
+still valid!) is an experienced user; and the elements on which he has
+contributed are well-represented.
+
+The link between users and elements is more natural than between changesets
+and elements : it is possible to characterize OSM data quality by considering
+which type of user contributes the most to each node, way or relation. In a
+more simple way, we can consider the most experienced user who've contributed
+on an element as a flag about the element quality. The quality of an element
+may also be indicated by the type (more or less experienced) of its last
+contributor.
+
+This last hypothesis will be our central thread in the next section (and
+... *:warning: spoiler warning* in the next articles!).
+
+* Extract user metadata
+
+We decide to go deeper into the analysis of user contribution. As a reminder,
+we've extracted OSM data history in the first section of this blog article.
+
+#+BEGIN_SRC ipython :session osm :exports both
+   elements.sample().T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+                             1809462
+type                            node
+id                        1759491920
+version                            1
+visible                         True
+ts         2012-05-20 09:36:50+00:00
+uid                           260584
+chgset                      11649359
+#+end_example
+
+Here comes the time to consider each user.
+
+** Time-related features
+
+We begin with the time they've spent on OSM.
+
+#+BEGIN_SRC ipython :session osm :exports both
+    user_md = (elements.groupby('uid')['ts']
+                .agg(["min", "max"])
+                .reset_index())
+    user_md.columns = ['uid', 'first_at', 'last_at']
+    user_md['lifespan'] = ((user_md.last_at - user_md.first_at)
+                            / pd.Timedelta('1d'))
+    extraction_date = elements.ts.max()
+    user_md['n_inscription_days'] = ((extraction_date - user_md.first_at)
+                                      / pd.Timedelta('1d'))
+    elements['ts_round'] = elements.ts.apply(lambda x: x.round('d'))
+    user_md['n_activity_days'] = (elements
+                                  .groupby('uid')['ts_round']
+                                  .nunique()
+                                  .reset_index())['ts_round']
+    user_md.sort_values(by=['first_at'])
+    user_md.query('uid == 4074141').T
+#+END_SRC
+
+#+RESULTS:
+:                                          1960
+: uid                                   4074141
+: first_at            2016-06-06 14:25:01+00:00
+: last_at             2016-06-09 12:39:47+00:00
+: lifespan                              2.92692
+: n_inscription_days                    258.186
+: n_activity_days                             2
+
+With these short code lines, we have gathered some temporal features in order
+to know how each user contributes through time. In the provided example, the
+user with the /ID=4074141/ is registered as an OSM contributor for 258 days;
+its lifespan on the OSM Website is almost 3 days; he /(or she!)/ made modifications at
+two different days.
+
+** Change-set-related features
+
+Then we can focus on change-set-related information. By definition, each user
+have opened at least one changeset /(yes, even you, if you've
+contributed!)/! Let's construct a small changeset metadata DataFrame:
+
+#+BEGIN_SRC ipython :session osm :exports both
+  chgset_md = (elements.groupby('chgset')['ts']
+                .agg(["min", "max"])
+                .reset_index())
+  chgset_md.columns = ['chgset', 'first_at', 'last_at']
+  chgset_md['duration'] = ((chgset_md.last_at - chgset_md.first_at)
+                            / pd.Timedelta('1m'))
+  chgset_md = pd.merge(chgset_md,
+                       elements[['chgset','uid']].drop_duplicates(),
+                       on=['chgset'])
+  chgset_md.sample(1).T
+#+END_SRC
+
+#+RESULTS:
+:                               21853
+: chgset                     26256317
+: first_at  2014-10-22 13:51:38+00:00
+: last_at   2014-10-22 13:51:38+00:00
+: duration                          0
+: uid                         2418116
+
+Each changeset is associated with its starting and ending time, its duration
+(in minute) and the responsible user. We then may associate a changeset
+quantity and mean duration time for each user.
+
+#+BEGIN_SRC ipython :session osm :exports both
+  user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
+                         .count()
+                         .reset_index())['chgset']
+  user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration']
+                             .mean()
+                             .reset_index())['duration']
+  user_md.query('uid == 4074141').T
+#+END_SRC
+
+#+RESULTS:
+:                                          1960
+: uid                                   4074141
+: first_at            2016-06-06 14:25:01+00:00
+: last_at             2016-06-09 12:39:47+00:00
+: lifespan                              2.92692
+: n_inscription_days                    258.186
+: n_activity_days                             2
+: n_chgset                                    3
+: dmean_chgset                          22.2778
+
+Wow, there are some new interesting information there: we know that user
+4074141 had produced three changesets during its lifespan, and the mean
+duration of these changesets is around 22 minutes.
+
+** Contribution intensity
+
+Then we observed on some preliminary observation that some users were so
+productive that they modify some elements several times; a typical bot-like
+behavior if this amount is large, or a simple auto-corrections? We can add this
+information as follows:
+
+#+BEGIN_SRC ipython :session osm :exports both
+    contrib_byelem = (elements.groupby(['type', 'id', 'uid'])['version']
+                      .count()
+                      .reset_index())
+    user_md['nmean_modif_byelem'] = (contrib_byelem.groupby('uid')['version']
+                                     .mean()
+                                     .reset_index())['version']
+    user_md.query('uid == 4074141').T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+                                         1960
+uid                                   4074141
+first_at            2016-06-06 14:25:01+00:00
+last_at             2016-06-09 12:39:47+00:00
+lifespan                              2.92692
+n_inscription_days                    258.186
+n_activity_days                             2
+n_chgset                                    3
+dmean_chgset                          22.2778
+nmean_modif_byelem                    2.94061
+#+end_example
+
+Oh-oh... Our nice user 4074141 seems to modify each OSM elements almost three
+times. That's quite few to conclude to its bot nature, however he seems quite
+unsure about his contribution...
+
+** Element-related features
+
+In order to characterize how the user contributes, a lot of additional features
+are still missing. The most important ones are related to the amount of
+modifications.
+
+#+BEGIN_SRC ipython :session osm :exports both
+    newfeature = (elements.groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+    newfeature = (elements.query('type == "node"').groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif_node"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+    newfeature = (elements.query('type == "way"').groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif_way"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+    newfeature = (elements.query('type == "relation"').groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif_relation"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+
+    user_md.query('uid==4074141').T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+                                             1960
+uid                                       4074141
+first_at                2016-06-06 14:25:01+00:00
+last_at                 2016-06-09 12:39:47+00:00
+lifespan                                  2.92692
+n_inscription_days                        258.186
+n_activity_days                                 2
+n_chgset                                        3
+dmean_chgset                              22.2778
+nmean_modif_byelem                        2.94061
+n_total_modif                                1832
+n_total_modif_node                           1783
+n_total_modif_way                              46
+n_total_modif_relation                          3
+#+end_example
+
+Ok! This user is very active to map the Bordeaux area! He proposed 1832
+modifications, amongst which 1783, 46 and 3 were respectively dedicated to
+nodes, ways and relations. However the amount of modificated elements should be
+smaller, as this user made several contributions per element, on average...
+
+Here you can see a difference between the number of unique contributions,
+i.e. the number of changesets, and the number of OSM element modifications. A
+changeset can include several modifications, e.g. 10 nodes, 2 ways and 1
+relation. See [[https://wiki.openstreetmap.org/wiki/Changeset][the OSM changeset]] description on the official OSM wiki.
+
+The number of modifications can be described even more finely! Why don't we
+consider if modifications are still valid, or if other modifications arise
+after the user action? What about elements that have been deleted since
+(we consider than working on a useless element is not so valuable for the community)?
+
+** Modification-related features
+
+Ok, so it is possible, however we need associating a little bit more features
+to OSM elements. Is the current version an initialization of the object? Is it
+the up-to-date version? Will it be corrected (by an alternative user or the
+current user himself?)
+
+#+BEGIN_SRC ipython :session osm :exports both
+    import numpy as np
+
+    osmelem_versioning = (elements.groupby(['type', 'id'])['version']
+                .agg(["first", "last"])
+                .reset_index())
+    osmelem_versioning.columns = ['type', 'id', 'vmin', 'vmax']
+
+    elements = pd.merge(elements, osmelem_versioning, on=['type', 'id'])
+    elements['init'] = elements.version == elements.vmin
+    elements['up_to_date'] = elements.version == elements.vmax
+    # note that the 'elements' DataFrame have been sorted by type, id, ts
+    elements['willbe_corr'] = np.logical_and(elements.id.diff(-1) == 0,
+                                             elements.uid.diff(-1) != 0)
+    elements['willbe_autocorr'] = np.logical_and(elements.id.diff(-1) == 0,
+                                                 elements.uid.diff(-1) == 0)
+
+    elements.query("id == 1751399951").T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+                                   1620248
+type                                  node
+id                              1751399951
+version                                  1
+visible                               True
+ts               2012-05-13 17:53:14+00:00
+uid                                 260584
+chgset                            11588470
+ts_round         2012-05-14 00:00:00+00:00
+vmin                                     1
+vmax                                     1
+init                                  True
+up_to_date                            True
+willbe_corr                          False
+willbe_autocorr                      False
+#+end_example
+
+Here is a short example of new enriched element definition: now we know that
+the node of ID 1751399951 has only one version, so this version of course
+corresponds to its initialization and is up-to-date. As there is no second
+version (until the extraction date!), the element is not (auto-)corrected
+yet. These features help to describe more precisely the user contributions:
+
+#+BEGIN_SRC ipython :session osm :exports both
+def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
+    feature_name = 'n_'+ element_type + '_modif' + feature_suffix
+    newfeature = (data.groupby([grp_feat])[res_feat]
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, feature_name]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    return metadata
+
+def extract_modif_features(metadata, data, element_type):
+    typed_data = data.query('type==@element_type')
+    metadata = create_count_features(metadata, element_type, typed_data,
+                               'uid', 'id', '')
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("init"),
+                               'uid', 'id', "_cr")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and visible"),
+                               'uid', 'id', "_imp")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and not visible"),
+                               'uid', 'id', "_del")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("up_to_date"),
+                               'uid', 'id', "_utd")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_corr"),
+                               'uid', 'id', "_cor")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_autocorr"),
+                               'uid', 'id', "_autocor")
+    return metadata
+
+user_md = extract_modif_features(user_md, elements, 'node')
+user_md = extract_modif_features(user_md, elements, 'way')
+user_md = extract_modif_features(user_md, elements, 'relation')
+user_md = user_md.set_index('uid')
+user_md.query("uid == 4074141").T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+uid                                         4074141
+first_at                  2016-06-06 14:25:01+00:00
+last_at                   2016-06-09 12:39:47+00:00
+lifespan                                    2.92692
+n_inscription_days                          258.186
+n_activity_days                                   2
+n_chgset                                          3
+dmean_chgset                                22.2778
+nmean_modif_byelem                          2.94061
+n_total_modif                                  1832
+n_total_modif_node                             1783
+n_total_modif_way                                46
+n_total_modif_relation                            3
+n_node_modif                                   1783
+n_node_modif_cr                                   0
+n_node_modif_imp                               1783
+n_node_modif_del                                  0
+n_node_modif_utd                                  0
+n_node_modif_cor                                598
+n_node_modif_autocor                           1185
+n_way_modif                                      46
+n_way_modif_cr                                    0
+n_way_modif_imp                                  46
+n_way_modif_del                                   0
+n_way_modif_utd                                   0
+n_way_modif_cor                                  23
+n_way_modif_autocor                              23
+n_relation_modif                                  3
+n_relation_modif_cr                               0
+n_relation_modif_imp                              3
+n_relation_modif_del                              0
+n_relation_modif_utd                              0
+n_relation_modif_cor                              2
+n_relation_modif_autocor                          1
+#+end_example
+
+That's a complete picture of the 4074141 user contribution, isn't it? Amongst
+the 1783 modifications on node, there are...1783 improvements (so, no creation,
+no deletion). 598 of these modifications have been corrected by other users,
+and 1185 of them refer to auto-corrections; but no node modification result in
+up-to-date node! We can draw a comparable picture for ways and relations. As a
+result, we have identified a user that contributes a lot to improve OSM
+elements; however his contributions are never enough to complete the element
+representation.
+
+We can also add some information about the [[https://wiki.openstreetmap.org/wiki/Editors][OSM editors]] used by each contributor,
+not shown here but in the next article.
+
+By considering every single user that has contributed on a given area, we can
+easily imagine that some groups could arise.
+
+* Conclusion
+
+In this new blog post, we have presented some generic information about OSM
+contribution history. We've seen that user metadata can be easily built by some
+agregation operations starting from OSM data history. We have proposed a bunch
+of features to characterize as well as possible the way people contributes to
+OSM. Of course a lot of other variables can be designed. We encourage you to
+think about it if interested by the topic!
+
+In the next blog post, we will see how to use this new information to group OSM
+users, with the help of some machine learning well-known procedures.
