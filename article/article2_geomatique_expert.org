@@ -910,23 +910,24 @@ As a first insight on OSM elements, we can plot each OSM ways regarding a
 simple features, for instance the number of users who have contributed.
 
 #+CAPTION: Number of active contributors per OSM way in Bordeaux
-#+NAME: fig:bm_nusers
+#+NAME: bm_nusers
 #+ATTR_HTML: width="100px"
 [[../figs/bordeaux-metropole-nb-users-100dpi.png]]
 
-With this map, we see that the ring around Bordeaux is the most intensively
+With map in figure [[bm_users]], we see that the ring around Bordeaux is the most intensively
 modified part of the road network: more contributors are implied in the way
 completion. Some major roads within the city center that present the same
 characteristics.
 
 *** Representation of OSM elements with respect to quality
 
-A similar map may be designed with the user classification information:
+A similar map may be designed with the user classification information, it is
+represented in figure [[bm_clusters]]:
 
 #+CAPTION: OSM roads around Bordeaux, according to the last user cluster (1: C1, relation experts; 2: C0, versatile expert contributors; 3: C4, recent one-shot way contributors; 4: C3, old one-shot way contributors; 5: C5, locally-unexperienced way specialists)
-#+NAME:   fig:bm_clusters
-#+ATTR_HTML: width="30px"
-[[../figs/bordeaux-metropole-user-clusters-100dpi.png]]
+#+NAME: bm_clusters
+#+ATTR_HTML: width="100px"
+[[../figs/bordeaux-metropole-user-cluster-100dpi.png]]
 
 According to the clustering done in the previous article (be careful, Qgis
 shuffles the legend entries...), we can make some additional hypothesis:
