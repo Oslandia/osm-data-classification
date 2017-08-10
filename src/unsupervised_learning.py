@@ -13,10 +13,10 @@ import numpy as np
 
 from sklearn.metrics import silhouette_score
 
-import seaborn as sns
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-sns.set_context('talk')
 
 
 def compute_pca_variance(X):

@@ -9,6 +9,9 @@ import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
 import pandas as pd
 import numpy as np
+
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import osmparsing
