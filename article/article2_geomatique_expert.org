@@ -288,6 +288,10 @@ enough to complete the element representation.
 We can also add some information about the OSM editors used by each
 contributor, not shown here for a sake of concision.
 
+#+BEGIN_SRC ipython :session osm :exports none
+user_md = pd.read_csv("../src/data/output-extracts/bordeaux-metropole/user-metadata-extra.csv", index_col=0)
+#+END_SRC
+
 By considering every single user that has contributed on a given area, we can
 easily imagine that some groups could arise.
 
@@ -397,7 +401,7 @@ pre-requisite before undertaking any classification effort.
 
 As developped previously, we have 40 variables. That seems quite small for
 implementing a PCA (we could apply directly a clustering algorithm on our
-normalized data); however for a sake of clarity regarding the results
+normalized data); however for a sake of clarity regarding the result
 interpretation, we decide to add this step into the analysis.
 
 *** PCA Design
@@ -698,10 +702,6 @@ user_groups.query("uid == 4074141").T
 : PC5    -0.151579
 : PC6     0.932229
 : Xclust  2.000000
-
-We decided to store the kmeans (and PCA) results into a hdf5 file format (with
-the =h5= extension). It's a useful binary format supported by pandas because you
-can store more than one DataFrame identified by a key.
 
 The appropriate cluster for each user is saved into the column =Xclust=, it
 just has to be joined to the remainder of element metadata.
