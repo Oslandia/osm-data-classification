@@ -105,7 +105,7 @@ data/output-extracts/all-editors-by-user.csv
 
 Launch
 
-`luigi --local-scheduler --module output_tasks MasterTask --dsname specific-region`
+`luigi --local-scheduler --module analysis_tasks AutoKMeans --dsname specific-region`
 
 `dsname` mean "dataset name". It must have the same name as your `*.osh.pbf`
 file.
