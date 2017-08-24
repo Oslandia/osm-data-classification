@@ -3,5 +3,6 @@ osmium==2.12.4
 pandas==0.20.3
 scikit-learn==0.19
 statsmodels==0.8.0
+tables==3.4.2
 matplotlib==2.0.2
 seaborn==0.8
