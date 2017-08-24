@@ -1,0 +1,874 @@
+#+TITLE: A data-oriented framework to assess OSM data quality (part 2): evaluate element quality by clustering contributors
+#+AUTHOR: Raphaël Delhome <raphael.delhome@oslandia.com>, Damien Garaud <damien.garaud@oslandia.com>, Hugo Mercier <hugo.mercier@oslandia.com>
+
+* Introduction
+
+At Oslandia, we like working with Open Source tool projects and handling Open
+(geospatial) Data. In this article, we will play with [[https://www.openstreetmap.org/][OpenStreetMap]] (/OSM/) and
+the subsequent data.
+
+After a first article dedicated to the framework presentation and to data
+extraction, this second article continues to deliver the methodology that links
+OSM data history and quality assessment.
+
+We have seen in the first article (Garaud /et al./; 2017) how to parse
+OpenStreetMap data, and how to integrate it in a Python workflow. This second
+paper aims at exploiting the parsed data in a machine learning way to
+make groups of similar contributors; these groups allowing us to hypothesize
+on data quality.
+
+In this article, we will first generate contributor-focused information from
+the data history, /i.e./ user metadata. Then we will design an unsupervised
+learning procedure to group users by using classical machine learning
+algorithms. In the last section of the paper we will conclude about OSM data
+quality by making new maps.
+
+* User Metadata Production
+
+As the extraction of OSM data history has already been done in the previous
+article, we consider here that we have a =elements= table that represents the
+history. As an example, we still exploit the area of Bordeaux.
+
+#+BEGIN_SRC ipython :session osm :exports none
+import pandas as pd
+elements = pd.read_csv("../src/data/output-extracts/bordeaux-metropole/element.csv", parse_dates=['ts'], index_col=0)
+#+END_SRC
+
+#+RESULTS:
+
+Some data agregation operations are needed in this way, to better describe the
+evolution of the OSM objects and its contributors.
+
+** Metadata Definition
+
+We plan to go deeper than just consider the geometric data: some additional
+information is available if we check the history of contributions. Three main
+cases may be defined.
+
++ Element metadata: that sounds trivial to consider it, however it is
+  too descriptive to provide any add-on in terms of quality assessment, and it
+  is fairly intensive in terms of computing resources (~3millions only for a
+  medium city like Bordeaux);
++ Changeset metadata: each changeset is characterized by a number of
+  modifications (creations, improvements, deletions), one may distinguish
+  "productive" changesets, where a large amount of elements are modified, and
+  where modifications are durable;
++ User metadata: each user may be productive or not, depending on the number of
+  modifications he makes, the amount of time its modifications stay valid, and
+  the diversity of modified elements.
+
+The information may be gathered more efficiently by considering the
+contributors themselves. We hypothesize that OSM data quality can be
+characterized by the type of users who contribute the most to each
+node, way or relation. In a more simple way, we can consider the most
+experienced user who've contributed on an element as a flag about the element
+quality. The quality of an element may also be indicated by the type (more or
+less experienced) of its last contributor. This last hypothesis will be our
+central thread in the next section.
+
+** Metadata Extraction
+
+Several kind of features may be extracted from OSM contribution history:
+
+#+BEGIN_SRC ipython :session osm :exports none
+    user_md = (elements.groupby('uid')['ts']
+                .agg(["min", "max"])
+                .reset_index())
+    user_md.columns = ['uid', 'first_at', 'last_at']
+    user_md['lifespan'] = ((user_md.last_at - user_md.first_at)
+                            / pd.Timedelta('1d'))
+    extraction_date = elements.ts.max()
+    user_md['n_inscription_days'] = ((extraction_date - user_md.first_at)
+                                      / pd.Timedelta('1d'))
+    elements['ts_round'] = elements.ts.apply(lambda x: x.round('d'))
+    user_md['n_activity_days'] = (elements
+                                  .groupby('uid')['ts_round']
+                                  .nunique()
+                                  .reset_index())['ts_round']
+    user_md.sort_values(by=['first_at'])
+#+END_SRC
+
+#+BEGIN_SRC ipython :session osm :exports none
+  chgset_md = (elements.groupby('chgset')['ts']
+                .agg(["min", "max"])
+                .reset_index())
+  chgset_md.columns = ['chgset', 'first_at', 'last_at']
+  chgset_md['duration'] = ((chgset_md.last_at - chgset_md.first_at)
+                            / pd.Timedelta('1m'))
+  chgset_md = pd.merge(chgset_md,
+                       elements[['chgset','uid']].drop_duplicates(),
+                       on=['chgset'])
+
+  user_md['n_chgset'] = (chgset_md.groupby('uid')['chgset']
+                         .count()
+                         .reset_index())['chgset']
+  user_md['dmean_chgset'] = (chgset_md.groupby('uid')['duration']
+                             .mean()
+                             .reset_index())['duration']
+#+END_SRC
+
+#+BEGIN_SRC ipython :session osm :exports none
+    contrib_byelem = (elements.groupby(['elem', 'id', 'uid'])['version']
+                      .count()
+                      .reset_index())
+    # modification mean number by type of element
+    user_md['nmean_modif_byelem'] = (contrib_byelem.groupby('uid')['version']
+                                     .mean()
+                                     .reset_index())['version']
+#+END_SRC
+
+#+BEGIN_SRC ipython :session osm :exports none
+    newfeature = (elements.groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+    newfeature = (elements.query('elem == "node"').groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif_node"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+    newfeature = (elements.query('elem == "way"').groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif_way"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+    newfeature = (elements.query('elem == "relation"').groupby(['uid'])['id']
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = ['uid', "n_total_modif_relation"]
+    user_md = pd.merge(user_md, newfeature, on='uid', how="outer").fillna(0)
+#+END_SRC
+
+#+BEGIN_SRC ipython :session osm :exports none
+    import numpy as np
+
+    osmelem_versioning = (elements.groupby(['elem', 'id'])['version']
+                .agg(["first", "last"])
+                .reset_index())
+    osmelem_versioning.columns = ['elem', 'id', 'vmin', 'vmax']
+
+    elements = pd.merge(elements, osmelem_versioning, on=['elem', 'id'])
+    elements['init'] = elements.version == elements.vmin
+    # is it the latest modification? i.e. the most recent.
+    elements['up_to_date'] = elements.version == elements.vmax
+    # note that the 'elements' DataFrame have been sorted by type, id, ts
+    # is there will be a correction for these elements?
+    elements['willbe_corr'] = np.logical_and(elements.id.diff(-1) == 0,
+                                             elements.uid.diff(-1) != 0)
+    # is there will be a correction by the same contributor?
+    elements['willbe_autocorr'] = np.logical_and(elements.id.diff(-1) == 0,
+                                                 elements.uid.diff(-1) == 0)
+
+#+END_SRC
+
+#+BEGIN_SRC ipython :session osm :exports none
+def create_count_features(metadata, element_type, data, grp_feat, res_feat, feature_suffix):
+    feature_name = 'n_'+ element_type + '_modif' + feature_suffix
+    newfeature = (data.groupby([grp_feat])[res_feat]
+                  .count()
+                  .reset_index()
+                  .fillna(0))
+    newfeature.columns = [grp_feat, feature_name]
+    metadata = pd.merge(metadata, newfeature, on=grp_feat, how="outer").fillna(0)
+    return metadata
+
+def extract_modif_features(metadata, data, element_type):
+    typed_data = data.query('elem==@element_type')
+    metadata = create_count_features(metadata, element_type, typed_data,
+                               'uid', 'id', '')
+    # created element
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("init"),
+                               'uid', 'id', "_cr")
+    # improved element
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and visible"),
+                               'uid', 'id', "_imp")
+    # deleted element
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("not init and not visible"),
+                               'uid', 'id', "_del")
+    # up to date element
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("up_to_date"),
+                               'uid', 'id', "_utd")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_corr"),
+                               'uid', 'id', "_cor")
+    metadata = create_count_features(metadata, element_type,
+                               typed_data.query("willbe_autocorr"),
+                               'uid', 'id', "_autocor")
+    return metadata
+
+user_md = extract_modif_features(user_md, elements, 'node')
+user_md = extract_modif_features(user_md, elements, 'way')
+user_md = extract_modif_features(user_md, elements, 'relation')
+user_md = user_md.set_index('uid')
+#+END_SRC
+
+
++ time-related features, to know how users contribute through time (/e.g./
+  lifespan);
++ changeset-related features, to describe user modification "strategy" (/e.g./
+  number of local changeset);
++ features about contribution intensity (average number of modifications per
+  element);
++ element-related features, describing trivially how many nodes, ways and
+  relations the user modified;
++ modification-related features, to provide more details about modification
+  type (/e.g./ number of way creation);
+
+** Example of a Typical OSM User
+
+To illustrate the previous list of metadata features, we consider here the user
+with the /ID=4074141/:
+
+#+BEGIN_SRC ipython :session osm :exports results
+user_md.query("uid == 4074141").T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+uid                                   4074141
+lifespan                                    3
+n_inscription_days                        258
+n_activity_days                             2
+n_chgset                                    3
+dmean_chgset                                0
+nmean_modif_byelem                    2.94061
+n_total_modif                            1832
+n_total_modif_node                       1783
+n_total_modif_way                          46
+n_total_modif_relation                      3
+n_node_modif                             1783
+n_node_modif_cr                             0
+n_node_modif_imp                         1783
+n_node_modif_del                            0
+n_node_modif_utd                            0
+n_node_modif_cor                          598
+n_node_modif_autocor                     1185
+n_way_modif                                46
+n_way_modif_cr                              0
+n_way_modif_imp                            46
+n_way_modif_del                             0
+n_way_modif_utd                             0
+n_way_modif_cor                            23
+n_way_modif_autocor                        23
+n_relation_modif                            3
+n_relation_modif_cr                         0
+n_relation_modif_imp                        3
+n_relation_modif_del                        0
+n_relation_modif_utd                        0
+n_relation_modif_cor                        2
+n_relation_modif_autocor                    1
+#+end_example
+
+This user is registered as an OSM contributor for 258 days; its lifespan on the
+OSM website is almost 3 days; he made modifications at two different days. He
+produced three changesets during its lifespan, and the mean duration of these
+changesets is around 22 minutes. He seems to modify each OSM elements almost
+three times. That's quite few to conclude to its bot nature, however he seems
+quite unsure about his contribution...
+
+This user is very active to map the Bordeaux area: he proposed 1832
+modifications, amongst which 1783, 46 and 3 were respectively dedicated to
+nodes, ways and relations. Amongst the 1783 modifications on node, there are
+1783 improvements (so, no creation, no deletion). 598 of these modifications
+have been corrected by other users, and 1185 of them refer to auto-corrections;
+but no node modification result in up-to-date node. We can draw a comparable
+picture for ways and relations. As a result, we have identified a user that
+contributes a lot to improve OSM elements; however his contributions are never
+enough to complete the element representation.
+
+We can also add some information about the OSM editors used by each
+contributor, not shown here for a sake of concision.
+
+#+BEGIN_SRC ipython :session osm :exports none
+user_md = pd.read_csv("../src/data/output-extracts/bordeaux-metropole/user-metadata-extra.csv", index_col=0)
+#+END_SRC
+
+By considering every single user that has contributed on a given area, we can
+easily imagine that some groups could arise.
+
+* Unsupervised Learning With User Metadata
+
+In the last section, we have seen that user metadata can be easily built by
+some agregation operations starting from OSM data history. As a result a set of
+40 features describing the user behavior has been proposed; 2073 users having
+contributed on the Bordeaux area.
+
+In the current section, we will see how to use this metadata to group OSM
+users, with the help of some machine learning well-known procedures.
+
+** User Metadata Transformation
+
+As illustrated by figure [[bm_sk_hist]], the metadata features are not
+normally-distributed. A normalization step is necessary before undertaking any
+standard machine learning model.
+
+#+CAPTION: Histogram of node, way and relation modification amounts around Bordeaux
+#+NAME: bm_sk_hist
+[[file:../figs/bordeaux-metropole-skewed-histograms.png]]
+
+A smarter way to represent the user characteristics could be some mathematical
+tricks to express our variables between simple bounds (/e.g./ 0 and 100, or -1
+and 1). First of all some variables can be expressed as percentages of other
+variables:
+
+- the number of node/way/relation modifications amongst all modifications;
+- the number of created/improved/deleted elements amongst all modifications,
+  for each element type;
+- the number of changesets opened with a given editor, amongst all changesets.
+
+#+BEGIN_SRC ipython :session osm :exports none
+def normalize_features(metadata, total_column):
+    transformed_columns = metadata.columns[metadata.columns.to_series()
+                                           .str.contains(total_column)]
+    norm = lambda x: (x[1:] / x[0]).fillna(0)
+    metadata[transformed_columns[1:]] = metadata[transformed_columns].apply(norm, axis=1)
+
+normalize_features(user_md, 'n_total_modif')
+normalize_features(user_md, 'n_node_modif')
+normalize_features(user_md, 'n_way_modif')
+normalize_features(user_md, 'n_relation_modif')
+normalize_features(user_md, 'n_total_chgset')
+#+END_SRC
+
+#+RESULTS:
+
+Other features can be normalized starting from their definition: /e.g./ user
+=lifespan= can't be larger than the OSM lifespan itself.
+
+#+BEGIN_SRC ipython :session osm :exports none
+timehorizon = (pd.Timestamp("2017-02-19") - pd.Timestamp("2007-01-01"))/pd.Timedelta('1d')
+user_md['lifespan'] = user_md['lifespan'] / timehorizon
+user_md['n_inscription_days'] = user_md['n_inscription_days'] / timehorizon
+#+END_SRC
+
+#+RESULTS:
+
+Finally features can be normalized by comparing users: knowing that a user did
+=N= modifications is interesting, however it tells nothing about the amount of
+users that are more or less productive. That's typically the definition of the
+empirical cumulative distribution function; we apply it on the remainder of
+features.
+
+#+BEGIN_SRC ipython :session osm :exports none
+import statsmodels.api as sm
+
+def ecdf_transform(metadata, feature):
+    ecdf = sm.distributions.ECDF(metadata[feature])
+    metadata[feature] = ecdf(metadata[feature])
+    new_feature_name = 'u_' + feature.split('_', 1)[1]
+    return metadata.rename(columns={feature: new_feature_name})
+
+user_md = ecdf_transform(user_md, 'n_activity_days')
+user_md = ecdf_transform(user_md, 'n_chgset')
+user_md = ecdf_transform(user_md, 'nmean_modif_byelem')
+user_md = ecdf_transform(user_md, 'n_total_modif')
+user_md = ecdf_transform(user_md, 'n_node_modif')
+user_md = ecdf_transform(user_md, 'n_way_modif')
+user_md = ecdf_transform(user_md, 'n_relation_modif')
+user_md = ecdf_transform(user_md, 'n_total_chgset')
+#+END_SRC
+
+After transforming our features we then know that the user with ID 4074141 did
+more node, way and relation modifications than respectively 97.3, 2.5 and 0.2%
+of other users, or that amongst his node modifications, 100% were improvements,
+and so on...
+
+As a final step of the normalization, the features are scaled to
+ensure that all of them have the same /min/ and /max/ values. As the features
+are highly skewed, we do it according to a simple Min-Max rule, so as to avoid
+too much distorsion of our data:
+
+#+BEGIN_SRC ipython :session osm :exports code
+from sklearn.preprocessing import RobustScaler
+
+scaler = RobustScaler(quantile_range=(0.0, 100.0))
+X = scaler.fit_transform(user_md.values)
+#+END_SRC
+
+** Develop a Principle Component Analysis (PCA)
+
+Reduce the dimensionality of a problem often appears as a unavoidable
+pre-requisite before undertaking any classification effort.
+
+As developped previously, we have 40 variables. That seems quite small for
+implementing a PCA (we could apply directly a clustering algorithm on our
+normalized data); however for a sake of clarity regarding the result
+interpretation, we decide to add this step into the analysis.
+
+*** PCA Design
+
+The principle component analysis is a linear projection of individuals on a
+smaller dimension space. It provides uncorrelated components, dropping
+redundant information given by subsets of initial dataset.
+
+Two simple rules of thumb are applied to choose the number of component, /i.e./
+the explained variance proportion (at least 70%) and the eigen values of
+components (larger than 1).
+
+#+CAPTION: User metadata variance analysis and ideal number of PCA components
+#+NAME: bm_varmat
+#+ATTR_HTML: :width 100px
+[[../figs/bordeaux-metropole-varmat.png]]
+
+Here the second rule of thumb fails, as we do not use a standard scaling
+process (/e.g./ less mean, divided by standard deviation), however the first
+one makes us consider 6 components (that explain around 72% of the total
+variance).
+
+*** PCA Running
+
+The PCA algorithm is imported from a =sklearn= module, it takes the number of
+components as a parameter. The new linear projection are got by applying the
+=fit_transform= function. The contribution of each feature to the new
+components is then stored into the =model= variable.
+
+#+BEGIN_SRC ipython :session osm :exports both
+from sklearn.decomposition import PCA
+
+model = PCA(n_components=6)
+Xpca = model.fit_transform(X)
+pca_cols = ['PC' + str(i + 1) for i in range(6)]
+pca_ind = pd.DataFrame(Xpca, columns=pca_cols, index=user_md.index)
+pca_var = pd.DataFrame(model.components_, index=pca_cols,
+                       columns=user_md.columns).T
+pca_ind.query("uid == 4074141").T
+#+END_SRC
+
+#+RESULTS:
+: uid   4074141
+: PC1 -0.117667
+: PC2  1.145473
+: PC3  0.272944
+: PC4 -0.095750
+: PC5 -0.151553
+: PC6  0.932512
+
+After running the PCA, the information about each user is summarized with 6
+values, whose meaning still has to be interpreted.
+
+*** Component Interpretation
+
+The feature contributions to each components are comprised between -1 (a strong
+negative contribution) and 1 (a strong positive contribution). These
+contributions are plotted in the figure [[bm_feature_contrib]].
+
+#+CAPTION: Feature contribution to each PCA components
+#+NAME: bm_feature_contrib
+#+ATTR_HTML: :width 100px
+[[../figs/bordeaux-metropole-feature-contrib.png]]
+
+Here our six components may be described as follows:
+
++ PC1 (28.5% of total variance) is really impacted by relation modifications,
+  this component will be high if user did a lot of relation improvements (and
+  very few node and way modifications), and if these improvements have been
+  corrected by other users since. It is the sign of an specialization to
+  complex structures. This component also refers to contributions from foreign
+  users (/i.e./ not from the area of interest, here the Bordeaux area),
+  familiar with /JOSM/.
++ PC2 (14.5% of total variance) characterizes how experienced and versatile are
+  users: this component will be high for users with a high number of activity
+  days, a lot of local as well as total changesets, and high numbers of node,
+  way and relation modifications. This second component highlights /JOSM/ too.
++ PC3 (9.1% of total variance) describes way-focused contributions by old users
+  (but not really productive since their inscription). A high value is
+  synonymous of corrected contributions, however that's quite mechanical: if
+  you contributed a long time ago, your modifications would probably not be
+  up-to-date any more. This component highlights /Potlatch/ and /JOSM/ as the
+  most used editors.
++ PC4 (8.7% of total variance) looks like PC3, in the sense that it is strongly
+  correlated with way modifications. However it will concern newer users: a
+  more recent inscription date, contributions that are less corrected, and more
+  often up-to-date. As the preferred editor, this component is associated with
+  /iD/.
++ PC5 (6.9% of total variance) refers to a node specialization, from very
+  productive users. The associated modifications are overall improvements that
+  are still up-to-date. However, PC5 is linked with users that are not at ease
+  in our area of interest, even if they produced a lot of changesets
+  elsewhere. /JOSM/ is clearly the corresponding editor.
++ PC6 (4.8% of total variance) is strongly impacted by node improvements, by
+  opposition to node creations (a similar behavior tends to emerge for
+  ways). This less important component highlights local specialists: a fairly
+  high quantity of local changesets, but a small total changeset
+  quantity. Like for PC4, the editor used for such contributions is /iD/.
+
+*** Describe Individuals Positioning after Dimensionality Reduction
+
+From the previous lightings, we can recall the example of user 4074141.
+
+This user is really experienced (high value of PC2), even if this experience
+tends to be local (negative value for PC5). The fairly good value for PC6
+enforces the hypothesis credibility. We can imagine that the user quite
+versatile (PC2), with a specialty on node improvements (PC6).
+
+Even if this interpretation exercise may look quite abstract, the comparison
+between this interpretation and the description in the first section looks
+satisfying.
+
+** Cluster the User Starting from Their Past Activity
+
+In this section the set of users will be classified without any knowledge on
+their identity or experience with geospatial data or OSM API. We will design
+clusters with the k-means algorithm, and the only available input is the
+information about user past contributions contained into PCA components.
+
+*** How Many Cluster May We Expect From The Osm Metadata?
+
+Like for the PCA, the k-means algorithm is characterized by a parameter, /i.e./
+the cluster number.
+
+#+CAPTION: Optimal cluster number regarding elbow and silhouette methods
+#+NAME: bm_cluster_nb
+#+ATTR_HTML: :width 100px
+[[../figs/bordeaux-metropole-cluster-number.png]]
+
+How many clusters can be identified? We only have access to soft
+recommendations given by state-of-the-art procedures. As illustrated in figure
+[[bm_cluster_nb]], we use the elbow and silhouette methods.
+
+The former represents the intra-cluster variance, /i.e./ the sparsity of
+observations within clusters. It obviously decreases when the cluster number
+increases. To keep the model simple and do not overfit it, this quantity has to
+be as small as possible. Hence the "elbow", that refers to a
+bending point designing a drop of the explained variance marginal gain. The
+latter is a synthetic metric that indicates how well each individuals is
+represented by its cluster. It is comprised between 0 (bad clustering
+representation) and 1 (perfect clustering).
+
+The first criterion suggests to take either 2 or 6 clusters, whilst the second
+criterion is larger with 6 or 7 clusters. We then decide to take on 6 clusters.
+
+*** Osm Contributor Classification
+
+How to interpret the six chosen clusters starting from the Bordeaux area
+dataset?
+
+#+BEGIN_SRC ipython :session osm :exports both
+from sklearn.cluster import KMeans
+
+model = KMeans(n_clusters=6, n_init=100, max_iter=1000)
+kmeans_ind = pca_ind.copy()
+kmeans_ind['Xclust'] = model.fit_predict(pca_ind.values)
+kmeans_centroids = pd.DataFrame(model.cluster_centers_,
+                                columns=pca_ind.columns)
+kmeans_centroids['size'] = (kmeans_ind
+                            .groupby('Xclust')
+                            .count())['PC1']
+round(kmeans_centroids, 2)
+#+END_SRC
+
+#+RESULTS:
+:         PC1       PC2       PC3       PC4       PC5       PC6  n_individuals
+: 0 -0.109548  1.321479  0.081623  0.010538  0.117814 -0.024912            317
+: 1  1.509024 -0.137856 -0.142928  0.032838 -0.120928 -0.031581            585
+: 2 -0.451754 -0.681200 -0.269507 -0.763645  0.258082  0.253980            318
+: 3 -0.901269  0.034718  0.594164 -0.395584 -0.323118 -0.167048            272
+: 4 -1.077956  0.027944 -0.595774  0.365218 -0.005808 -0.022253            353
+: 5 -0.345311 -0.618197  0.842708  0.872656  0.180983 -0.004831            228
+
+The k-means algorithm makes six relatively well-balanced groups (the group 4 is
+larger than the others, however the difference is not so high):
+
++ Group 0 (15.3% of users) represents most experienced and versatile users. The
+  users are seen as OSM key contributors.
++ Group 1 (28.2% of users) refers to relation specialists, users that are
+  fairly productive on OSM.
++ Group 2 (15.3% of users) gathers very unexperienced users, that comes just a
+  few times on OSM to modify mostly nodes.
++ Group 3 (13.2% of users) refers to old one-shot contributors, mainly
+  interested in way modifications.
++ Group 4 (17.0% of users) is very close to the previous one, the difference
+  being the more recent period during which they have contributed.
++ Group 5 (11.0% of users) contains contributors that are locally
+  unexperienced, they have proposed mainly way modifications.
+
+To complete this overview, we can plot individuals according to their group,
+with respect to the most important components:
+
+#+CAPTION: Clustered individuals positionings regarding PCA components
+#+NAME: bm_cluster_indiv_plot
+#+ATTR_HTML: :width 100px
+[[../figs/bordeaux-metropole-kmeans-plot.png]]
+
+The first two components allow to discriminate clearly C0 and C1. We need the
+third and the fourth components to differentiate C2 and C5 on the first hand,
+and C3 and C4 on the other hand. The last two components do not provide any
+additional information.
+
+This user classification has been carried out without any preliminar knowledge
+about who they are, and which skills they have. That's an illustration of the
+power of unsupervised learning; we will try to apply this clustering in OSM
+data quality assessment in the next section.
+
+* Data Quality Visualisation
+** Description of OSM element
+
+*** Element Metadata Extraction
+
+What is an OSM element? How to extract its associated metadata? This part is
+relatively similar to the job already done with users.
+
+An element is created during a changeset by a given contributor, may be
+modified several times by whoever, and may be deleted as well. This kind of
+object may be either a node, a way or a relation. The OSM data history contains
+every operations associated to each element.
+
+#+BEGIN_SRC ipython :session osm :exports none
+elements = pd.read_table('../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-elements.csv', parse_dates=['ts'], index_col=0, sep=",")
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC ipython :session osm :exports none
+elem_md = (elements.groupby(['elem', 'id'])['ts']
+            .min()
+            .reset_index())
+elem_md.columns = ['elem', 'id', 'first_at']
+elem_md = elem_md.sort_values(by=['first_at'])
+#+END_SRC
+
+#+RESULTS:
+
+#+BEGIN_SRC ipython :session osm :exports results
+    elem_md['version'] = (elements.groupby(['elem','id'])['version']
+                          .max()
+                          .reset_index())['version']
+    elem_md['n_user'] = (elements.groupby(['elem', 'id'])['uid']
+                         .nunique()
+                         .reset_index())['uid']
+    osmelem_last_user = (elements
+                         .groupby(['elem','id'])['uid']
+                         .last()
+                         .reset_index())
+    osmelem_last_user = osmelem_last_user.rename(columns={'uid':'last_uid'})
+    elements = pd.merge(elements, osmelem_last_user,
+                       on=['elem', 'id'])
+    elem_md = pd.merge(elem_md,
+                       elements[['elem', 'id', 'version', 'last_uid']],
+                       on=['elem', 'id', 'version'])
+    elem_md = elem_md.set_index(['elem', 'id'])
+    elem_md = elem_md.drop(['first_at'], axis=1)
+    elem_md.query("id == 1669353159").T
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+elem                                  node
+id                              1669353159
+first_at               2012-03-10 00:00:00
+last_at                2012-03-10 00:00:00
+lifespan                                 0
+n_days_since_creation                 1807
+n_days_of_activity                       1
+version                                  1
+n_chgset                                 1
+n_user                                   1
+visible                               True
+last_uid                            219843
+#+end_example
+
+As an illustration we have above an old one-versionned node.
+
+*** Characterize OSM Elements With User Classification
+
+As a recall, we hypothesized that clustering the users allows evaluating their
+trustworthiness as OSM contributors. They are either beginners, or intermediate
+users, or even OSM experts.
+
+Each OSM entity may have received one or more contributions by users of each
+group. Let's say the entity quality is good if its last contributor is
+experienced. That leads us to classify the OSM entities themselves in return.
+
+#+BEGIN_SRC ipython :session osm :exports results
+user_groups = pd.read_hdf("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-user-kmeans.h5", "/individuals")
+user_groups.query("uid == 4074141").T
+#+END_SRC
+
+#+RESULTS:
+: uid      4074141
+: PC1    -0.117667
+: PC2     1.145494
+: PC3     0.272941
+: PC4    -0.095759
+: PC5    -0.151579
+: PC6     0.932229
+: Xclust  2.000000
+
+The appropriate cluster for each user is saved into the column =Xclust=, it
+just has to be joined to the remainder of element metadata.
+
+#+BEGIN_SRC ipython :session osm :exports none
+    elem_md = elem_md.join(user_groups.Xclust, on='last_uid')
+    elem_md = elem_md.rename(columns={'Xclust':'last_uid_group'})
+    elem_md.reset_index().to_csv("../src/data/output-extracts/bordeaux-metropole/bordeaux-metropole-element-metadata.csv")
+    elem_md.query("id == 1669353159").T
+#+END_SRC
+
+#+RESULTS:
+: elem                 node
+: id             1669353159
+: last_uid           219843
+: last_uid_group          2
+
+*** Recover the Geometry Information
+
+OSM element geometries have been recovered with =osm2pgsql=, an alternative OSM
+data parser. By assuming the existence of a =osm= database, owned by =user= and
+a file =bordeaux-metropole.osm.pbf=:
+
+#+BEGIN_SRC sh
+osm2pgsql -E 27572 -d osm -U rde -p bordeaux_metropole --hstore --extra-attributes /home/rde/data/osm-history/raw/bordeaux-metropole.osm.pbf
+#+END_SRC
+
+#+RESULTS:
+
+A France-focused SRID (27572) and a prefix for naming output databases =point=,
+=line=, =polygon= and =roads= are specified as well.
+
+Focusing on the =line= subset, that contains the physical roads, among other
+structures (it roughly corresponds to the OSM ways), we want to build an
+enriched version of element metadata, with geometries.
+
+First we can create the table =bordeaux_metropole_geomelements=, that will
+contain our metadata...
+
+#+BEGIN_SRC sql :engine postgresql :cmdline "-U rde -d osm" :exports code
+DROP TABLE IF EXISTS bordeaux_metropole_elements;
+CREATE TABLE bordeaux_metropole_elements(
+       id int,
+       elem varchar,
+       osm_id bigint,
+       version int,
+       n_users int,
+       last_user int,
+       last_user_group int
+);
+#+END_SRC
+
+#+RESULTS:
+| DROP TABLE   |
+|--------------|
+| CREATE TABLE |
+
+...then, populate it with the accurate =.csv= file...
+
+#+BEGIN_SRC sql :engine postgresql :cmdline "-U rde -d osm" :exports code
+COPY bordeaux_metropole_elements
+FROM '/home/rde/data/osm-history/output-extracts/bordeaux-metropole/bordeaux-metropole-element-metadata.csv'
+WITH(FORMAT CSV, HEADER, QUOTE '"');
+#+END_SRC
+
+#+RESULTS:
+| COPY 2760999 |
+
+...and finally, merge the metadata with the geometry data gathered with
+=osm2pgsql=.
+
+#+BEGIN_SRC sql :engine postgresql :cmdline "-U rde -d osm" :exports code
+DROP TABLE IF EXISTS bordeaux_metropole_geomelements;
+SELECT l.osm_id, h.version, h.n_users, h.last_user_group, l.way AS geom
+INTO bordeaux_metropole_geomelements
+FROM bordeaux_metropole_elements as h
+INNER JOIN bordeaux_metropole_line as l
+ON h.osm_id = l.osm_id AND h.version = l.osm_version
+WHERE l.highway IS NOT NULL AND h.elem = 'way'
+ORDER BY l.osm_id;
+#+END_SRC
+
+#+RESULTS:
+| DROP TABLE   |
+|--------------|
+| SELECT 29349 |
+
+From now, we can use the last contributor cluster as an additional information
+to generate maps, so as to study data quality.
+
+** Quality Assessing Through Map Production
+
+If each OSM entities can be characterized, then we can draw quality maps by
+highlighting the most trustworthy ones, as well as those with which we have to
+stay cautious.
+
+In this section we will continue to focus on roads within the Bordeaux
+area. The different maps will be produced with the help of Qgis.
+
+*** Simple Metadata Plotting
+
+As a first area visualization, figure [[bm_users]] shows each OSM road regarding a
+simple feature, /i.e./ the number of users who have contributed.
+
+#+CAPTION: Number of active contributors per OSM way in Bordeaux
+#+NAME: bm_nusers
+#+ATTR_HTML: width="100px"
+[[../figs/bordeaux-metropole-nb-users-100dpi.png]]
+
+We see that the ring around Bordeaux is the most intensively modified part of
+the road network: more contributors are implied in the way completion. Some
+major roads within the city center are comparable.
+
+*** Representation of OSM Elements With Respect to Quality
+
+A similar map may be designed with the user classification information, it is
+represented in figure [[bm_clusters]]:
+
+#+CAPTION: OSM roads around Bordeaux, according to the last user cluster (1: C1, relation experts; 2: C0, versatile expert contributors; 3: C4, recent one-shot way contributors; 4: C3, old one-shot way contributors; 5: C5, locally-unexperienced way specialists)
+#+NAME: bm_clusters
+#+ATTR_HTML: width="100px"
+[[../figs/bordeaux-metropole-user-cluster-100dpi.png]]
+
+According to the clustering done in the previous section (be careful, the
+legend entries have been shuffled during map design...), we can make some
+additional hypothesis:
+
++ Light-blue roads are OK, they correspond to the most trustful cluster of
+  contributors (91.4%)
++ There is no group-0 road (that corresponds to cluster C2 in the previous
+  section)... And that's comforting! It seems that "untrustworthy" users do not
+  contribute to road or -more probably- that their contributions are quickly
+  amended.
++ Other contributions are made by intermediate users: a finer analysis should
+  be undertaken to decide if the corresponding elements are valid. For now, we
+  can consider everything is OK, even if local patterns seem strong. Areas of
+  interest should be verified (they are not necessarily of low quality!)
+
+* Conclusion
+
+In this second paper we detailed a whole methodology to generate
+contributor-focused metadata, /i.e./ information related to each OSM user.
+
+Then we exploited this metadata into a machine learning framework: after
+reducing the dimensionality of the data through a Principle Component Analysis,
+we are able to summarize the information in a small set of synthetic
+components. This part of our work was also dedicated to the production of
+groups of similar users, without any prior knowledge about them and their
+contribution habits.
+
+Our last target was to characterize the OSM data quality; we succeeded in it by
+using the previous user clusters. We considered the last contributor of each
+OSM element, and assess the quality of the latter regarding the experience of
+the former.
+
+Of course some works still have to be done, however we detailed a whole
+methodology to tackle the problem. We hope you will be able to reproduce it,
+and to design your own maps!
+
+Feel free to contact us if you are interested in this topic!
+
+* References
+
+- Garaud, D., Delhome, R., Mercier, H. 2017. A data-oriented framework to
+  assess OSM data quality (part 1): data extraction and
+  description. /Geomatique Expert./ 117, July 2017.
+- Websites:
+  + Python Software Foundation. Python Language Reference, version 3.5. Available at http://www.python.org
+  + OpenStreetMap API: Available at http://www.openstreetmap.org
+
