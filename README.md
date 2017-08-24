@@ -1,116 +1,152 @@
-# Introduction
+# OpenStreetMap Data Quality based on the Contributions History
 
-Projet du groupe interne Data / IA / ML / Stats
+Working with community-built data as [OpenStreetMap](https://openstreetmap.org)
+forces to take care of data quality. We have to be confident with the data we
+work with. Is this road geometry accurate enough? Is this street name missing?
 
-Starring with:
-- dga
-- rde
-- hme
+Our first idea was to answer to this question: can we assess the **quality of
+OpenStreetMap** data? (and how?).
 
-___
+This project is dedicated to **explore** and **analyze** the OpenStreetMap data
+history in order to classify the contributors.
 
-# Project description
+There are a serie of articles on
+the [Oslandia's blog site](http://oslandia.com/en/category/data/) which deal
+with this topic. Theses articles are also in the `articles` folder.
 
-## Content
+## Dependencies
 
-Five repositories composed this project, namely *article*, *demo*, *figs*, *refs* and *src*.
+Works with Python 3
 
-### *article*
-Here are some articles that summarize the project development, these articles are planned to be posted on the Oslandia blog.
+* pyosmium
+* luigi
+* pandas
+* statsmodels
+* scikit-learn
+* matplotlib
+* seaborn
 
-### *demo*
-In this repository, notebooks are designed to present some snippets of OSM data analysis, in internal and external communication purposes.
+There is a `requirements.txt` file. Thus, do `pip install -r requirements.txt`
+from a virtual environment.
 
-### *figs*
-Here are a set of .png files that graphically describes some basic OSM metadata features (number of version by elements, number of modifications by change sets, number of change sets by users and so on...).
+## How does it work?
 
-### *refs*
-This repository contains some bibliographic references dedicated to OSM data quality. The files are named in the following format '<year>_<nameoffirstauthor>'. A mention is added at the end of the file if it is a Phd report.
+Several Python files to extract and analyze the OSM history data. Two machine
+learning models are used to classify the changesets and the OSM contributors.
 
-By the way a bibtex file summarizes the bibliography entry, if needed in a further pulication effort.
+* Dimension reduction with [PCA](https://en.wikipedia.org/wiki/Principal_component_analysis)
+* Clustering with the [KMeans](https://en.wikipedia.org/wiki/K-means_clustering)
 
-### *src*
-In this repository, we gather all source files used in the R&D effort, by the way of a bunch of Python scripts. The project sources follow a [Luigi framework](https://luigi.readthedocs.io/en/stable/).
+The purpose of the PCA **is not** to reduce the dimension (you have less than
+100 features). It's to analyze the different features and understand the most
+important ones.
 
-The source files are organized as follow:
+## Running
 
-    - `analysis_tasks.py`: contains main analysis Luigi tasks;
-    - `data_preparation_tasks.py`: contains parsing Luigi tasks;
-    - `extract-changesets.py`: take the `changesets-latest.osm` from
-      http://planet.openstreetmap.org/planet/ and turn it into a huge CSV file (~210Go)
-    - `extract_user_editor.py`: from a native OSM editor extraction, build the ranking of editors for each user
-	- `metadata_plotting.py`: some plotting function designed for illustrating metadata
-	- `osm_carroying.sql`: merging between OSM metadata with geometries and INSEE carroyed data (200-square-meter tiles)
-    - `osmparsing.py`: OSM data parser classes, built as pyosmium handlers, these classes allow to extract OSM history data from a native OSM file (in .pbf format) and return .csv files;
-    - `output_tasks.py`: main source files, containing every final Luigi tasks;
-    - `process-changesets-user-history.py` : take the previous changesets
-      history CSV file and extract the total number of changesets by user and
-      the used OSM editors by user thanks to dask, i.e. to process large CSV file.
-	- `psql_draft.sql`: a short sql script aiming at merging OSM object metadata with their corresponding geometries
-    - `tagmetanalyse.py`: functions used in the context of tag genome analysis;
-	- `unsupervised_learning.py`: some utilitary functions dedicated to unsupervised learning with OSM metadata
-    - `utils.py`: some functions used all along the process by other modules;
-	- `validitycheck.py`: test the OSM object visibility accuracy with some http requests
+### Get some history data
 
-## How to run this code?
+First, get some OSM history data.
 
-### Understanding the current Luigi framework
+You can get some history data for a specific world region
+on [Geofabrik](http://download.geofabrik.de/). You have to download a
+`*.osh.pbf` file. For instance, on
+the [Greater London page](http://download.geofabrik.de/europe/great-britain/england/greater-london.html),
+you can download the
+file [greater-london.osh.pbf](http://download.geofabrik.de/europe/great-britain/england/greater-london.osh.pbf).
 
-The script `osm-tasks.py` is the conductor in this project. It is composed of a set of Luigi tasks, defined as classes (this list is not exhaustive) :
+### Organize your output data directories
 
-    - `OSMHistoryParsing`: a parsing task, useful to extract the OSM data history, *i.e.* every records for each existing OSM entity (node, way and relation);
-    - `OSMTagParsing`: another parsing task dedicated to the tag extraction, which returns the tag genome (one tag per row);
-    - `OSMTagMetaAnalysis`: starting from the parsed tag genome, it evaluates the frequency of each tag key and each tag value for given tag key (TO BE CONTINUED) -- **final task** ;
-    - `ElementMetadataExtract`: extract the metadata associated to each OSM element (node, way or relation), from the parsed OSM history -- **final task**;
-    - `ChangeSetMetadataExtract`: extract the metadata associated to each OSM change set;
-    - `OSMElementEnrichment`:
-    - `UserMetadataExtract`: extract the metadata associated to each OSM contributor -- **final task**
-    - `MasterTask`: a downstream task that aggregates all final tasks
+Create a `data` directory and some subdirs elsewhere. The data processing should
+be launched from the folder where you have your `data` folder.
 
-These classes depends on two parameters (namely: `datarep` and `dsname`), that are the relative path to data directory on the user machine and the data set name (*e.g. bordeaux-metropole, aquitaine, france* and so on...).
+* `mkdir -p data/output-extracts`
+* `mkdir data/raw`
 
-### Run it from the command line!
+Then, copy your fresh downloaded `*.osh.pbf` file into the `data/raw/`
+directory.
 
-Here are some example of command line utilization:
+**Note**: if you want another name for your data directory, you'll be able to
+specify the name thanks to the `--datarep` luigi option.
 
-```bash
-python -m luigi osm-tasks MasterTask --datarep datapath --dsname bordeaux-metropole --local-scheduler
-python3 -m luigi osm-tasks UserMetadataExtract --local-scheduler
-luigi --module osm-tasks OSMTagMetaAnalysis --dsname aquitaine-2017-03-23 --local-scheduler
+
+### The limits of the data pipeline
+
+The data pipeline processing is handle
+by [luigi](http://luigi.readthedocs.io/). It's very useful because it can build
+a dependencies graph of your different processing tasks (it's a DAG) and launch
+them in parallel when it's possible.
+
+These tasks yield output files (CSV, JSON, hdf5, png). Some files such as
+`all-changesets-by-user.csv` and `all-editors-by-user.csv` needed for some tasks
+was built outside of this pipeline. Actually, these files come from the big
+`changesets-latest.osm` XML file which is difficult to include in the pipeline
+because:
+
+- the processing can be a quite long
+- you should have a large amount of RAM
+
+Thus, you can get these two CSV files in the `osm-user-data` and copy them into
+your `data/output-extracts` directory.
+
+See also "I want to parse the changesets.osm file!"
+
+### Run your first analyze
+
+You should have the following files:
+
+```
+data
+data/raw
+data/raw/specific-region.osh.pbf
+data/output-extracts
+data/output-extracts/all-changesets-by-user.csv
+data/output-extracts/all-editors-by-user.csv
 ```
 
-It is possible to see in this examples that both parameters admit default values (they are not always explicitly set): `datarep=data` (a directory or a symbolic link to a directory in the source repository) and `dsname=bordeaux-metropole` (a small data set centered on the city of Bordeaux, France).
+Launch
 
-For further details about running Luigi command, please refer to the [Luigi documentation](https://luigi.readthedocs.io/en/stable/)
+`luigi --local-scheduler --module output_tasks MasterTask --dsname specific-region`
 
-## OSM data description
+`dsname` mean "dataset name". It must have the same name as your `*.osh.pbf`
+file.
 
-### OSM history
+Most of the time (if you have an import Python error), you have to preprend the
+luigi command by the `PYTHONPATH` environment variable to the
+`osm-data-quality/src` directory. Such as:
 
-The first dataframe gather every element modifications (primary key: `{elem,id,version}`):
+`PYTHONPATH=/path/to/osm-data-quality/src luigi --local-scheduler ...`
 
-    - elem: OSM entity type ("node", "way" or "relation")
-    - id: ID of the element
-    - version: version number, 1 if new element (remark: a few elements begin with a version>1)
-    - visible: True or False, True if the element is visible on the OSM API, in the current version
-    - ts: timestamp of the element modification
-    - uid: ID of the user who did the modification
-    - chgset: ID of the change set in which the modification took place
+The `MasterTask` chooses the number of PCA components and the number of KMeans
+clusters in an automatic way. If you want to set the number of clusters for
+instance, you can pass the following options to the luigi command:
 
-After running the task `OSMElementEnrichment`, this dataframe is brighted up with new features:
+`--module analysis_tasks KMeansFromPCA --dsname specific-region --n-components 6 --nb-clusters 5`
 
-    - first_uid: ID of the user who created the element
-    - vmax: up-to-date element version number
-    - last_uid: ID of the last contributor
-    - available: True if the element is visible in its up-to-date version, False otherwise
-    - init: True if the version is the first known version of the element, False otherwise
-    - up-to-date: True if the version is the last known version of the element, False otherwise
-    - willbe_corr: True if a different user has proposed a more recent version for the current element, False otherwise
-    - willbe_autocorr: True if the same user proposed a more recent version of the current element, False otherwise
-    - nextmodif_in: time before the next element modification
-    - nextcorr_in: time before the next element correction by a different user
-    - nextauto_in: time before the next element correction by the same user
-    
-## OSM metadata description
+In this case, the PCA will be carried out with 6 components. The clustering will
+use the PCA results to carry out the KMeans with 5 clusters.
 
-:warning: still to do !
+See also the different luigi options in
+the [official luigi documentation](http://luigi.readthedocs.io/en/stable/command_line.html).
+
+## Results
+
+You should have a `data/output-extracts/specific-region` directory with several
+CSV, JSON and h5 files.
+
+* Several intermediate CSV files.
+* JSON KMeans report to see the "ideal" number of clusters (the key `n_clusters`).
+* PCA hdf5 files with `/features` and `/individuals` keys.
+* KMeans hdf5 files with `/centroids` and `/individuals` keys.
+* A few PNG images.
+
+Open the [results analysis notebook](./demo/results-analysis.ipynb) to see how
+analyze the results.
+
+## I want to parse the changesets.osm file
+
+See http://planet.openstreetmap.org/planet/changesets-latest.osm.bz2
+
+* Convert the file into a huge CSV file
+* Group each user by editors and changesets thanks with [dask](https://github.com/dask/dask)
+
+**TODO** : write the "how to"
