@@ -974,7 +974,7 @@ class PlottingClusteredIndiv(luigi.Task):
     nb_max_dim = luigi.parameter.IntParameter(12)
 
     def outputpath(self):
-        fname = "-".join([self.metadata_type, "pca-individuals-contrib",
+        fname = "-".join([self.metadata_type, "kmeans-individuals",
                           "min", str(self.nb_min_dim),
                           "max", str(self.nb_max_dim) + ".png"])
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
