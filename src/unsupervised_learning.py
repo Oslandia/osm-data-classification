@@ -33,12 +33,20 @@ def compute_pca_variance(X):
     cov_mat = np.cov(X.T)
     eig_vals, eig_vecs = np.linalg.eig(cov_mat)
     eig_vals = sorted(eig_vals, reverse=True)
+    eig_margin = np.diff(eig_vals)
+    eig_margin = list(-1*np.insert(eig_margin, len(eig_margin), np.NaN))
     tot = sum(eig_vals)
     varexp = [(i/tot)*100 for i in eig_vals]
+    var_margin = np.diff(varexp)
+    var_margin = list(-1*np.insert(var_margin, len(var_margin), np.NaN))
     cumvarexp = np.cumsum(varexp)
     varmat = pd.DataFrame({'eig': eig_vals,
+                           'margineig': eig_margin,
                            'varexp': varexp,
-                           'cumvar': cumvarexp})[['eig','varexp','cumvar']]
+                           'cumvar': cumvarexp,
+                           'marginvar': var_margin})[['eig','margineig',
+                                                       'varexp','cumvar',
+                                                       'marginvar']]
     return varmat
 
 def optimal_PCA_components(variance, nb_min_dim, nb_max_dim, standard_norm):
