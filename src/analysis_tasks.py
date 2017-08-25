@@ -861,7 +861,10 @@ class KMeansReport(luigi.Task):
             centers.append(center.values)
             features.append(df.drop("Xclust", axis=1).values)
             labels.append(df['Xclust'].copy().values)
-        n_clusters = ul.compute_nb_clusters(features, centers,  labels, self.nbmin_clusters)
+        n_clusters = ul.compute_nb_clusters(features,
+                                            centers,
+                                            labels,
+                                            self.nbmin_clusters)
         with self.output().open('w') as fobj:
             content = {"date": datetime.now().strftime("%Y-%m-%dT%H:%M:%S"),
                        "pca_components": df.shape[1] - 1,

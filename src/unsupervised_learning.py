@@ -141,7 +141,7 @@ def plot_cluster_decision(x, y1, y2):
     plt.tight_layout()
     return f
 
-def elbow_derivation(elbow, nbmin_clusters):
+def elbow_derivation(elbow):
     """Compute a proxy of the elbow function derivative to automatically
     extract the optimal number of cluster; this number must be higher that nbmin_clusters
 
@@ -149,16 +149,11 @@ def elbow_derivation(elbow, nbmin_clusters):
     ----------
     elbow: list
         contains value of the elbow function for each number of clusters
-    nbmin_clusters: integer
-        lower bound of the number of clusters
 
     """
     elbow_deriv = [0]
     for i in range(1, len(elbow)-1):
-        if i < nbmin_clusters:
-            elbow_deriv.append(0)
-        else:
-            elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
+        elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
     return elbow_deriv
 
 def one_feature_contribution(component_detail):
@@ -417,6 +412,8 @@ def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
         shape (Nclusters, Ncols)
     labels: list of nd.array
         shape (Nrows, )
+    nbmin_clusters: integer
+        minimal number of clusters
 
     Return the "optimal" number of clusters
     """
@@ -425,8 +422,8 @@ def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
         # compute the inertia
         inertia = np.sum((feature - center[label]) ** 2, dtype=np.float64)
         scores.append(inertia)
-    elbow_deriv = elbow_derivation(scores, nbmin_clusters)
-    return 1 + elbow_deriv.index(max(elbow_deriv))
+    elbow_deriv = elbow_derivation(scores)
+    return nbmin_clusters + elbow_deriv.index(max(elbow_deriv))
 
 def kmeans_elbow_silhouette(features, centers, labels,
                             nbmin_clusters, nbmax_clusters):
