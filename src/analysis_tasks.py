@@ -234,8 +234,7 @@ class UserMetadataExtract(luigi.Task):
 
     def requires(self):
         return {'changeset': ChangeSetMetadataExtract(self.datarep, self.dsname),
-                'enrichhist': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname),
-                'changeset_kmeans': AutoKMeans(self.datarep, self.dsname, "changeset", 3, 10)}
+                'enrichhist': data_preparation_tasks.OSMElementEnrichment(self.datarep, self.dsname)}
 
     def run(self):
         with self.input()['changeset'].open('r') as inputflow:
@@ -244,11 +243,6 @@ class UserMetadataExtract(luigi.Task):
             osm_elements = pd.read_csv(inputflow,
                                        index_col=0,
                                        parse_dates=['ts'])
-        inputpath = self.input()['changeset_kmeans'].path
-        chgset_kmeans = pd.read_hdf(inputpath, 'individuals')
-        chgset_md = pd.merge(chgset_md,
-                             chgset_kmeans.reset_index()[['chgset', 'Xclust']],
-                             on='chgset')
         user_md = utils.extract_user_metadata(osm_elements, chgset_md)
         with self.output().open('w') as outputflow:
             user_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
