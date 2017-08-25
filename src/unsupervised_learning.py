@@ -428,7 +428,6 @@ def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
     elbow_deriv = elbow_derivation(scores, nbmin_clusters)
     return 1 + elbow_deriv.index(max(elbow_deriv))
 
-
 def kmeans_elbow_silhouette(features, centers, labels,
                             nbmin_clusters, nbmax_clusters):
     """Compute the KMeans elbow and silhouette scores and plot them

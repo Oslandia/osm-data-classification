@@ -812,18 +812,18 @@ class KMeansFromRaw(luigi.Task):
 class KMeansReport(luigi.Task):
     """Full automatic KMeans with a report.
 
-    Generated a JSON report which gives the number of components for the PCA and the number
-    of clusters for the KMeans.
+    Generated a JSON report which gives the number of components for the PCA
+    and the number of clusters for the KMeans.
 
     As you need to compute all KMeans between 'nbmin_clusters' and
     'nbmax_clusters' (luigi parameters), this task can be used to make several
     KMeans with a different number of clusters.
 
-    Features are normalized, scaled and then reduced by PCA before running a few
-    KMeans.
+    Features are normalized, scaled and then reduced by PCA before running a
+    few KMeans.
 
-    Select the number of components for the PCA, compute N KMeans and choose the
-    optimal number of clusters according to the elbow method.
+    Select the number of components for the PCA, compute N KMeans and choose
+    the optimal number of clusters according to the elbow method.
 
     """
     datarep = luigi.Parameter("data")
