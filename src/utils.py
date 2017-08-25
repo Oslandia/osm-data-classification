@@ -147,7 +147,8 @@ def group_nunique(metadata, data, grp_feat, res_feat, namesuffix):
 def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
     """Group-by 'data' by 'grp_feat' and element type features, compute basic
     statistic features (first and ninth deciles) corresponding to each
-    grp_feat-elemtype tuples and merge them into metadata table
+    grp_feat-elemtype tuples and merge them into metadata table; need
+    Pandas >= 0.20
 
     Parameters
     ----------
@@ -167,7 +168,7 @@ def group_stats(metadata, data, grp_feat, res_feat, nameprefix, namesuffix):
 
     """
     md_ext = (data.groupby(grp_feat)[res_feat]
-              .quantile(q=[0.1,0.9])
+              .quantile(q=[0.1, 0.9])
               .unstack()
               .reset_index())
     colnames = [nameprefix + str(int(100*op)) + namesuffix
@@ -366,15 +367,15 @@ def extract_chgset_metadata(osm_elements, drop_ts=True):
     chgset_md.user_lastchgset_h = (chgset_md.user_lastchgset_h /
                                    timedelta(hours=1))
     chgset_md['user_chgset_rank'] = chgset_md.groupby('uid')['first_at'].rank()
-    # Update features
-    chgset_md = group_stats(chgset_md, osm_elements, 'chgset', 'nextmodif_in',
-                              't', '_update_d')
+
     # Number of modifications per unique element
     contrib_byelem = (osm_elements.groupby(['elem', 'id', 'chgset'])['version']
                       .count()
                       .reset_index())
-    chgset_md = group_stats(chgset_md, contrib_byelem, 'chgset', 'version',
-                              'n', '_modif_byelem')
+    chgset_md['nmean_modif_byelem'] = (contrib_byelem
+                                       .groupby('chgset')['version']
+                                       .mean()
+                                       .reset_index())['version']
     # Element-related features
     chgset_md = extract_element_features(chgset_md, osm_elements,
                                        'node', 'chgset')
