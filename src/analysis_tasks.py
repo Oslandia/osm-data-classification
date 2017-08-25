@@ -637,6 +637,101 @@ class AutoPCA(luigi.Task):
         pca_var.to_hdf(path, '/features')
         pca_ind.to_hdf(path, '/individuals')
 
+class PlottingPCAFeatureContributions(luigi.Task):
+    """ Plot results of PCA analysis: feature contributions to each component
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_min_dim = luigi.parameter.IntParameter(3)
+    nb_max_dim = luigi.parameter.IntParameter(12)
+
+    def outputpath(self):
+        fname = "-".join([self.metadata_type, "pca-feature-contrib",
+                          "min", str(self.nb_min_dim),
+                          "max", str(self.nb_max_dim) +".png"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        return AutoPCA(self.datarep, self.dsname, self.metadata_type)
+
+    def run(self):
+        inputpath = self.input().path
+        features  = pd.read_hdf(inputpath, 'features')
+        fig = ul.plot_feature_contribution(features)
+        fig.savefig(self.output().path)
+
+class PlottingPCACorrelationCircle(luigi.Task):
+    """ Plot results of PCA analysis: feature contributions to each component
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_min_dim = luigi.parameter.IntParameter(3)
+    nb_max_dim = luigi.parameter.IntParameter(12)
+
+    def outputpath(self):
+        fname = "-".join([self.metadata_type, "pca-correlation-circle",
+                          "min", str(self.nb_min_dim),
+                          "max", str(self.nb_max_dim) + ".png"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        return {"varmat": VarianceAnalysisTask(self.datarep, self.dsname,
+                                               self.metadata_type),
+                "pca": AutoPCA(self.datarep, self.dsname, self.metadata_type)}
+
+    def run(self):
+        pca_inputpath = self.input()['pca'].path
+        features  = pd.read_hdf(pca_inputpath, 'features')
+        individuals = pd.read_hdf(pca_inputpath, 'individuals')
+        with self.input()['varmat'].open('r') as inputflow:
+            var_matrix  = pd.read_csv(inputflow)
+        nb_components = len(features.columns) if len(features.columns) < 4 else 4
+        fig = ul.correlation_circle(features, individuals,
+                                    nb_comp=nb_components,
+                                    explained=var_matrix['varexp'],
+                                    threshold=0.25)
+        fig.savefig(self.output().path)
+
+class PlottingPCAIndivContributions(luigi.Task):
+    """ Plot results of PCA analysis: individuals contributions to each component
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_min_dim = luigi.parameter.IntParameter(3)
+    nb_max_dim = luigi.parameter.IntParameter(12)
+
+    def outputpath(self):
+        fname = "-".join([self.metadata_type, "pca-individuals-contrib",
+                          "min", str(self.nb_min_dim),
+                          "max", str(self.nb_max_dim) + ".png"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        return {"varmat": VarianceAnalysisTask(self.datarep, self.dsname,
+                                               self.metadata_type),
+                "pca": AutoPCA(self.datarep, self.dsname, self.metadata_type)}
+
+    def run(self):
+        pca_inputpath = self.input()['pca'].path
+        individuals  = pd.read_hdf(pca_inputpath, 'individuals')
+        with self.input()['varmat'].open('r') as inputflow:
+            var_matrix  = pd.read_csv(inputflow)
+        nb_components = len(individuals.columns) if len(individuals.columns) < 4 else 4
+        fig = ul.plot_individual_contribution(individuals, nb_comp=nb_components,
+                                              explained=var_matrix['varexp'])
+        fig.savefig(self.output().path)
 
 class KMeansFromPCA(luigi.Task):
     """Simple KMeans according to some metadata: user or changeset
@@ -665,11 +760,26 @@ class KMeansFromPCA(luigi.Task):
 
     def requires(self):
         if self.n_components == 0:
-            return AutoPCA(self.datarep, self.dsname, self.metadata_type)
-        return SinglePCA(self.datarep, self.dsname, self.metadata_type, self.n_components)
+            return {"pca": AutoPCA(self.datarep, self.dsname,
+                                   self.metadata_type),                    
+                    "featcontrib": PlottingPCAFeatureContributions(self.datarep,
+                                                              self.dsname),
+                    "corcircle": PlottingPCACorrelationCircle(self.datarep,
+                                                              self.dsname),
+                    "indcontrib": PlottingPCAIndivContributions(self.datarep,
+                                                                self.dsname)}
+        else:
+            return {"pca": SinglePCA(self.datarep, self.dsname,
+                                     self.metadata_type, self.n_components),
+                    "featcontrib": PlottingPCAFeatureContributions(self.datarep,
+                                                              self.dsname),
+                    "corcircle": PlottingPCACorrelationCircle(self.datarep,
+                                                              self.dsname),
+                    "indcontrib": PlottingPCAIndivContributions(self.datarep,
+                                                                self.dsname)}
 
     def run(self):
-        inputpath = self.input().path
+        inputpath = self.input()["pca"].path
         pca_ind  = pd.read_hdf(inputpath, 'individuals')
         kmeans = KMeans(n_clusters=self.nb_clusters,
                         n_init=100, max_iter=1000)
