@@ -841,10 +841,13 @@ class KMeansReport(luigi.Task):
         return luigi.LocalTarget(self.outputpath(), format=UTF8)
 
     def requires(self):
-        # Note: n_components=0 for the automatic selection of the number of PCA components
+        # Note: n_components=0 for the automatic selection of the number of PCA
+        # components
+        # Note2: consider nbmin-1 and nbmax+2 as the automatic n_cluster
+        # computing consider the kmeans inertia derivatives
         return {k: KMeansFromPCA(self.datarep, self.dsname, self.metadata_type,
                                  n_components=0, nb_clusters=k)
-                for k in range(self.nbmin_clusters, self.nbmax_clusters + 1)}
+                for k in range(self.nbmin_clusters - 1, self.nbmax_clusters + 2)}
 
     def run(self):
         centers = []
