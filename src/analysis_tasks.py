@@ -956,3 +956,44 @@ class AutoKMeans(luigi.Task):
         df.to_hdf(path, '/individuals')
         center.to_hdf(path, '/centroids')
 
+class PlottingClusteredIndiv(luigi.Task):
+    """Plot results of unsupervised learning procedure (PCA+Kmeans): individuals
+    positions on each component, ordered by cluster
+
+    """
+    datarep = luigi.Parameter("data")
+    dsname = luigi.Parameter("bordeaux-metropole")
+    metadata_type = luigi.Parameter("user")
+    nb_min_dim = luigi.parameter.IntParameter(3)
+    nb_max_dim = luigi.parameter.IntParameter(12)
+
+    def outputpath(self):
+        fname = "-".join([self.metadata_type, "pca-individuals-contrib",
+                          "min", str(self.nb_min_dim),
+                          "max", str(self.nb_max_dim) + ".png"])
+        return osp.join(self.datarep, OUTPUT_DIR, self.dsname, fname)
+
+    def output(self):
+        return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
+
+    def requires(self):
+        return {"varmat": VarianceAnalysisTask(self.datarep, self.dsname,
+                                               self.metadata_type),
+                "pca": AutoPCA(self.datarep, self.dsname, self.metadata_type),
+                "cluster": AutoKMeans(self.datarep, self.dsname,
+                                      self.metadata_type)}
+
+    def run(self):
+        pca_inputpath = self.input()['pca'].path
+        individuals  = pd.read_hdf(pca_inputpath, 'individuals')
+        cluster_inputpath = self.input()['cluster'].path
+        centroids  = pd.read_hdf(cluster_inputpath, 'centroids')
+        individuals  = pd.read_hdf(cluster_inputpath, 'individuals')
+        with self.input()['varmat'].open('r') as inputflow:
+            var_matrix  = pd.read_csv(inputflow)
+        nb_components = len(individuals.columns) if len(individuals.columns) < 4 else 4
+        fig = ul.plot_individual_contribution(individuals, nb_comp=nb_components,
+                                              explained=var_matrix['varexp'],
+                                              cluster=individuals,
+                                              cluster_centers=centroids)
+        fig.savefig(self.output().path)
