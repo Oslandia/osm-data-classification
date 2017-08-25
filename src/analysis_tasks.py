@@ -488,7 +488,6 @@ class SinglePCA(luigi.Task):
         pca_var.to_hdf(path, '/features')
         pca_ind.to_hdf(path, '/individuals')
 
-
 class VarianceAnalysisTask(luigi.Task):
     """Dedicated to analyze the variance of some metadata
     """
@@ -534,6 +533,8 @@ class VarianceAnalysisTask(luigi.Task):
             var_analysis.to_csv(fobj, index=False)
 
 class PlottingVarianceAnalysis(luigi.Task):
+    """ Plot the variance matrix after variance analysis
+    """
     datarep = luigi.Parameter("data")
     dsname = luigi.Parameter("bordeaux-metropole")
     metadata_type = luigi.Parameter("user")
