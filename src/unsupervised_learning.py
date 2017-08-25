@@ -10,6 +10,7 @@ import random
 
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 from sklearn.metrics import silhouette_score
 
@@ -205,8 +206,8 @@ def plot_feature_contribution(data):
     f, ax = plt.subplots(figsize=(10,12))
     sns.heatmap(data, annot=True, fmt='.3f', ax=ax)
     plt.yticks(rotation=0)
-    plt.tight_layout()
-    plt.show()
+    f.tight_layout()
+    return f
     
 def split_md_features(ft_names, element_type_splitting=True):
     """Split the metadata column into several types of features, e.g. quantity,
@@ -306,7 +307,7 @@ def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1
         ax_.set_ylim((-1.1, 1.1))
     plt.legend(["Individuals"], loc=0)
     plt.tight_layout()
-    plt.show()
+    return f
 
 def contrib_barplot(data, best=10):
     """Highlight best PCA contributors (either features or individuals), by
@@ -402,8 +403,7 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
         ax_.set_xlabel(x_column)
         ax_.set_ylabel(y_column)
     plt.tight_layout()
-    plt.show()
-
+    return f
 
 def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
     """Try to find the optimal number of KMeans clusters.
