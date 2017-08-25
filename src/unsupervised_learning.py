@@ -65,12 +65,12 @@ def optimal_PCA_components(variance, nb_min_dim, nb_max_dim, standard_norm):
     candidate_npc = 0
     if standard_norm:
         for i in range(len(variance)):
-            if variance.iloc[i, 0] < 1 or variance.iloc[i, 2] > 70:
+            if variance.eig[i] < 1 or variance.cumvar[i] > 70:
                 candidate_npc = i + 1
                 break
     else:
         for i in range(len(variance)):
-            if variance.iloc[i, 2] > 70:
+            if variance.cumvar[i] > 70:
                 candidate_npc = i + 1
                 break
     if candidate_npc < nb_min_dim:
