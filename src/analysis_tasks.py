@@ -586,10 +586,20 @@ class AutoPCA(luigi.Task):
         return luigi.LocalTarget(self.outputpath(), format=MixedUnicodeBytes)
 
     def requires(self):
-        return {'variance': VarianceAnalysisTask(self.datarep, self.dsname,
-                                                 self.metadata_type, self.nb_min_dim,
-                                                 self.nb_max_dim, self.features),
-                "metadata": MetadataNormalization(self.datarep, self.dsname,
+        return {'variance': VarianceAnalysisTask(self.datarep,
+                                                 self.dsname,
+                                                 self.metadata_type,
+                                                 self.nb_min_dim,
+                                                 self.nb_max_dim,
+                                                 self.features),
+                "varplot": PlottingVarianceAnalysis(self.datarep,
+                                                    self.dsname,
+                                                    self.metadata_type,
+                                                    self.nb_min_dim,
+                                                    self.nb_max_dim,
+                                                    self.features),
+                "metadata": MetadataNormalization(self.datarep,
+                                                  self.dsname,
                                                   self.metadata_type)}
 
     def run(self):
