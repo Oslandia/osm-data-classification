@@ -84,25 +84,36 @@ def plot_pca_variance(variance_matrix, nb_max_dimension):
 
     Parameters
     ----------
-    varmat: pd.DataFrame
+    variance_matrix: pd.DataFrame
         PCA variance analysis results; contains three columns ('eig', 'varexp'
     and 'cumvar')
     nb_max_dimension: integer
         Maximal number of plotted dimensions
     
     """
-    f, ax = plt.subplots(2,1)
-    ax[0].bar(range(1,1+len(varmat)), varmat['varexp'].values, alpha=0.25, 
-            align='center', label='individual explained variance', color = 'g')
-    ax[0].step(range(1,1+len(varmat)), varmat['cumvar'].values, where='mid',
-             label='cumulative explained variance')
-    ax[0].axhline(70, color="blue", linestyle="dotted")
-    ax[0].legend(loc='best')
-    ax[1].bar(range(1,1+len(varmat)), varmat['eig'].values, alpha=0.25,
-              align='center', label='eigenvalues', color='r')
-    ax[1].axhline(1, color="red", linestyle="dotted")
-    ax[1].legend(loc="best")
-    f.show()
+    varmat = variance_matrix.iloc[:nb_max_dimension].copy()
+    f, ax = plt.subplots(2,2, figsize=(10, 8))
+    ax[0][0].bar(range(1,1+len(varmat)), varmat['varexp'].values, alpha=0.25, 
+            align='center', label='individual', color = 'g')
+    ax[0][0].step(range(1,1+len(varmat)), varmat['cumvar'].values, where='mid',
+             label='cumulative')
+    ax[0][0].axhline(70, color="blue", linestyle="dotted")
+    ax[0][0].set_ylim(0,100)
+    ax[0][0].set_ylabel("Explained variance (%)")
+    ax[0][0].legend(loc='best')
+    ax[1][0].bar(range(1,1+len(varmat)), varmat['eig'].values, alpha=0.25,
+              align='center', color='r')
+    ax[1][0].axhline(1, color="red", linestyle="dotted")
+    ax[1][0].set_xlabel("Number of PCA components")
+    ax[1][0].set_ylabel("Eigenvalues")
+    ax[0][1].bar(range(1,1+len(varmat)), varmat['marginvar'].values, alpha=0.25, 
+            align='center', color = 'g')
+    ax[0][1].set_ylabel("Marginal evolution of explained variance (%)")
+    ax[1][1].bar(range(1,1+len(varmat)), varmat['margineig'].values, alpha=0.25,
+              align='center', color='r')
+    ax[1][1].set_xlabel("Number of PCA components")
+    ax[1][1].set_ylabel("Marginal evolution of eigenvalues")
+    f.tight_layout()
     return f
 
 def plot_cluster_decision(x, y1, y2):
