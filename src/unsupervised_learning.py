@@ -41,22 +41,29 @@ def compute_pca_variance(X):
                            'cumvar': cumvarexp})[['eig','varexp','cumvar']]
     return varmat
 
-def optimal_PCA_components(variance, nb_min_dim, nb_max_dim):
+def optimal_PCA_components(variance, nb_min_dim, nb_max_dim, standard_norm):
     """Return a number of components that is supposed to be optimal,
-    regarding the variance matrix (low eigenvalues, sufficient explained
-    variance threshold)
+    regarding the variance matrix (sufficient explained variance threshold, low
+    eigenvalues when data was normalized in a standard way)
 
     varaince: nd.array
     nb_dim_min: int
     nb_dim_max: int
+    standard_norm: bool
 
     Return the "optimal" number or PCA components
     """
     candidate_npc = 0
-    for i in range(len(variance)):
-        if variance.iloc[i, 0] < 1 or variance.iloc[i, 2] > 80:
-            candidate_npc = i + 1
-            break
+    if standard_norm:
+        for i in range(len(variance)):
+            if variance.iloc[i, 0] < 1 or variance.iloc[i, 2] > 70:
+                candidate_npc = i + 1
+                break
+    else:
+        for i in range(len(variance)):
+            if variance.iloc[i, 2] > 70:
+                candidate_npc = i + 1
+                break
     if candidate_npc < nb_min_dim:
         candidate_npc = nb_min_dim
     if candidate_npc > nb_max_dim:

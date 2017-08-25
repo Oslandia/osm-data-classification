@@ -598,7 +598,7 @@ class AutoPCA(luigi.Task):
         with self.input()['variance'].open() as fobj:
             variance = pd.read_csv(fobj)
         n_components = ul.optimal_PCA_components(variance, self.nb_min_dim,
-                                                 self.nb_max_dim)
+                                                 self.nb_max_dim, False)
         # Data preparation
         if self.metadata_type == "changeset":
             metadata = metadata.set_index(['chgset', 'uid'])
