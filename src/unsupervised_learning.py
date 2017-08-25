@@ -70,7 +70,7 @@ def optimal_PCA_components(variance, nb_min_dim, nb_max_dim, standard_norm):
         candidate_npc = nb_max_dim
     return candidate_npc
 
-def plot_pca_variance(varmat):
+def plot_pca_variance(variance_matrix, nb_max_dimension):
     """Plot the PCA variance analysis: cumulated sum of explained variance as
     well as eigenvalues
 
@@ -79,6 +79,8 @@ def plot_pca_variance(varmat):
     varmat: pd.DataFrame
         PCA variance analysis results; contains three columns ('eig', 'varexp'
     and 'cumvar')
+    nb_max_dimension: integer
+        Maximal number of plotted dimensions
     
     """
     f, ax = plt.subplots(2,1)

@@ -559,7 +559,7 @@ class PlottingVarianceAnalysis(luigi.Task):
     def run(self):
         with self.input().open() as fobj:
             variance = pd.read_csv(fobj)
-        fig = ul.plot_pca_variance(variance)
+        fig = ul.plot_pca_variance(variance, self.nb_max_dim)
         fig.savefig(self.output().path)
 
 
