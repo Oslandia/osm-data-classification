@@ -1,8 +1,8 @@
+-- Index creation
 CREATE INDEX insee_geom_gist
 ON open_data.insee_200_carreau USING GIST(wkb_geometry);
-CREATE INDEX osm_geom_gist
-ON bordeaux_metropole_geomelements USING GIST(way);
 
+-- Table creation with carroyed data
 DROP TABLE IF EXISTS bordeaux_metropole_carroyed_ways;
 CREATE TABLE bordeaux_metropole_carroyed_ways AS (
 SELECT insee.ogc_fid, count(*) AS nb_ways,
