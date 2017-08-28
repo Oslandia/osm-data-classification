@@ -10,7 +10,7 @@ from luigi.format import MixedUnicodeBytes
 
 import analysis_tasks
 
-class OSMTableCreation(lpg.PostgresQuery):
+class OSMElementTableCreation(lpg.PostgresQuery):
     """ Luigi task:
     """
     host = luigi.Parameter("localhost")
@@ -39,3 +39,4 @@ class OSMTableCreation(lpg.PostgresQuery):
                last_ug int
         );
         """.format(table.task_value("", "")))
+
