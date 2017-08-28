@@ -274,7 +274,8 @@ class ElementMetadataExtract(luigi.Task):
         elem_md = utils.extract_elem_metadata(osm_elements, user_kmind,
                                               drop_ts=False)
         with self.output().open('w') as outputflow:
-            elem_md.to_csv(outputflow, date_format='%Y-%m-%d %H:%M:%S')
+            elem_md.to_csv(outputflow, index=False,
+                           date_format='%Y-%m-%d %H:%M:%S')
 
 
 ### OSM Editor analysis ####################################
