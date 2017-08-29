@@ -77,3 +77,29 @@ class OSMElementGeometry(lpg.PostgresQuery):
         connection.commit()
         connection.close()
 
+class OSMElementGeomIndexCreation(lpg.PostgresQuery):
+    datarep = luigi.Parameter("data")
+
+    host = "localhost"
+    database = "osm"
+    user = "rde"
+    password = ""
+    table = luigi.Parameter("bordeaux_metropole_geomelements")
+    query = ""
+
+    def requires(self):
+        return OSMElementGeometry(self.datarep, self.table)
+    
+    def run(self):
+        dataset_name = "_".join(self.table.split("_")[:-1])
+        connection = self.output().connect()
+        cursor = connection.cursor()
+        sql_index_creation = """
+        CREATE INDEX {0}_geom_gist
+        ON {0}_geomelements USING GIST(way);
+        """.format(dataset_name)
+        cursor.execute(sql_index_creation)
+        self.output().touch(connection)
+        connection.commit()
+        connection.close()
+
