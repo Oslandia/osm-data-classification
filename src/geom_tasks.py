@@ -103,3 +103,54 @@ class OSMElementGeomIndexCreation(lpg.PostgresQuery):
         connection.commit()
         connection.close()
 
+class Insee200CarroyedIndexCreation(lpg.PostgresQuery):
+
+    host = "localhost"
+    database = "osm"
+    user = "rde"
+    password = ""
+    table = "open_data.insee_200_carreau"
+    query = """CREATE INDEX insee200carreau_geom_gist
+    ON open_data.insee_200_carreau USING GIST(wkb_geometry);"""
+
+    # def requires(self):
+    #     return Insee200CarroyedTableCreation("open_data", "insee_200_carreau")
+
+class OSMElementGeomCarroying(lpg.PostgresQuery):
+    datarep = luigi.Parameter("data")
+
+    host = "localhost"
+    database = "osm"
+    user = "rde"
+    password = ""
+    table = luigi.Parameter("bordeaux_metropole_geomelements")
+    query = ""
+
+    def requires(self):
+        return{"insee200": Insee200CarroyedIndexCreation(),
+               "geom_elements": OSMElementGeomIndexCreation(self.datarep,
+                                                            self.table)}
+    def run(self):
+        dataset_name = "_".join(self.table.split("_")[:-1])
+        connection = self.output().connect()
+        cursor = connection.cursor()
+        sql_carroying = """
+        DROP TABLE IF EXISTS bordeaux_metropole_carroyed_ways;
+        CREATE TABLE bordeaux_metropole_carroyed_ways
+        AS (
+        SELECT insee.ogc_fid, count(*) AS nb_ways,
+        avg(bm.version) AS avg_version, avg(bm.lifespan) AS avg_lifespan,
+        avg(bm.n_user) AS avg_n_user, avg(bm.n_chgset) AS avg_n_chgset,
+        avg(bm.n_corr) AS avg_n_corr, avg(bm.n_autocorr) AS avg_n_autocorr,
+        insee.wkb_geometry AS geom
+        FROM open_data.insee_200_carreau AS insee
+        JOIN bordeaux_metropole_geomelements AS bm
+        ON ST_Intersects(insee.wkb_geometry, bm.way)
+        GROUP BY insee.ogc_fid
+        );
+        """.format(dataset_name)
+        cursor.execute(sql_carroying)
+        self.output().touch(connection)
+        connection.commit()
+        connection.close()
+
