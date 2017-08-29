@@ -42,3 +42,38 @@ class OSMElementTableCopy(lpg.CopyToTable):
             for line in fobj:
                 data = line.strip('\n').split(',') # the separator is ','
                 yield [data[i] for i in col_indices]
+
+class OSMElementGeometry(lpg.PostgresQuery):
+    datarep = luigi.Parameter("data")
+
+    host = "localhost"
+    database = "osm"
+    user = "rde"
+    password = ""
+    table = luigi.Parameter("bordeaux_metropole_geomelements")
+    query = ""
+
+    def requires(self):
+        element_table_name = self.table.replace("geomelements", "elements")
+        return OSMElementTableCopy(self.datarep, element_table_name)
+        
+    def run(self):
+        dataset_name = "_".join(self.table.split("_")[:-1])
+        connection = self.output().connect()
+        cursor = connection.cursor()
+        sql_geometry_merge = """
+        SELECT l.osm_id, h.first_at, h.lifespan, h.n_activity_days,
+        h.version, h.visible, h.first_ug, h.last_ug, h.n_user, h.n_chgset,
+        h.n_autocorr, h.n_corr, l.way
+        INTO {0}_geomelements
+        FROM {0}_elements as h
+        INNER JOIN {0}_line as l
+        ON h.id = l.osm_id
+        WHERE l.highway IS NOT NULL AND h.elem = 'way'
+        ORDER BY l.osm_id;
+        """.format(dataset_name)
+        cursor.execute(sql_geometry_merge)
+        self.output().touch(connection)
+        connection.commit()
+        connection.close()
+
