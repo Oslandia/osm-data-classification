@@ -13,13 +13,12 @@ import analysis_tasks
 
 class OSMElementTableCopy(lpg.CopyToTable):
     datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
 
     host = "localhost"
     database = "osm"
     user = "rde"
     password = ""
-    table = "_".join([dsname.task_value("", "").replace("-", "_"), "elements"])
+    table = luigi.Parameter("bordeaux_metropole_elements")
     columns = [("elem", "varchar"), ("id", "bigint"),
                ("first_at", "timestamp"), ("last_at", "timestamp"),
                ("lifespan", "float"), ("n_inscription_days", "float"),
@@ -28,7 +27,8 @@ class OSMElementTableCopy(lpg.CopyToTable):
                ("n_corr", "int"), ("visible", "boolean"), ("first_uid", "int"),
                ("last_uid", "int"), ("first_ug", "int"), ("last_ug", "int")]
     def requires(self):
-        return analysis_tasks.ElementMetadataExtract(self.datarep, self.dsname)
+        dataset_name = '-'.join(self.table.split('_')[:-1])
+        return analysis_tasks.ElementMetadataExtract(self.datarep, dataset_name)
 
     def rows(self):
         """
