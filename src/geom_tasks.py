@@ -35,6 +35,10 @@ class OSMElementTableCopy(lpg.CopyToTable):
         Return/yield tuples or lists corresponding to each row to be inserted.
         """
         with self.input().open('r') as fobj:
-            fobj.readline() # Skip the header line
+            header = fobj.readline() # Skip the header line
+            column_names = header.strip('\n').split(',')
+            cols = [column[0] for column in self.columns]
+            col_indices = [column_names.index(c) for c in cols]
             for line in fobj:
-                yield line.strip('\n').split(',') # the separator is ','
+                data = line.strip('\n').split(',') # the separator is ','
+                yield [data[i] for i in col_indices]
