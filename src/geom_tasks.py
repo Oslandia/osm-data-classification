@@ -4,10 +4,15 @@
 OSM metadata and their geometry
 """
 
+import io
 import luigi
 import luigi.contrib.postgres as lpg
 from luigi.format import MixedUnicodeBytes
+import os.path as osp
 import pandas as pd
+import requests
+import subprocess
+import zipfile
 
 import analysis_tasks
 
@@ -102,7 +107,57 @@ class OSMElementGeomIndexCreation(lpg.PostgresQuery):
         self.output().touch(connection)
         connection.commit()
         connection.close()
+        
+class Insee200CarroyedTableCreation(lpg.CopyToTable):
 
+    datarep = luigi.Parameter("data")
+
+    host = "localhost"
+    database = "osm"
+    user = "rde"
+    password = ""
+    scheme = luigi.Parameter("public")
+    table = luigi.Parameter("insee_200m_carroyed")
+
+    def inputpath(self):
+        return osp.join(self.datarep,
+                        "insee",
+                        "200m-carreaux-metropole",
+                        "car_m.dbf")
+        
+    def run(self):
+        if not (self.table):
+            raise Exception("table and needs to be specified")
+
+        if not osp.isdir(osp.join(self.datarep,
+                                  "insee",
+                                  "200m-carreaux-metropole")):
+            # The INSEE data repository does not exist
+            # download it on the file system
+            # alternative data (1km) available at
+            # https://www.insee.fr/fr/statistiques/fichier/1405815/ECP1KM_09_MET.zip
+            print("The INSEE data repository does not exist")
+            r = requests.get("https://www.insee.fr/fr/statistiques/fichier/2520034/200m-carreaux-metropole.zip")
+            z = zipfile.ZipFile(io.BytesIO(r.content))
+            z.extractall(osp.join(self.datarep, "insee"))
+
+        if not osp.isfile(self.inputpath()):
+            raise Exception("{0} file not on the file system...".format(self.inputpath()))
+
+        connection = self.output().connect()
+        
+        shell_command = """
+        pgloader {0} postgresql:///{1}?{2}.{3}""".format(self.inputpath(),
+                                                         self.database,
+                                                         self.scheme,
+                                                         self.table)
+        process = subprocess.Popen(shell_command.split(),
+                                   stdout=subprocess.PIPE)
+        process.communicate()
+        self.output().touch(connection)
+        connection.commit()
+        connection.close()
+                
 class Insee200CarroyedIndexCreation(lpg.PostgresQuery):
 
     datarep = luigi.Parameter("data")
