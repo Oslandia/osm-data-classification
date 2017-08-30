@@ -105,16 +105,21 @@ class OSMElementGeomIndexCreation(lpg.PostgresQuery):
 
 class Insee200CarroyedIndexCreation(lpg.PostgresQuery):
 
+    datarep = luigi.Parameter("data")
+    
     host = "localhost"
     database = "osm"
     user = "rde"
     password = ""
-    table = "open_data.insee_200_carreau"
+    scheme = luigi.Parameter("public")
+    table = "insee_200m_carroyed"
     query = """CREATE INDEX insee200carreau_geom_gist
-    ON open_data.insee_200_carreau USING GIST(wkb_geometry);"""
+    ON insee_200m_carroyed USING GIST(wkb_geometry);"""
 
-    # def requires(self):
-    #     return Insee200CarroyedTableCreation("open_data", "insee_200_carreau")
+    def requires(self):
+        return Insee200CarroyedTableCreation(self.datarep,
+                                             self.scheme,
+                                             self.table)
 
 class OSMElementGeomCarroying(lpg.PostgresQuery):
     datarep = luigi.Parameter("data")
@@ -127,7 +132,8 @@ class OSMElementGeomCarroying(lpg.PostgresQuery):
     query = ""
 
     def requires(self):
-        return{"insee200": Insee200CarroyedIndexCreation(),
+        return{"insee200": Insee200CarroyedIndexCreation(self.datarep,
+                                                         "public"),
                "geom_elements": OSMElementGeomIndexCreation(self.datarep,
                                                             self.table)}
     
