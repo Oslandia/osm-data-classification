@@ -10,6 +10,7 @@ import random
 
 import pandas as pd
 import numpy as np
+import seaborn as sns
 
 from sklearn.metrics import silhouette_score
 
@@ -33,59 +34,87 @@ def compute_pca_variance(X):
     cov_mat = np.cov(X.T)
     eig_vals, eig_vecs = np.linalg.eig(cov_mat)
     eig_vals = sorted(eig_vals, reverse=True)
+    eig_margin = np.diff(eig_vals)
+    eig_margin = list(np.insert(eig_margin, len(eig_margin), np.NaN))
     tot = sum(eig_vals)
     varexp = [(i/tot)*100 for i in eig_vals]
+    var_margin = np.diff(varexp)
+    var_margin = list(np.insert(var_margin, len(var_margin), np.NaN))
     cumvarexp = np.cumsum(varexp)
     varmat = pd.DataFrame({'eig': eig_vals,
+                           'margineig': eig_margin,
                            'varexp': varexp,
-                           'cumvar': cumvarexp})[['eig','varexp','cumvar']]
+                           'cumvar': cumvarexp,
+                           'marginvar': var_margin})[['eig','margineig',
+                                                       'varexp','cumvar',
+                                                       'marginvar']]
     return varmat
 
-def optimal_PCA_components(variance, nb_min_dim, nb_max_dim):
+def optimal_PCA_components(variance, nb_min_dim, nb_max_dim, standard_norm):
     """Return a number of components that is supposed to be optimal,
-    regarding the variance matrix (low eigenvalues, sufficient explained
-    variance threshold)
+    regarding the variance matrix (sufficient explained variance threshold, low
+    eigenvalues when data was normalized in a standard way)
 
     varaince: nd.array
     nb_dim_min: int
     nb_dim_max: int
+    standard_norm: bool
 
     Return the "optimal" number or PCA components
     """
     candidate_npc = 0
-    for i in range(len(variance)):
-        if variance.iloc[i, 0] < 1 or variance.iloc[i, 2] > 80:
-            candidate_npc = i + 1
-            break
+    if standard_norm:
+        for i in range(len(variance)):
+            if variance.eig[i] < 1 or variance.cumvar[i] > 70:
+                candidate_npc = i + 1
+                break
+    else:
+        for i in range(len(variance)):
+            if variance.cumvar[i] > 70:
+                candidate_npc = i + 1
+                break
     if candidate_npc < nb_min_dim:
         candidate_npc = nb_min_dim
     if candidate_npc > nb_max_dim:
         candidate_npc = nb_max_dim
     return candidate_npc
 
-def plot_pca_variance(varmat):
+def plot_pca_variance(variance_matrix, nb_max_dimension):
     """Plot the PCA variance analysis: cumulated sum of explained variance as
     well as eigenvalues
 
     Parameters
     ----------
-    varmat: pd.DataFrame
+    variance_matrix: pd.DataFrame
         PCA variance analysis results; contains three columns ('eig', 'varexp'
     and 'cumvar')
+    nb_max_dimension: integer
+        Maximal number of plotted dimensions
     
     """
-    f, ax = plt.subplots(2,1)
-    ax[0].bar(range(1,1+len(varmat)), varmat['varexp'].values, alpha=0.25, 
-            align='center', label='individual explained variance', color = 'g')
-    ax[0].step(range(1,1+len(varmat)), varmat['cumvar'].values, where='mid',
-             label='cumulative explained variance')
-    ax[0].axhline(70, color="blue", linestyle="dotted")
-    ax[0].legend(loc='best')
-    ax[1].bar(range(1,1+len(varmat)), varmat['eig'].values, alpha=0.25,
-              align='center', label='eigenvalues', color='r')
-    ax[1].axhline(1, color="red", linestyle="dotted")
-    ax[1].legend(loc="best")
-    f.show()
+    varmat = variance_matrix.iloc[:nb_max_dimension].copy()
+    f, ax = plt.subplots(2,2, figsize=(10, 8))
+    ax[0][0].bar(range(1,1+len(varmat)), varmat['varexp'].values, alpha=0.25, 
+            align='center', label='individual', color = 'g')
+    ax[0][0].step(range(1,1+len(varmat)), varmat['cumvar'].values, where='mid',
+             label='cumulative')
+    ax[0][0].axhline(70, color="blue", linestyle="dotted")
+    ax[0][0].set_ylim(0,100)
+    ax[0][0].set_ylabel("Explained variance (%)")
+    ax[0][0].legend(loc='best')
+    ax[1][0].bar(range(1,1+len(varmat)), varmat['eig'].values, alpha=0.25,
+              align='center', color='r')
+    ax[1][0].axhline(1, color="red", linestyle="dotted")
+    ax[1][0].set_xlabel("Number of PCA components")
+    ax[1][0].set_ylabel("Eigenvalues")
+    ax[0][1].bar(range(1,1+len(varmat)), varmat['marginvar'].values, alpha=0.25, 
+            align='center', color = 'g')
+    ax[0][1].set_ylabel("Marginal evolution of explained variance (%)")
+    ax[1][1].bar(range(1,1+len(varmat)), varmat['margineig'].values, alpha=0.25,
+              align='center', color='r')
+    ax[1][1].set_xlabel("Number of PCA components")
+    ax[1][1].set_ylabel("Marginal evolution of eigenvalues")
+    f.tight_layout()
     return f
 
 def plot_cluster_decision(x, y1, y2):
@@ -112,7 +141,7 @@ def plot_cluster_decision(x, y1, y2):
     plt.tight_layout()
     return f
 
-def elbow_derivation(elbow, nbmin_clusters):
+def elbow_derivation(elbow):
     """Compute a proxy of the elbow function derivative to automatically
     extract the optimal number of cluster; this number must be higher that nbmin_clusters
 
@@ -120,16 +149,11 @@ def elbow_derivation(elbow, nbmin_clusters):
     ----------
     elbow: list
         contains value of the elbow function for each number of clusters
-    nbmin_clusters: integer
-        lower bound of the number of clusters
 
     """
     elbow_deriv = [0]
     for i in range(1, len(elbow)-1):
-        if i < nbmin_clusters:
-            elbow_deriv.append(0)
-        else:
-            elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
+        elbow_deriv.append(elbow[i+1]+elbow[i-1]-2*elbow[i])
     return elbow_deriv
 
 def one_feature_contribution(component_detail):
@@ -177,8 +201,8 @@ def plot_feature_contribution(data):
     f, ax = plt.subplots(figsize=(10,12))
     sns.heatmap(data, annot=True, fmt='.3f', ax=ax)
     plt.yticks(rotation=0)
-    plt.tight_layout()
-    plt.show()
+    f.tight_layout()
+    return f
     
 def split_md_features(ft_names, element_type_splitting=True):
     """Split the metadata column into several types of features, e.g. quantity,
@@ -278,7 +302,7 @@ def correlation_circle(pcavar, pcaind=None, pattern='', nb_comp=2, threshold=0.1
         ax_.set_ylim((-1.1, 1.1))
     plt.legend(["Individuals"], loc=0)
     plt.tight_layout()
-    plt.show()
+    return f
 
 def contrib_barplot(data, best=10):
     """Highlight best PCA contributors (either features or individuals), by
@@ -374,8 +398,7 @@ def plot_individual_contribution(data, nb_comp=2, explained=None, best=None,
         ax_.set_xlabel(x_column)
         ax_.set_ylabel(y_column)
     plt.tight_layout()
-    plt.show()
-
+    return f
 
 def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
     """Try to find the optimal number of KMeans clusters.
@@ -389,6 +412,8 @@ def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
         shape (Nclusters, Ncols)
     labels: list of nd.array
         shape (Nrows, )
+    nbmin_clusters: integer
+        minimal number of clusters
 
     Return the "optimal" number of clusters
     """
@@ -397,9 +422,8 @@ def compute_nb_clusters(features, centers, labels, nbmin_clusters=3):
         # compute the inertia
         inertia = np.sum((feature - center[label]) ** 2, dtype=np.float64)
         scores.append(inertia)
-    elbow_deriv = elbow_derivation(scores, nbmin_clusters)
-    return 1 + elbow_deriv.index(max(elbow_deriv))
-
+    elbow_deriv = elbow_derivation(scores)
+    return nbmin_clusters + elbow_deriv.index(max(elbow_deriv))
 
 def kmeans_elbow_silhouette(features, centers, labels,
                             nbmin_clusters, nbmax_clusters):
