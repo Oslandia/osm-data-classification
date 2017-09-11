@@ -1,5 +1,7 @@
 # OpenStreetMap Data Quality based on the Contributions History
 
+ [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Working with community-built data as [OpenStreetMap](https://openstreetmap.org)
 forces to take care of data quality. We have to be confident with the data we
 work with. Is this road geometry accurate enough? Is this street name missing?
