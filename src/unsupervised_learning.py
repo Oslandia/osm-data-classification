@@ -19,6 +19,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+MAX_USER_SILHOUETTE = 2000 # Max user amount to compute cluster silhouette
 
 def compute_pca_variance(X):
     """Compute the covariance matrix of X and the associated eigen values to
@@ -447,16 +448,21 @@ def kmeans_elbow_silhouette(features, centers, labels,
         inertia = np.sum((feature - center[label]) ** 2, dtype=np.float64)
         scores.append(inertia)
         silhouette_avg = []
+        max_user = (int(.5 * len(feature))
+                    if .5 * len(feature) < MAX_USER_SILHOUETTE
+                    else MAX_USER_SILHOUETTE)
         for k in range(10):
-            s = random.sample(range(len(feature)), 2000)
+            s = random.sample(range(len(feature)), max_user)
             Xsampled = feature[s]
             Csampled = label[s]
             while(len(np.unique(Csampled)) == 1):
-                s = random.sample(range(len(feature)), 2000)
+                s = random.sample(range(len(feature)), max_user)
                 Xsampled = feature[s]
                 Csampled = label[s]
             silhouette_avg.append(silhouette_score(X=Xsampled,
                                                    labels=Csampled))
         silhouette.append(silhouette_avg)
+        print("kmeans scores length: {}, silhouette length: {}".format(len(scores), len(silhouette)))
+        print("between {} and {} clusters".format(nbmin_clusters, nbmax_clusters + 1))
     return plot_cluster_decision(range(nbmin_clusters, nbmax_clusters + 1),
                                  scores, silhouette)
