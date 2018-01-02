@@ -108,7 +108,7 @@ Launch
 
 or
 
-`python3 -m luigi --locale-scheduler --module analysis_tasks AutoKMeans --dsname region`
+`python3 -m luigi --local-scheduler --module analysis_tasks AutoKMeans --dsname region`
 
 `dsname` mean "dataset name". It must have the same name as your `*.osh.pbf`
 file.
