@@ -54,6 +54,9 @@ the [Greater London page](http://download.geofabrik.de/europe/great-britain/engl
 you can download the
 file [greater-london.osh.pbf](http://download.geofabrik.de/europe/great-britain/england/greater-london.osh.pbf).
 
+**Warning:** Since GDPR, Geofabrik has modified its API. You have to be logged
+in to the website with your OSM contributor account to download `osh.pbf` files, as OSM history files contain some private informations about OSM contributors.
+
 ### Organize your output data directories
 
 Create a `data` directory and some subdirs elsewhere. The data processing should
