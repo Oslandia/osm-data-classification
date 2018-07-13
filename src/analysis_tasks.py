@@ -292,7 +292,8 @@ class TopMostUsedEditors(luigi.Task):
             format=UTF8)
 
     def run(self):
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname),
+                  encoding="utf-8") as fobj:
             user_editor = pd.read_csv(fobj, header=None, names=['uid', 'value', 'num'])
         # extract the unique editor name aka fullname
         user_editor['fullname'] = user_editor['value'].apply(editor_name)
@@ -316,7 +317,8 @@ class EditorCountByUser(luigi.Task):
         return TopMostUsedEditors(self.datarep)
 
     def run(self):
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname)) as fobj:
+        with open(osp.join(self.datarep, OUTPUT_DIR, self.editor_fname),
+                  encoding="utf-8") as fobj:
             user_editor = pd.read_csv(fobj, header=None,
                                       names=['uid', 'value', 'num'])
         # extract the unique editor name aka fullname
@@ -361,7 +363,9 @@ class AddExtraInfoUserMetadata(luigi.Task):
             users = pd.read_csv(fobj, index_col=0)
         with self.input()['editor_count_by_user'].open() as fobj:
             user_editor = pd.read_csv(fobj)
-        with open(osp.join(self.datarep, OUTPUT_DIR, self.total_user_changeset_fname)) as fobj:
+        with open(osp.join(self.datarep, OUTPUT_DIR,
+                           self.total_user_changeset_fname),
+                  encoding="utf-8") as fobj:
             changeset_count_users = pd.read_csv(fobj, header=None,
                                                 names=['uid', 'num'])
         users = utils.add_chgset_metadata(users, changeset_count_users)
