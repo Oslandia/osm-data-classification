@@ -5,7 +5,7 @@
 
 import json
 import os.path as osp
-from datetime import datetime
+from datetime import datetime, date
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
@@ -31,9 +31,9 @@ class OSMChronology(luigi.Task):
     """ Luigi task: evaluation of OSM element historical evolution
     """
     datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    start_date = luigi.Parameter('2006-01-01')
-    end_date = luigi.Parameter('2017-01-01')
+    dsname = luigi.Parameter()
+    start_date = luigi.DateParameter(default=date(2006, 1, 1))
+    end_date = luigi.DateParameter(default=date.today())
 
     def outputpath(self):
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "chronology.csv")
@@ -251,7 +251,7 @@ class ElementMetadataExtract(luigi.Task):
     """ Luigi task: extraction of metadata for each OSM element
     """
     datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
+    dsname = luigi.Parameter()
 
     def outputpath(self):
         return osp.join(self.datarep, OUTPUT_DIR, self.dsname, "element-metadata.csv")
@@ -966,7 +966,7 @@ class PlottingClusteredIndiv(luigi.Task):
 
     """
     datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
+    dsname = luigi.Parameter()
     metadata_type = luigi.Parameter("user")
     nb_min_dim = luigi.parameter.IntParameter(3)
     nb_max_dim = luigi.parameter.IntParameter(12)

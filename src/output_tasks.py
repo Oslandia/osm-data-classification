@@ -4,6 +4,7 @@
 """
 
 import os.path as osp
+from datetime import date
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
@@ -13,9 +14,9 @@ import analysis_tasks
 class OSMTagMetaAnalysis(luigi.Task):
     """ Luigi task: generic task that implements the tag meta-analysis
     """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    
+    datarep = luigi.Parameter(default="data")
+    dsname = luigi.Parameter()
+
     def requires(self):
         yield analysis_tasks.OSMTagCount(self.datarep, self.dsname)
         yield analysis_tasks.OSMTagKeyCount(self.datarep, self.dsname)
@@ -26,16 +27,16 @@ class OSMTagMetaAnalysis(luigi.Task):
 class MasterTask(luigi.Task):
     """ Luigi task: generic task that launches every final tasks
     """
-    datarep = luigi.Parameter("data")
-    dsname = luigi.Parameter("bordeaux-metropole")
-    select_param = luigi.Parameter('manual')
+    datarep = luigi.Parameter(default="data")
+    dsname = luigi.Parameter()
+    select_param = luigi.Parameter(default='manual')
+    end_date = luigi.DateParameter(default=date.today())
 
     def requires(self):
         yield analysis_tasks.ElementMetadataExtract(self.datarep, self.dsname)
         yield analysis_tasks.OSMChronology(self.datarep, self.dsname,
-                            '2006-01-01', '2017-06-01')
+                                           end_date=self.end_date)
         yield analysis_tasks.PlottingClusteredIndiv(self.datarep, self.dsname)
- 
+
     def complete(self):
         return False
-
