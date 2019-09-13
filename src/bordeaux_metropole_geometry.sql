@@ -1,3 +1,4 @@
+-- Step 1: element table creation
 DROP TABLE IF EXISTS bordeaux_metropole_elements;
 DROP TABLE IF EXISTS bordeaux_metropole_geomelements;
 CREATE TABLE bordeaux_metropole_elements(
@@ -19,9 +20,10 @@ CREATE TABLE bordeaux_metropole_elements(
        last_user_group int
 );
 
+-- Step 2: element table populating
 COPY bordeaux_metropole_elements FROM '/home/rde/data/osm-history/output-extracts/bordeaux-metropole/bordeaux-metropole-elem-md.csv' WITH(FORMAT CSV, HEADER, QUOTE '"');
 
-
+-- Step 3: merging with bordeaux_metropole_line to get geometries
 SELECT l.osm_id, h.first_at, h.lifespan, h.lifecycle, h.n_activity_days,
 h.version, h.visible,
 h.first_user_group, h.last_user_group,
@@ -32,3 +34,7 @@ INNER JOIN bordeaux_metropole_line as l
 ON h.osm_id = l.osm_id 
 WHERE l.highway IS NOT NULL AND h.elem = 'way'
 ORDER BY l.osm_id;
+
+-- Step 4: index creation
+CREATE INDEX osm_geom_gist
+ON bordeaux_metropole_geomelements USING GIST(way);
