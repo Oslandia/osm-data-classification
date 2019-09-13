@@ -6,14 +6,16 @@ Some utility functions aiming to analyse OSM data
 """
 
 import datetime as dt
-import pandas as pd
-import numpy as np
 from datetime import timedelta
 import re
 import math
+
+import numpy as np
+import pandas as pd
 import statsmodels.api as sm
 
-from extract_user_editor import editor_name
+from osmdq.extract_user_editor import editor_name
+
 
 ### OSM data exploration ######################
 def updatedelem(data):

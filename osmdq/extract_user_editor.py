@@ -86,7 +86,7 @@ def get_top_editor(editor_summary):
     """
     data = (editor_summary.to_frame()
             .reset_index()
-            .rename_axis({"uid": "num"}, axis=1))
+            .rename({"uid": "num"}, axis=1))
     data['ratio'] = data['num'] / data['num'].sum() * 100.
     data['cumulative'] = data['ratio'].cumsum()
     return data

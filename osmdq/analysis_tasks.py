@@ -9,20 +9,18 @@ from datetime import datetime
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
-
-import pandas as pd
 import numpy as np
-
-from sklearn.preprocessing import RobustScaler
-from sklearn.decomposition import PCA
+import pandas as pd
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from sklearn.metrics import silhouette_score
+from sklearn.preprocessing import RobustScaler
 
-import data_preparation_tasks
-from extract_user_editor import editor_count, get_top_editor, editor_name
-import tagmetanalyse
-import unsupervised_learning as ul
-import utils
+from osmdq import data_preparation_tasks
+from osmdq.extract_user_editor import editor_count, get_top_editor, editor_name
+from osmdq import tagmetanalyse
+from osmdq import unsupervised_learning as ul
+from osmdq import utils
 
 OUTPUT_DIR = 'output-extracts'
 

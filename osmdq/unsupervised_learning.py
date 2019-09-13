@@ -8,10 +8,9 @@ import math
 import re
 import random
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 import seaborn as sns
-
 from sklearn.metrics import silhouette_score
 
 import matplotlib
@@ -19,7 +18,9 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
+
 MAX_USER_SILHOUETTE = 2000 # Max user amount to compute cluster silhouette
+
 
 def compute_pca_variance(X):
     """Compute the covariance matrix of X and the associated eigen values to

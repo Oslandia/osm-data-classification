@@ -7,15 +7,15 @@ import os.path as osp
 
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-import osmparsing
-import utils
+from osmdq import osmparsing
+from osmdq import utils
 
 
 OUTPUT_DIR = 'output-extracts'

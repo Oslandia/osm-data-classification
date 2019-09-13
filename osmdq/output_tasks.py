@@ -8,7 +8,7 @@ import os.path as osp
 import luigi
 from luigi.format import MixedUnicodeBytes, UTF8
 
-import analysis_tasks
+from osmdq import analysis_tasks
 
 class OSMTagMetaAnalysis(luigi.Task):
     """ Luigi task: generic task that implements the tag meta-analysis

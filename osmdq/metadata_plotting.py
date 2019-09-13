@@ -14,7 +14,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-import utils
+from osmdq import utils
 
 def md_scatter(metadata_x, metadata_y):
     """Draw a scatter plot from metadata features

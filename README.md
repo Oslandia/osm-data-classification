@@ -16,20 +16,20 @@ There are a serie of articles on
 the [Oslandia's blog site](http://oslandia.com/en/category/data/) which deal
 with this topic. Theses articles are also in the `articles` folder.
 
-## Dependencies
+## How to install
 
-Works with Python 3
+This projects runs with Python3, every dependencies are managed
+through [poetry](https://poetry.eustace.io/).
 
-* pyosmium
-* luigi
-* pandas
-* statsmodels
-* scikit-learn
-* matplotlib
-* seaborn
+### Installation from source
 
-There is a `requirements.txt` file. Thus, do `pip install -r requirements.txt`
-from a virtual environment.
+```
+$ git clone git@github.com:Oslandia/osm-data-classification.git
+$ cd osm-data-classification
+$ virtualenv -p /usr/bin/python3 venv
+$ source venv/bin/activate
+(venv)$ poetry install
+```
 
 ## How does it work?
 
@@ -45,6 +45,7 @@ The purpose of the PCA **is not** to reduce the dimension (you have less than
 important ones.
 
 ## Running
+
 ### Get some history data
 
 You can get some history data for a specific world region

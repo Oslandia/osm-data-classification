@@ -8,6 +8,7 @@ import requests
 import re
 import pandas as pd
 
+
 ########################################
 def elemvisibility(data, elemtype, samplesize=1000):
     elemsamp = data[['id','visible']].sample(samplesize)
