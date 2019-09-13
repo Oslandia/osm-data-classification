@@ -5,16 +5,18 @@ OSM metadata and their geometry
 """
 
 import io
-import luigi
-import luigi.contrib.postgres as lpg
-from luigi.format import MixedUnicodeBytes
 import os.path as osp
-import pandas as pd
-import requests
 import subprocess
 import zipfile
 
-import analysis_tasks
+import luigi
+import luigi.contrib.postgres as lpg
+from luigi.format import MixedUnicodeBytes
+import pandas as pd
+import requests
+
+from osmdq import analysis_tasks
+
 
 class OSMElementTableCopy(lpg.CopyToTable):
     datarep = luigi.Parameter("data")
