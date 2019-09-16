@@ -159,3 +159,7 @@ See http://planet.openstreetmap.org/planet/changesets-latest.osm.bz2
 * Group each user by editors and changesets thanks with [dask](https://github.com/dask/dask)
 
 **TODO** : write the "how to"
+
+## Who uses this project?
+
+* A thesis about [Quality Assessment of Volunteered Geographic Information: An Investigation into the Ottawa-Gatineau OpenStreetMap Database](https://curve.carleton.ca/fb66a114-871d-4cac-bfb1-092a65a28ccc) by @ktjaco
