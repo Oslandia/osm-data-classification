@@ -55,27 +55,27 @@ if __name__ == '__main__':
     import os
     import argparse
 
-    dask.config.set(num_workers=8)
-
     parser = argparse.ArgumentParser()
     parser.add_argument('analyze', help='type of the analyze: changeset or editor', type=str, choices=("changeset", "editor"))
     parser.add_argument('-i', '--input', required=True, help='name of the input csv file (changesets history)')
     parser.add_argument('-o', '--output', help='name of the output file')
+    parser.add_argument('--blocksize', type=int, default=500, help='Blocksize of chunk (Dask) in MB')
+    parser.add_argument('--num-workers', type=int, default=8, help='Number of workers (Dask)')
     args = parser.parse_args()
 
+    dask.config.set(num_workers=args.num_workers)
+
     analyze = args.analyze
-    # if analyze not in ['changeset', 'editor']:
-        # raise ValueError("wrong analyze name: 'changeset' or 'editor'")
 
     if args.output is None:
         outpath = os.path.join('./data', 'output-extracts', 'all-' + analyze  + 's-by-user.csv')
 
     if not os.path.isfile(args.input):
         print("The file '{}' does not exist.".format(args.input))
-        parser.exit(0)
+        parser.exit(1)
 
     print("dask read the CSV '{}'".format(args.input))
-    blocksize = 500e6  # 500MB chunks
+    blocksize = args.blocksize * 1e6  # chunks in MB
     data = dd.read_csv(args.input, blocksize=blocksize, dtype=DTYPE)
 
     print("data processing")
