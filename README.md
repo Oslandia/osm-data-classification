@@ -90,7 +90,7 @@ because:
 - you should have a large amount of RAM
 
 Thus, you can get these two CSV files in the `user-data` folder and copy them
-into your `data/output-extracts` directory (date of download: 17/10/30).
+into your `data/output-extracts` directory (latest date of download: 2019-09).
 
 See also the *I want to parse the changesets.osm file* section.
 
@@ -156,10 +156,89 @@ Open the [results analysis notebook](./demo/results-analysis.ipynb) to have an i
 
 See http://planet.openstreetmap.org/planet/changesets-latest.osm.bz2 (up-to-date changeset data).
 
-* Convert the file into a huge CSV file
-* Group each user by editors and changesets thanks with [dask](https://github.com/dask/dask)
+1. Download the latest changesets files `changesets-latest.osm.bz2`
+2. `bunzip2 changesets-latest.osm.bz2` to decompress the file. It can be a quite long.
 
-**TODO** : write the "how to"
+This file is a XML file (>30Gb) which looks like
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<osm license="http://opendatacommons.org/licenses/odbl/1-0/" copyright="OpenStreetMap and contributors" version="0.6" generator="planet-dump-ng 1.1.6" attribution="http://www.openstreetmap.org/copyright" timestamp="2019-09-08T23:59:49Z">
+ <bound box="-90,-180,90,180" origin="http://www.openstreetmap.org/api/0.6"/>
+ <changeset id="1" created_at="2005-04-09T19:54:13Z" closed_at="2005-04-09T20:54:39Z" open="false" user="Steve" uid="1" min_lat="51.5288506" min_lon="-0.1465242" max_lat="51.5288620" max_lon="-0.1464925" num_changes="2" comments_count="11"/>
+ <changeset id="2" created_at="2005-04-17T14:45:48Z" closed_at="2005-04-17T15:51:14Z" open="false" user="nickw" uid="94" min_lat="51.0025063" min_lon="-1.0052705" max_lat="51.0047760" max_lon="-0.9943439" num_changes="11" comments_count="2"/>
+ <changeset id="3" created_at="2005-04-17T19:32:55Z" closed_at="2005-04-17T20:33:51Z" open="false" user="nickw" uid="94" min_lat="51.5326805" min_lon="-0.1566335" max_lat="51.5333176" max_lon="-0.1541054" num_changes="7" comments_count="0"/>
+ <changeset id="4" created_at="2005-04-18T15:12:25Z" closed_at="2005-04-18T16:12:45Z" open="false" user="sxpert" uid="143" min_lat="51.5248871" min_lon="-0.1485492" max_lat="51.5289383" max_lon="-0.1413791" num_changes="5" comments_count="0"/>
+ <changeset id="5" created_at="2005-04-19T22:06:51Z" closed_at="2005-04-19T23:10:02Z" open="false" user="nickw" uid="94" min_lat="51.5266800" min_lon="-0.1418076" max_lat="51.5291901" max_lon="-0.1411505" num_changes="3" comments_count="0"/>
+
+...
+
+ <changeset id="74238743" created_at="2019-09-08T23:59:21Z" closed_at="2019-09-08T23:59:23Z" open="false" user="felipeedwards" uid="337684" min_lat="-34.6160090" min_lon="-55.8347627" max_lat="-34.5975123" max_lon="-55.8167882" num_changes="10" comments_count="0">
+  <tag k="import" v="yes"/>
+  <tag k="source" v="Uruguay AGESIC 2018"/>
+  <tag k="comment" v="Importación de datos de direcciones AGESIC 2019 #Kaart-TM-351 Ruta 11 José Batlle y Ordóñez"/>
+  <tag k="hashtags" v="#Kaart-TM-351"/>
+  <tag k="created_by" v="JOSM/1.5 (15238 es)"/>
+ </changeset>
+ <changeset id="74238744" created_at="2019-09-08T23:59:49Z" open="true" user="kz4" uid="8587542" min_lat="37.1581344" min_lon="29.6576262" max_lat="37.1690847" max_lon="29.6774139" num_changes="6" comments_count="0">
+  <tag k="host" v="https://www.openstreetmap.org/edit"/>
+  <tag k="locale" v="en-US"/>
+  <tag k="comment" v="Added speed limit"/>
+  <tag k="created_by" v="iD 2.15.5"/>
+  <tag k="imagery_used" v="Maxar Premium Imagery (Beta)"/>
+  <tag k="changesets_count" v="9150"/>
+ </changeset>
+</osm>
+```
+
+You must have the user id `uid` for each changeset. Most of the time, you'll have the
+`created_by` key with the name of the editor, e.g. iD, JOSM, etc. with its version.
+
+3. Run the script `extract-changesets.py` to turn the XML data into a CSV file
+   (>32Gb), e.g.
+
+   ```
+   > path/to/osmdq/extract-changesets.py changesets-latest.osm changesets-latest.csv
+   ```
+
+   There will be one line by key/value pair for each changeset.
+
+
+      id | created | uid | min_lat | min_lon | max_lat | max_lon | num_changes | comments | key | value
+   --------|--------|--------|--------|--------|--------|--------|--------|--------|--------|--------
+   53344191 | 2017-10-29T15:03:03Z | 2130431 | 60.6909827 | 16.2826338 | 60.8337425 | 16.3889430 | 600 | 0 | "comment" | "Added roads and lakes from Bing"
+   53344191 | 2017-10-29T15:03:03Z | 2130431 | 60.6909827 | 16.2826338 | 60.8337425 | 16.3889430 | 600 | 0 | "created_by" | "iD 2.4.3"
+   55673783 | 2018-01-23T05:50:50Z | 6401144 | 53.4504430 | 49.5804026 | 53.4504430 | 49.5804026 | 1 | 0 | "comment" | "Edit Resort."
+   55673783 | 2018-01-23T05:50:50Z | 6401144 | 53.4504430 | 49.5804026 | 53.4504430 | 49.5804026 | 1 | 0 | "created_by" | "OsmAnd+ 2.8.2"
+   55673784 | 2018-01-23T05:51:10Z | 6892267 | 9.9459612 | 8.8879152 | 9.9469054 | 8.8917745 | 1 | 0 | "source" | "Bing"
+   55673784 | 2018-01-23T05:51:10Z | 6892267 | 9.9459612 | 8.8879152 | 9.9469054 | 8.8917745 | 1 | 0 | "comment" | "changed classification from tertiary to residential"
+   55673784 | 2018-01-23T05:51:10Z | 6892267 | 9.9459612 | 8.8879152 | 9.9469054 | 8.8917745 | 1 | 0 | "created_by" | "JOSM/1.5 (13053 en)"
+
+   If you read this file with pandas, you should have at least +50Gb RAM. But you can
+   use [dask](https://github.com/dask/dask) which allows you to process in parallel the data
+   without loading all the data.
+
+4. To group each user by editor and changeset thanks with
+   [dask](https://github.com/dask/dask), run the script `process-changesets-user-history.py`
+
+   ```
+   > python path/to/osmdq/process-changesets-user-history.py -i changesets-latest.csv -o all-editors-by-user.csv editor
+   > python path/to/osmdq/process-changesets-user-history.py -i changesets-latest.csv -o all-changesets-by-user.csv changeset
+   ```
+
+   We don't add dask as a dependency of this project for this few Python scripts. If
+   you want to run the 'process' script, you can install dask, cloudpickle, toolz and
+   ffspec packages in a dedicated virtualenv. If the script does not fit your memory,
+   check the `blocksize` and `num_workers` arguments of the `dd.read_csv` and
+   `dask.config.set` functions respectively and adjust them.
+
+5. The `all-editors-by-user.csv` file contains a lot of multiple lines by user
+   according to different editors and its several versions. You can transform these
+   data to another CSV where you have one column by editor (without the version).
+
+   ```
+   > python path/to/osmdq/extract_user_editor.csv all-editors-by-user.csv editors-count-by-user.csv
+   ```
 
 ## Who uses this project?
 
