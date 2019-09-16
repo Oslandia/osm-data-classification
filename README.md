@@ -28,6 +28,7 @@ $ git clone git@github.com:Oslandia/osm-data-classification.git
 $ cd osm-data-classification
 $ virtualenv -p /usr/bin/python3 venv
 $ source venv/bin/activate
+(venv)$ pip install poetry
 (venv)$ poetry install
 ```
 
@@ -88,8 +89,8 @@ because:
 - the processing can be a quite long
 - you should have a large amount of RAM
 
-Thus, you can get these two CSV files in the `osm-user-data` and copy them into
-your `data/output-extracts` directory.
+Thus, you can get these two CSV files in the `user-data` folder and copy them
+into your `data/output-extracts` directory (date of download: 17/10/30).
 
 See also the *I want to parse the changesets.osm file* section.
 
@@ -106,7 +107,7 @@ data/output-extracts/all-changesets-by-user.csv
 data/output-extracts/all-editors-by-user.csv
 ```
 
-Launch
+In the virtual environment, launch:
 
 `luigi --local-scheduler --module analysis_tasks AutoKMeans --dsname region`
 
@@ -153,7 +154,7 @@ Open the [results analysis notebook](./demo/results-analysis.ipynb) to have an i
 
 ## I want to parse the changesets.osm file
 
-See http://planet.openstreetmap.org/planet/changesets-latest.osm.bz2
+See http://planet.openstreetmap.org/planet/changesets-latest.osm.bz2 (up-to-date changeset data).
 
 * Convert the file into a huge CSV file
 * Group each user by editors and changesets thanks with [dask](https://github.com/dask/dask)
