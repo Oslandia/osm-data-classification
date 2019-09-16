@@ -218,7 +218,7 @@ You must have the user id `uid` for each changeset. Most of the time, you'll hav
    use [dask](https://github.com/dask/dask) which allows you to process in parallel the data
    without loading all the data.
 
-4. To group each user by editor and changeset thanks with
+4. To group each user by editor and changeset thanks to
    [dask](https://github.com/dask/dask), run the script `process-changesets-user-history.py`
 
    ```
@@ -232,9 +232,9 @@ You must have the user id `uid` for each changeset. Most of the time, you'll hav
    check the `blocksize` and `num_workers` arguments of the `dd.read_csv` and
    `dask.config.set` functions respectively and adjust them.
 
-5. The `all-editors-by-user.csv` file contains a lot of multiple lines by user
-   according to different editors and its several versions. You can transform these
-   data to another CSV where you have one column by editor (without the version).
+5. The `all-editors-by-user.csv` file contains information about the user favorite
+   editors (and their associated versions). You can transform these data to another
+   CSV where you have one column by editor (without the version).
 
    ```
    > python path/to/osmdq/extract_user_editor.csv all-editors-by-user.csv editors-count-by-user.csv
